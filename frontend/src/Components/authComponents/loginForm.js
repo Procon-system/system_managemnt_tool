@@ -4,9 +4,10 @@ import { useDispatch } from 'react-redux';
 import { login } from '../../Store/authSlice';
 import { loginUser } from '../../Services/authService';
 import FormInput from './inputForm';
-
+import { useNavigate } from 'react-router-dom';
 const LoginForm = () => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
       email: '',
       password: '',
@@ -31,7 +32,9 @@ const LoginForm = () => {
         // Dispatch login action to update Redux state
         dispatch(login({ user, token }));
   
-        // Optionally redirect or display a success message
+       
+        // Redirect to the home page after successful login
+        navigate('/home');
       } catch (error) {
         console.error('Login error:', error.response.data.error);
         // Handle error (show a notification, etc.)

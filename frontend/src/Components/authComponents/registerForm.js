@@ -4,9 +4,11 @@ import { useDispatch } from 'react-redux';
 import { login } from '../../Store/authSlice';
 import { registerUser } from '../../Services/authService';
 import FormInput from './inputForm';
+import { useNavigate } from 'react-router-dom';
 
 const RegisterForm = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -31,6 +33,8 @@ const RegisterForm = () => {
         const { user, token } = response;
         dispatch(login({ user, token }));
         console.log('Registration successful:', user);
+        // Redirect to the login page after successful registration
+        navigate('/login');
       } else {
         console.error('Unexpected response structure:', response);
       }
