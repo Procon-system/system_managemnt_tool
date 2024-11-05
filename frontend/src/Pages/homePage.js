@@ -3,7 +3,7 @@ import EventCalendarWrapper from '../Helper/EventCalendarWrapper';
 
 const HomePage = () => {
   const [events, setEvents] = useState([
-    { id: '1', title: 'Meeting', start: '2024-11-02T10:00:00', end: '2024-11-02T11:00:00', color: 'green' },
+    { id: '1', title: 'Meeting', start: '2024-11-07T10:00:00', end: '2024-11-07T11:00:00', color: 'green' },
     // Add more initial events here
   ]);
 

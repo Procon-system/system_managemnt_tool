@@ -1,4 +1,4 @@
-// src/components/RegisterForm.js
+
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { login } from '../../Store/authSlice';
@@ -33,12 +33,10 @@ const LoginForm = () => {
         dispatch(login({ user, token }));
   
        
-        // Redirect to the home page after successful login
-        navigate('/home');
+            navigate('/home');
       } catch (error) {
         console.error('Login error:', error.response.data.error);
-        // Handle error (show a notification, etc.)
-      }
+           }
     };
   
   return (
