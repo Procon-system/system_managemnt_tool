@@ -35,6 +35,16 @@ const userSchema = new mongoose.Schema({
     min:1,
     max:5,
   },
+  confirmationCode: {
+    type: String,
+    allowNull: true,
+    defaultValue: "null",
+  },
+  isConfirmed: {
+    type: Boolean,
+    allowNull: false,
+    defaultValue: false,
+  },
   created_at:{
     type:Date,
     default:Date.now,

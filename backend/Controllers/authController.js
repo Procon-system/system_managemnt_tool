@@ -1,4 +1,4 @@
-const { registerUser ,loginUser,logoutUser} = require('../Services/authService');
+const { registerUser ,loginUser,logoutUser,confirmEmail,forgotPassword,resetPassword} = require('../Services/authService');
 const registerController = async (req, res) => {
   try {
     const { email, password, last_name, first_name, personal_number, working_group, access_level } = req.body;
@@ -24,8 +24,7 @@ const registerController = async (req, res) => {
     res.status(201).json({
       success: true,
       user,
-      token,
-      message: "User registered successfully.",
+      message: "Please confirm/verify your email.",
     });
   } catch (err) {
     if (err.message === "User already exists with this email") {
@@ -75,6 +74,43 @@ const loginController = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+async function confirmEmailController(req, res) {
+  const { confirmationCode } = req.params;
+  try {
+    const result = await confirmEmail(confirmationCode);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+}
+
+async function forgotPasswordController(req, res) {
+  const { email } = req.body;
+  try {
+    const { token, id } = await forgotPassword(email);
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    res.status(200).json({ msg: "Verify with the link", token, id });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}
+
+async function resetPasswordController(req, res) {
+  const { id, token } = req.params;
+  const { password } = req.body;
+  try {
+    const result = await resetPassword(id, token, password);
+    res.status(200).json(result);
+  } catch (error) {
+    console.log("error",error)
+    res.status(400).json({ error: error.message });
+  }
+}
+
 const logoutController = async (req, res)=>{
     try{
       
@@ -93,5 +129,12 @@ const logoutController = async (req, res)=>{
   }
     
 }
-module.exports = { registerController,loginController ,logoutController};
+module.exports = { 
+  registerController,
+  loginController ,
+  logoutController,
+  confirmEmailController,
+  forgotPasswordController,
+  resetPasswordController
+};
 

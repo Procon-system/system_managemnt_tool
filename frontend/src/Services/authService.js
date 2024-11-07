@@ -17,10 +17,47 @@ export const registerUser = async (userData) => {
   };
 
 export const loginUser = async (credentials) => {
-    const response = await axios.post(`${API_URL}/login`, credentials);
+   try{
+     const response = await axios.post(`${API_URL}/login`, credentials);
     return response.data;
+  } catch (error) {
+    if (error.response && error.response.data) {
+        throw new Error(error.response.data.error || 'Error during email confirmation');
+    }
+    throw new Error('Network error or server unavailable');
+}
   };
-
+export const forgotPassword = async (emailData) => {
+   try{
+    const response = await axios.post(`${API_URL}/forgot-password`, emailData);
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data) {
+        throw new Error(error.response.data.error || 'Error during email confirmation');
+    }
+    throw new Error('Network error or server unavailable');
+}
+ };
+  
+export const resetPassword = async (id,token, passwordData) => {
+  try{
+    const response = await axios.post(`${API_URL}/reset-password/${id}/${token}`, passwordData);
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data) {
+        throw new Error(error.response.data.error || 'Error during email confirmation');
+    }
+    throw new Error('Network error or server unavailable');
+}
+ };
+ export const confirmEmail = async (confirmationCode) => {
+  try {
+    const response = await axios.post(`${API_URL}/confirm-email/${confirmationCode}`);
+    return response.data; // Return the data from the response
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Error confirming email');
+  }
+};
 export const logoutUser = async () => {
   await axios.post(`${API_URL}/logout`); // Assuming you have a logout endpoint
 };

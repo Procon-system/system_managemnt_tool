@@ -18,10 +18,13 @@ const RegisterForm = () => {
     working_group: '',
     access_level: '',
   });
+  const [error, setError] = useState('');
+  const [confirmationMessage, setConfirmationMessage] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -32,7 +35,8 @@ const RegisterForm = () => {
       if (response && response.user && response.token) {
         const { user, token } = response;
         dispatch(login({ user, token }));
-        console.log('Registration successful:', user);
+        setConfirmationMessage('Please check your email to confirm your registration.');
+
         // Redirect to the login page after successful registration
         navigate('/login');
       } else {
@@ -70,6 +74,8 @@ const RegisterForm = () => {
       required
       options={['1', '2', '3', '4', '5']}
     />
+      {error && <p className="text-red-500">{error}</p>}
+      {confirmationMessage && <p className="text-green-500">{confirmationMessage}</p>}
 
       <button
         type="submit"

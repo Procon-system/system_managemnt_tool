@@ -4,7 +4,7 @@ import { useDispatch } from 'react-redux';
 import { login } from '../../Store/authSlice';
 import { loginUser } from '../../Services/authService';
 import FormInput from './inputForm';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate,Link } from 'react-router-dom';
 const LoginForm = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -40,18 +40,25 @@ const LoginForm = () => {
     };
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required />
-      <FormInput label="Password" name="password" type="password" value={formData.password} onChange={handleChange} required />
-      <FormInput label="Remember Me" name="rememberMe" type="checkbox" value={formData.rememberMe} onChange={handleChange} required />
-
-      <button
-        type="submit"
-        className="w-full px-4 py-2 mt-4 text-white bg-blue-600 rounded-lg hover:bg-blue-700 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
-      >
-        Login
-      </button>
-    </form>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+        <FormInput label="Password" name="password" type="password" value={formData.password} onChange={handleChange} required />
+        <div className="flex items-center justify-between">
+    <FormInput label="Remember Me" name="rememberMe" type="checkbox" checked={formData.rememberMe} onChange={handleChange} />
+    <Link to="/forgot-password" className="text-blue-500 hover:underline">
+      Forgot Password?
+    </Link>
+  </div>
+        <button
+          type="submit"
+          className="w-full px-4 py-2 mt-4 text-white bg-blue-600 rounded-lg hover:bg-blue-700 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          Login
+        </button>
+  
+        {/* Forgot Password Link */}
+        
+      </form>
   );
 };
 

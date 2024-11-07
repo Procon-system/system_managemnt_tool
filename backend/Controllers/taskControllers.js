@@ -1,11 +1,19 @@
 
 const taskService = require('../Services/taskServices'); 
+const User = require('../Models/UserSchema');
 
 const createTask = async (req, res) => {
   try {
-    const newTask = await taskService.createTask(req.body);
+    const { personal_number, ...taskData } = req.body;
+    const user = await User.findOne({ personal_number });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    taskData.assigned_user = user._id;
+    const newTask = await taskService.createTask(taskData);
     res.status(201).json(newTask);
-  } catch (error) {
+  }  catch (error) {
     res.status(400).json({ error: 'Failed to create task', details: error.message });
   }
 };
