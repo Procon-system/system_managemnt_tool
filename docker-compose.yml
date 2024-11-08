@@ -1,0 +1,48 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+# React.js service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - app  
+    networks:
+      - app-network
+    restart: unless-stopped
+  # Node.js/Express service
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app 
+      - ./backend/app/node_modules
+    env_file:
+      - ./backend/.env  # Load environment variables from .env file in backend directory
+    ports:
+      - '5000:5000' 
+    depends_on:
+      - mongo 
+    networks:
+      - app-network
+    restart: unless-stopped
+  # MongoDB service
+  mongo:
+    image: mongodb/mongodb-community-server:6.0-ubi8
+    
+    ports:
+      - '27017:27017' 
+    volumes:
+      - mongo-data:/data/db 
+    networks:
+      - app-network
+    restart: unless-stopped
+volumes:
+  mongo-data:
+networks:
+  app-network:

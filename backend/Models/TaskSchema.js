@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 //define task schema
 const taskSchema=new mongoose.Schema({
+  title:{
+    type:String,
+  },
     facility:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Facility',

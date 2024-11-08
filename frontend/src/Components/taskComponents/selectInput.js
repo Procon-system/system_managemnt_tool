@@ -2,7 +2,7 @@
 import React from 'react';
 
 const SelectInput = ({ label, name, value, onChange, options, required = false }) => (
-    <div className="mb-4 w-full sm:w-1/2 md:w-1/3 px-2">
+    <div className="mb-4 w-full sm:w-1/2 md:w-3/4 px-2">
         <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
         <select
             name={name}

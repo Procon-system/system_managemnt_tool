@@ -1,6 +1,6 @@
 
 const Task = require('../Models/TaskSchema'); 
-
+const { ObjectId } = require('mongodb');
 const createTask = async (taskData) => {
   
   const task = new Task(taskData);
@@ -16,8 +16,12 @@ const getTaskById = async (id) => {
 };
 
 const updateTask = async (id, updateData) => {
-  return await Task.findByIdAndUpdate(id, updateData, { new: true });
-};
+   // Cast the id to ObjectId if it's not already
+   const objectId = ObjectId.isValid(id) ? new ObjectId(id) : id;
+
+   // Proceed with the update
+   return await Task.findByIdAndUpdate(objectId, updateData, { new: true });
+ };
 
 const deleteTask = async (id) => {
   return await Task.findByIdAndDelete(id);

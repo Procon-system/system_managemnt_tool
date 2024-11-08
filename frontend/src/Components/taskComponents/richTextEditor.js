@@ -20,7 +20,7 @@ const RichTextEditor = ({ value, onChange }) => {
             ['clean']
           ]
         }}
-        className="min-h-[250px] bg-gray-50 sm:min-h-[200px] md:min-h-[200px] lg:min-h-[250px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+        className="min-h-[250px] bg-gray-50 sm:min-h-[200px] md:min-h-[100px] lg:min-h-[150px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
       />
     </div>
   );

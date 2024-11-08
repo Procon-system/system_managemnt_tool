@@ -1,152 +1,35 @@
-// // import React, { useEffect, useRef } from 'react';
-// // import Calendar from '@event-calendar/core';
-// // import TimeGrid from '@event-calendar/time-grid';
-// // import Interaction from '@event-calendar/interaction';
-// // import '@event-calendar/core/index.css';
 
-// // const EventCalendarWrapper = ({ events = [], onEventUpdate }) => {
-// //   const calendarContainer = useRef(null);
-
-// //   useEffect(() => {
-// //     const ec = new Calendar({
-// //       target: calendarContainer.current,
-// //       props: {
-// //         plugins: [TimeGrid, Interaction],
-// //         options: {
-// //           view: 'timeGridWeek',
-// //           events: events,
-// //           selectable: true,
-// //           editable: true,
-// //           eventStartEditable: true,
-// //           eventDurationEditable: true,
-// //         },
-// //       },
-// //     });
-// //     console.log("ec",ec)
-  
-// //     // Listen for event drop
-// //     ec.$on('eventDrop', (info) => {
-// //       console.log("starting")
-// //       const updatedEvent = {
-// //         id: info.event.id,
-// //         start: info.event.start.toISOString(),
-// //         end: info.event.end.toISOString(),
-// //         oldStart: info.oldEvent.start.toISOString(),
-// //         oldEnd: info.oldEvent.end.toISOString(),
-// //         delta: info.delta, // Duration object for time moved
-// //         resourceChange: info.oldResource && info.newResource, // Whether the resource has changed
-// //         ...info.event,
-// //       };
-// //       console.log('Event Dropped:', updatedEvent);
-
-// //       // Update callback with the new event details
-// //       onEventUpdate(updatedEvent);
-// //     });
-
-// //     // Listen for event resize
-// //     ec.$on('eventResize', (info) => {
-// //       console.log("starting event resize")
-// //       const updatedEvent = {
-// //         id: info.event.id,
-// //         start: info.event.start.toISOString(),
-// //         end: info.event.end.toISOString(),
-// //         oldStart: info.oldEvent.start.toISOString(),
-// //         oldEnd: info.oldEvent.end.toISOString(),
-// //         endDelta: info.endDelta, // Duration object for time extended
-// //         ...info.event,
-// //       };
-// //       console.log('Event Resized:', updatedEvent);
-
-// //       // Update callback with the resized event details
-// //       onEventUpdate(updatedEvent);
-// //     });
-
-// //     return () => ec.destroy();
-// //   }, [events, onEventUpdate]);
-// // console.log('hhh');
-// //   return <div ref={calendarContainer} id="ec" />;
-// // };
-
-// // export default EventCalendarWrapper;
-// import React, { useEffect, useRef } from 'react';
-// import Calendar from '@event-calendar/core';
-// import TimeGrid from '@event-calendar/time-grid';
-// import Interaction from '@event-calendar/interaction';
-// import '@event-calendar/core/index.css';
-
-// const EventCalendarWrapper = ({ events = [], onEventUpdate }) => {
-//   const calendarContainer = useRef(null);
-
-//   useEffect(() => {
-//     if (!calendarContainer.current) return; // Ensure ref is available
-
-//     const ec = new Calendar({
-//       target: calendarContainer.current,
-//       props: {
-//         plugins: [TimeGrid, Interaction],
-//         options: {
-//           view: 'timeGridWeek',
-//           events: events,
-//           selectable: true,
-//           editable: true,
-//           eventStartEditable: true,
-//           eventDurationEditable: true,
-
-//           // Attach listeners directly in options
-//           eventResize: (info) => {
-//             console.log("starting event resize");
-//             const updatedEvent = {
-//               id: info.event.id,
-//               start: info.event.start.toISOString(),
-//               end: info.event.end.toISOString(),
-//               oldStart: info.oldEvent.start.toISOString(),
-//               oldEnd: info.oldEvent.end.toISOString(),
-//               endDelta: info.endDelta,
-//               ...info.event,
-//             };
-//             console.log('Event Resized:', updatedEvent);
-
-//             onEventUpdate(updatedEvent);
-//           },
-
-//           eventDrop: (info) => {
-//             console.log("starting event drop");
-//             const updatedEvent = {
-//               id: info.event.id,
-//               start: info.event.start.toISOString(),
-//               end: info.event.end.toISOString(),
-//               oldStart: info.oldEvent.start.toISOString(),
-//               oldEnd: info.oldEvent.end.toISOString(),
-//               delta: info.delta,
-//               resourceChange: info.oldResource && info.newResource,
-//               ...info.event,
-//             };
-//             console.log('Event Dropped:', updatedEvent);
-
-//             onEventUpdate(updatedEvent);
-//           },
-//         },
-//       },
-//     });
-
-//     return () => ec.destroy(); // Cleanup on unmount
-//   }, [events, onEventUpdate]);
-
-//   return <div ref={calendarContainer} id="ec" />;
-// };
-
-// export default EventCalendarWrapper;
 import React, { useEffect, useRef } from 'react';
 import Calendar from '@event-calendar/core';
 import TimeGrid from '@event-calendar/time-grid';
 import Interaction from '@event-calendar/interaction';
 import '@event-calendar/core/index.css';
-
+import { v4 as uuidv4 } from 'uuid';
 const EventCalendarWrapper = ({ events = [], onEventUpdate, onEventCreate, openForm }) => {
   const calendarContainer = useRef(null);
-
+  const mappedEvents = events.map(event => ({
+   
+    _id: event._id.toString(),  // Ensure _id is passed as a string
+    start: event.start,
+    end: event.end,
+    title: event.title,
+  color: event.color, 
+    allDay: event.allDay,
+    extendedProps: {
+      _id: event._id.toString(),  // Store MongoDB _id here
+      // Other properties
+    },
+    // other properties
+  }));
+  const adjustTimeForBackend = (time, timezoneOffset) => {
+    const date = new Date(time); // Convert to Date object
+    date.setHours(date.getHours() + timezoneOffset); // Adjust by the timezone offset
+    return date.toISOString(); // Convert back to ISO string for backend
+  };
+  console.log("mapped", mappedEvents)
+console.log("idd",events)
   useEffect(() => {
-    if (!calendarContainer.current) return; // Ensure ref is available
+    if (!calendarContainer.current) return;
 
     const ec = new Calendar({
       target: calendarContainer.current,
@@ -154,66 +37,115 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onEventCreate, openF
         plugins: [TimeGrid, Interaction],
         options: {
           view: 'timeGridWeek',
-          events: events,
-          selectable: true,  // Enable selection (click and drag to create event)
-          editable: true,  // Enable editing (drag and drop to move events)
+          events:mappedEvents,
+          selectable: true,
+          editable: true,
           eventStartEditable: true,
           eventDurationEditable: true,
-          
-          // Listen for event creation (click and drag)
+
+          // Handle event creation via click-and-drag
           select: (info) => {
             const { start, end, resource } = info;
             const newEvent = {
-              title: "New Event",
+              title: 'New Event',
               start: start.toISOString(),
               end: end.toISOString(),
-              resource: resource,
+              resource,
             };
-            onEventCreate(newEvent);  // Trigger event creation callback
+            onEventCreate(newEvent);
           },
 
-          // Handle event click to open pop-up form
+          // Open pop-up form on event click
           eventClick: (info) => {
             const { event } = info;
-            console.log("Event clicked:", event);
-            // Open a pop-up form for editing
-            openForm(event);  // Use openForm passed as prop
+          
+            // Access the MongoDB _id from the event's extendedProps
+            const mongoId = event.extendedProps._id || event._id; // Using _id from extendedProps or event directly
+          
+            // Add MongoDB _id to the event object if it's not already there
+            const updatedEvent = {
+              ...event, // Spread the existing event properties
+              _id: mongoId, // Ensure MongoDB _id is included
+            };
+          
+            console.log('Event clicked:', updatedEvent);  // Log the event with the MongoDB _id
+          
+            // Pass the updated event with MongoDB _id to the openForm function
+            openForm(updatedEvent);
           },
+          
 
-          // Duplicate event on ALT key + drag-and-drop
-          eventDrop: (info) => {
-            console.log("starting event drop");
-            const { event, oldEvent, delta, jsEvent } = info;
+eventResize: (info) => {
+  const { event } = info;
+  
+  // Access MongoDB _id from extendedProps
+  const mongoId = event.extendedProps._id;
+  console.log("Event on resize:", event);
+  console.log("MongoDB _id on resize:", mongoId);
+  
+  // Adjust the times for the backend (example: UTC+3 offset, change as needed)
+  const timezoneOffset = 3; // Adjust this value based on the expected timezone of your backend
+  const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
+  const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
+  
+  // Create the updated event object with adjusted times
+  const updatedEvent = {
+    _id: mongoId,  // Use the MongoDB _id from extendedProps
+    start_time: adjustedStartTime,  // Adjusted start time for backend
+    end_time: adjustedEndTime,  // Adjusted end time for backend
+  };
+  
+  // Pass the updated event to onEventUpdate function
+  onEventUpdate(updatedEvent);
+},
 
-            // Check if ALT key was pressed during drag-and-drop
-            if (jsEvent.altKey) {
-              // Duplicate the event (do not update the original)
-              const duplicatedEvent = {
-                ...event,
-                id: `${Date.now()}`,  // Generate a new ID for the duplicated event
-                start: event.start.toISOString(),
-                end: event.end.toISOString(),
-              };
-              onEventCreate(duplicatedEvent);  // Trigger event creation callback with duplicated event
-            } else {
-              const updatedEvent = {
-                id: event.id,
-                start: event.start.toISOString(),
-                end: event.end.toISOString(),
-                oldStart: oldEvent.start.toISOString(),
-                oldEnd: oldEvent.end.toISOString(),
-                delta: delta,
-                ...event,
-              };
-              console.log('Event Dropped:', updatedEvent);
-              onEventUpdate(updatedEvent);  // Persist the updated event to the database
-            }
-          },
+// eventDrop handler
+eventDrop: (info) => {
+  const { event, jsEvent } = info;
+  console.log("Event on drop:", event);
+  
+  const generatedId = uuidv4(); 
+  const eventId = event._id || event.id;  // Fallback to event.id if _id is missing
+
+  // Handle ALT key for duplication
+  if (jsEvent.altKey) {
+    const duplicatedEvent = {
+      ...event,
+      _id: generatedId, // Generates a unique ID for the duplicated event
+      start: event.start.toISOString(),
+      end: event.end.toISOString(),
+    };
+    onEventCreate(duplicatedEvent); // Create new event
+  } else {
+    if (!eventId) {
+      console.error("Missing _id or id on event drop.");
+      return;
+    }
+    
+    const mongoId = event.extendedProps._id;
+    
+    // Adjust the times for the backend (example: UTC+3 offset, change as needed)
+    const timezoneOffset = 3; // Adjust this value based on the expected timezone of your backend
+    const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
+    const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
+    
+    // Create the updated event object with new start and end times
+    const updatedEvent = {
+      _id: mongoId, // Use _id for update
+      start_time: adjustedStartTime, // Adjusted start time for backend
+      end_time: adjustedEndTime, // Adjusted end time for backend
+    };
+    
+    // Pass the updated event to onEventUpdate
+    onEventUpdate(updatedEvent);
+  }
+},
+
         },
       },
     });
 
-    return () => ec.destroy(); // Cleanup on unmount
+    return () => ec.destroy();
   }, [events, onEventUpdate, onEventCreate, openForm]);
 
   return <div ref={calendarContainer} id="ec" />;
