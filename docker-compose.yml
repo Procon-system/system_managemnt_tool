@@ -3,14 +3,29 @@ version: '3.8'
 
 services:
 # React.js service
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile.prod
+  #   ports:
+  #     - "3000:80"
+  #   depends_on:
+  #     - app  
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev   # Use a separate Dockerfile for development
+    volumes:
+      - ./frontend:/app            # Mount code for live reloading
+      - /app/node_modules           # Avoid node_modules conflicts
     ports:
-      - "3000:80"
+      - "3000:3000"                # Map directly to 3000 for development server
+    command: ["npm", "start"]      # Use npm for hot reload
     depends_on:
-      - app  
+      - app
     networks:
       - app-network
     restart: unless-stopped
@@ -21,7 +36,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./backend:/app 
-      - ./backend/app/node_modules
+      - /app/node_modules
     env_file:
       - ./backend/.env  # Load environment variables from .env file in backend directory
     ports:

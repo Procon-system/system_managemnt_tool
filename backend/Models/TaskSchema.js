@@ -4,6 +4,9 @@ const taskSchema=new mongoose.Schema({
   title:{
     type:String,
   },
+  custom_id: {
+    type:String,
+  },
     facility:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Facility',

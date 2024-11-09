@@ -1,9 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import FormInput from './formInput';
 import SelectInput from './selectInput';
 import RichTextEditor from './richTextEditor';
-// import getColorForStatus from './taskColor';
 function getColorForStatus(status) {
     switch (status) {
         case 'done':
@@ -18,10 +17,20 @@ function getColorForStatus(status) {
             return 'green'; // default color if status is undefined or unexpected
     }
 }
-const TaskForm = ({ onSubmit }) => {
+const TaskForm = ({ onSubmit,initialData = {} }) => {
     const formatDateForInput = (date) => {
         return date.toISOString().slice(0, 16); // Format as 'YYYY-MM-DDTHH:MM'
       };
+    //   const formatDateForInput = (date) => {
+    //     const year = date.getFullYear();
+    //     const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+    //     const day = String(date.getDate()).padStart(2, '0');
+    //     const hours = String(date.getHours()).padStart(2, '0');
+    //     const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    //     // Format as 'YYYY-MM-DDTHH:MM'
+    //     return `${year}-${month}-${day}T${hours}:${minutes}`;
+    // };
     
       const [formData, setFormData] = useState({
         title:'',
@@ -33,7 +42,7 @@ const TaskForm = ({ onSubmit }) => {
         status: 'pending',
         notes: '',
         start_time: formatDateForInput(new Date()),
-        end_time: formatDateForInput(new Date()),
+        end_time: '',
         // color_code: 'green',
         alarm_enabled: false,
         assigned_to: '',
@@ -41,7 +50,16 @@ const TaskForm = ({ onSubmit }) => {
         tools: '',
         materials: '',
       });
-    
+      useEffect(() => {
+        setFormData((prevData) => ({
+            ...prevData,
+            ...initialData,
+            title: initialData.title ? initialData.title : prevData.title,
+            start_time: initialData.start_time ? formatDateForInput(new Date(initialData.start_time)) : prevData.start_time,
+            end_time: initialData.end_time ? formatDateForInput(new Date(initialData.end_time)) : prevData.end_time,
+        }));
+    }, [initialData]);
+
       const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormData({ 
@@ -103,17 +121,6 @@ const TaskForm = ({ onSubmit }) => {
                 { label: 'Overdue', value: 'overdue' },
             ]}
         />
-        {/* <SelectInput
-            label="Color Code"
-            name="color_code"
-            value={formData.color_code}
-            onChange={handleChange}
-            options={[
-                { label: 'Green', value: 'green' },
-                { label: 'Yellow', value: 'yellow' },
-                { label: 'Red', value: 'red' },
-            ]}
-        /> */}
         <FormInput label="Facility" name="facility" value={formData.facility} onChange={handleChange} required />
     </div>
 

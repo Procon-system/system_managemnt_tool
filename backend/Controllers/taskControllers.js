@@ -3,29 +3,50 @@ const taskService = require('../Services/taskServices');
 const User = require('../Models/UserSchema');
 const { ObjectId } = require('mongodb');
 const convertUuidToObjectId = require('../Helper/changeUuid');
+// const createTask = async (req, res) => {
+//   try {
+//     const {taskData } = req.body;
+//     // const user = await User.findOne({ personal_number });
+//     // console.log("err",personal_number);
+//     // if (!user) {
+//     //   return res.status(404).json({ error: 'User not found' });
+//     // }
+//     // taskData.assigned_user = user._id;
+//     console.log("Full request body:", req.body); // Check if taskData is inside req.body
+   
+//     if (!taskData || !taskData.start_time || !taskData.end_time) {
+//       return res.status(400).json({ error: "Missing required fields: start_time or end_time" });
+//     }
+//     console.log("Request body:", req.body);
+
+//     taskData.start_time = new Date(taskData.start_time);  // Convert to Date object
+//     taskData.end_time = new Date(taskData.end_time);      // Convert to Date object
+
+//     const newTask = await taskService.createTask(taskData);
+//     res.status(201).json(newTask);
+//   }  catch (error) {
+//     console.log("err",error);
+//     res.status(400).json({ error: 'Failed to create task', details: error.message });
+//   }
+// };
 const createTask = async (req, res) => {
   try {
-    const {taskData } = req.body;
-    // const user = await User.findOne({ personal_number });
-    // console.log("err",personal_number);
-    // if (!user) {
-    //   return res.status(404).json({ error: 'User not found' });
-    // }
-    // taskData.assigned_user = user._id;
-    console.log("Full request body:", req.body); // Check if taskData is inside req.body
-   
+    const { taskData } = req.body;
+
     if (!taskData || !taskData.start_time || !taskData.end_time) {
       return res.status(400).json({ error: "Missing required fields: start_time or end_time" });
     }
-    console.log("Request body:", req.body);
 
-    taskData.start_time = new Date(taskData.start_time);  // Convert to Date object
-    taskData.end_time = new Date(taskData.end_time);      // Convert to Date object
+    taskData.start_time = new Date(taskData.start_time);
+    taskData.end_time = new Date(taskData.end_time);
+
+    // Remove any client-generated _id to let MongoDB generate it
+    delete taskData._id;
 
     const newTask = await taskService.createTask(taskData);
     res.status(201).json(newTask);
-  }  catch (error) {
-    console.log("err",error);
+  } catch (error) {
+    console.log("Error:", error);
     res.status(400).json({ error: 'Failed to create task', details: error.message });
   }
 };

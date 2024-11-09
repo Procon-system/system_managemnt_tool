@@ -1,0 +1,25 @@
+/* General button style */
+.fc .custom-button {
+    border: 1px solid #ccc; /* Add border to all buttons */
+    padding: 5px 10px;
+    border-radius: 4px; /* Rounded corners for buttons */
+    background-color: #f0f0f0; /* Light background */
+    cursor: pointer;
+  }
+  
+  /* Special style for the 'Day' button */
+  .fc .day-button {
+    border: 1px solid #007bff; /* Different border color for the Day button */
+    background-color: #e0f7ff; /* Different background color */
+  }
+  
+  /* Hover effect */
+  .fc .custom-button:hover {
+    background-color: #ddd;
+  }
+  
+  /* Active button style */
+  .fc .custom-button:active {
+    background-color: #ccc;
+  }
+  
