@@ -58,13 +58,18 @@ const taskSchema=new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref:'User',
     },
-    tools: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Tool' },
-    
-    materials: { 
+    tools: [
+      {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Material' },
+        ref: 'Tool',
+      }
+    ],
+    materials: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Material',
+      }
+    ],
     created_at:{
         type:Date,
         default:Date.now,

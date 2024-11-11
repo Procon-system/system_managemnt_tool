@@ -3,6 +3,7 @@ const materialSchema = new mongoose.Schema({
     material_name:{
     type:String,
     required:true,
+    unique: true
 
  },
  amount_available:{

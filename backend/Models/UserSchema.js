@@ -55,25 +55,6 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Hash the password before saving
-// userSchema.pre('save', async function (next) {
-//   this.updated_at = Date.now();
-//   if (!this.isModified('password')) return next();
-//   this.password = await bcrypt.hash(this.password, 10);
-//   next();
-// });
-// userSchema.pre('save', async function (next) {
-//   this.updated_at = Date.now();
-  
-//   // Only hash the password if it’s new or has been modified
-//   if (!this.isModified('password')) return next();
-
-//   // Hash the password with bcrypt
-//   this.password = await bcrypt.hash(this.password, 10);
-//   next();
-// });
-
-// User Model
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;

@@ -13,6 +13,7 @@ const {
 require('dotenv').config();
 // Service to register a new user
 const registerUser = async (userData) => {
+  
   const { email,password,last_name,first_name,personal_number,working_group, access_level } = userData;
   const validation=registerValidator.validate({email,password});
   if(validation.error){

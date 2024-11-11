@@ -3,6 +3,7 @@ const facilitySchema = new mongoose.Schema({
    facility_name:{
     type:String,
     required:true,
+    unique: true
    },
    location:{
     type:String,

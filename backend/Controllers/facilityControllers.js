@@ -10,7 +10,7 @@ const createFacility= async (req,res)=>{
  const getAllFacilities = async (req, res) =>{
     try{
        const facilities = await facilityService.getAllFacilities(); 
-       res.staus(201).json(facilities);
+       res.status(201).json(facilities);
     }catch(error){
         res.status(400).json({error:'Failed to get all facilities',details:error.message});
 

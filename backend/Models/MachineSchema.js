@@ -3,6 +3,7 @@ const machineSchema = new mongoose.Schema({
  machine_name:{
     type:String,
     required:true,
+    unique: true
 
  },
  machine_type:{

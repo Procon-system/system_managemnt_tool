@@ -1,8 +1,13 @@
-
 import React, { useState,useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import FormInput from './formInput';
 import SelectInput from './selectInput';
 import RichTextEditor from './richTextEditor';
+import { fetchTools } from '../../features/toolsSlice'; // Redux action to fetch tools
+import { fetchMaterials } from '../../features/materialsSlice'; // Redux action to fetch materials
+import { fetchFacilities } from '../../features/facilitySlice'; // Redux action to fetch facilities
+import { fetchMachines } from '../../features/machineSlice'; // Redux action to fetch machines
+
 function getColorForStatus(status) {
     switch (status) {
         case 'done':
@@ -18,6 +23,12 @@ function getColorForStatus(status) {
     }
 }
 const TaskForm = ({ onSubmit,initialData = {} }) => {
+    const dispatch = useDispatch();
+    const tools = useSelector((state) => state.tools.tools); 
+    const materials = useSelector((state) => state.materials.materials); 
+    const facilities = useSelector((state) => state.facilities.facilities); 
+    const machines = useSelector((state) => state.machines.machines); 
+
     const formatDateForInput = (date) => {
         return date.toISOString().slice(0, 16); // Format as 'YYYY-MM-DDTHH:MM'
       };
@@ -31,7 +42,8 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
     //     // Format as 'YYYY-MM-DDTHH:MM'
     //     return `${year}-${month}-${day}T${hours}:${minutes}`;
     // };
-    
+    // const userId = useSelector((state) => state.auth.user._id);
+    //    console.log("id",userId)
       const [formData, setFormData] = useState({
         title:'',
         facility: '',
@@ -43,14 +55,18 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
         notes: '',
         start_time: formatDateForInput(new Date()),
         end_time: '',
-        // color_code: 'green',
         alarm_enabled: false,
-        assigned_to: '',
+        assigned_to_email: '',
         created_by: '',
-        tools: '',
-        materials: '',
+        tools: [],
+        materials: [],
       });
       useEffect(() => {
+        dispatch(fetchTools()); // Dispatch action to fetch tools
+        dispatch(fetchMaterials()); // Dispatch action to fetch materials
+        dispatch(fetchFacilities()); // Dispatch action to fetch facilities
+        dispatch(fetchMachines()); // Dispatch action to fetch machines
+
         setFormData((prevData) => ({
             ...prevData,
             ...initialData,
@@ -58,7 +74,7 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
             start_time: initialData.start_time ? formatDateForInput(new Date(initialData.start_time)) : prevData.start_time,
             end_time: initialData.end_time ? formatDateForInput(new Date(initialData.end_time)) : prevData.end_time,
         }));
-    }, [initialData]);
+    }, [dispatch,initialData]);
 
       const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -74,31 +90,71 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
     
       const handleSubmit = (e) => {
         e.preventDefault();
-        console.log("Submitting Task Data:", formData.status);
+                console.log("Submitting Task Data:", formData.status);
         const color_code = getColorForStatus(formData.status);  // Get color based on status
-        onSubmit({ ...formData, color_code });  // Add color code to the submission
-
+        const taskData = {
+            ...formData,
+            tools: formData.tools || [], // Ensure tools is always an array
+            materials: formData.materials || [],
+            color_code,
+          };
+          console.log("data",taskData)
+          onSubmit(taskData); 
       };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4 p-6 md:px-10 bg-blue-50 shadow-md rounded-md max-w-lg md:max-w-7xl lg:max-w-7xl mx-auto">
             <div className=''>
-            <FormInput label="Title" name="title" value={formData.title} onChange={handleChange} required />
-
+            
             </div>
             
     <div className="flex flex-col md:flex-row md:space-x-4">
-        <FormInput label="Assigned Person" name="assigned_to" value={formData.assigned_to} onChange={handleChange} required />
-        <FormInput label="Assigned By" name="created_by" value={formData.created_by} onChange={handleChange} required />
-               <FormInput label="Service Location" name="service_location" value={formData.service_location} onChange={handleChange} />
+    <FormInput label="Title" name="title" value={formData.title} onChange={handleChange} required />
+
+        <FormInput label="Assigned Person Email" name="assigned_to_email" value={formData.assigned_to_email} onChange={handleChange} required />
+        <FormInput label="Service Location" name="service_location" value={formData.service_location} onChange={handleChange} />
 
 
     </div>
 
     <div className="flex flex-col md:flex-row md:space-x-4">
-                <FormInput label="Materials" name="materials" value={formData.materials} onChange={handleChange} required />
-                <FormInput label="Machine" name="machine" value={formData.machine} onChange={handleChange} required />
-                <FormInput label="Tools" name="tools" value={formData.tools} onChange={handleChange} required />
+    <SelectInput
+    label="Facility"
+    name="facility"
+    value={formData.facility} // Controlled value
+    onChange={handleChange}
+    options={facilities.map((facility) => ({
+        label: facility.facility_name,
+        value: facility._id,
+    }))}
+    required
+/>
+
+<SelectInput
+    label="Machine"
+    name="machine"
+    value={formData.machine}
+    onChange={handleChange}
+    options={machines.map((machine) => ({
+        label: machine.machine_name,  // Display name
+        value: machine._id,  // Use machine_name as value to send the name
+    }))}
+    required
+/>
+
+<SelectInput
+    label="Tools"
+    name="tools"
+    value={formData.tools}
+    onChange={handleChange}
+    options={tools.map((tool) => ({
+        label: tool.tool_name,        // Display name
+        value: tool._id,        // Use tool_name as value to send the name
+    }))}
+    multiple
+    required
+/>
+
                 </div>
 
    
@@ -121,7 +177,19 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
                 { label: 'Overdue', value: 'overdue' },
             ]}
         />
-        <FormInput label="Facility" name="facility" value={formData.facility} onChange={handleChange} required />
+        {/* <FormInput label="Facility" name="facility" value={formData.facility} onChange={handleChange} required /> */}
+        <SelectInput
+    label="Materials"
+    name="materials"
+    value={formData.materials}
+    onChange={handleChange}
+    options={materials.map((material) => ({
+        label: material.material_name, // Display name
+        value: material._id, // Use material_name as value to send the name
+    }))}
+    multiple
+    required
+/>
     </div>
 
     <div className="flex flex-col md:flex-row md:space-x-4">

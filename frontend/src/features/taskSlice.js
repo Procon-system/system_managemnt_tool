@@ -1,63 +1,22 @@
 
-// import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-// import axios from 'axios';
-
-// const API_URL = 'http://localhost:5000/api/tasks/create-tasks';
-
-// export const createTask = createAsyncThunk(
-//   '/create-tasks',
-//   async (taskData, { rejectWithValue }) => {
-//     try {
-//       const response = await axios.post(API_URL, taskData);
-//       return response.data;
-//     } catch (error) {
-//       return rejectWithValue(error.response?.data || 'Error creating task');
-//     }
-//   }
-// );
-
-// const taskSlice = createSlice({
-//   name: 'tasks',
-//   initialState: {
-//     tasks: [],
-//     status: 'idle',
-//     error: null,
-//   },
-//   reducers: {},
-//   extraReducers: (builder) => {
-//     builder
-//       .addCase(createTask.pending, (state) => {
-//         state.status = 'loading';
-//       })
-//       .addCase(createTask.fulfilled, (state, action) => {
-//         state.status = 'succeeded';
-//         state.tasks.push(action.payload);
-//       })
-//       .addCase(createTask.rejected, (state, action) => {
-//         state.status = 'failed';
-//         state.error = action.payload;
-//       });
-//   },
-// });
-
-// export default taskSlice.reducer;
-
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import taskService from '../Services/taskService';
-
-// Create Task
 export const createTask = createAsyncThunk(
   'tasks/createTask',
-  async (taskData, { rejectWithValue }) => {
+  async (taskData, { getState, rejectWithValue }) => {
     try {
-      return await taskService.createTask(taskData);
+      // Get the token from the Redux state
+      console.log("token", getState().auth); 
+      const token = getState().auth.token;
+
+      // Call the taskService with taskData and token
+      return await taskService.createTask(taskData, token);
     } catch (error) {
-      console.log("error",error)
+      console.log("error", error);
       return rejectWithValue(error.response?.data || 'Error creating task');
     }
   }
 );
-
 // Fetch Tasks
 export const fetchTasks = createAsyncThunk(
   'tasks/fetchTasks',

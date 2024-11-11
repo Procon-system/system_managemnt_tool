@@ -4,12 +4,18 @@ import axios from 'axios';
 const API_URL = 'http://localhost:5000/api/tasks';
 
 const taskService = {
-  // Create a new task
-  createTask: async (taskData) => {
-    const response = await axios.post(`${API_URL}/create-tasks`, {taskData});
+  createTask: async (taskData, token) => {
+    const response = await axios.post(
+      `${API_URL}/create-tasks`, 
+      { taskData },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
+    );
     return response.data;
   },
-
   // Fetch all tasks
   fetchTasks: async () => {
     const response = await axios.get(`${API_URL}/get-all-tasks`);

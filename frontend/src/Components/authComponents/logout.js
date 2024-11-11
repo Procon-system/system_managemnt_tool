@@ -1,7 +1,7 @@
 // src/components/Logout.js
 import React from 'react';
 import { useDispatch } from 'react-redux';
-import { logout } from '../../Store/authSlice';
+import { logout } from '../../features/authSlice';
 import { logoutUser } from '../../Services/authService';
 
 const Logout = () => {

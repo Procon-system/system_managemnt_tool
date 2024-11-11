@@ -1,34 +1,43 @@
 
 const taskService = require('../Services/taskServices'); 
 const User = require('../Models/UserSchema');
+const Facility = require('../Models/FacilitySchema');
+const Machine = require('../Models/MachineSchema');
+const Tool = require('../Models/ToolsSchema');
+const Material = require('../Models/MaterialsSchema');
 const { ObjectId } = require('mongodb');
 const convertUuidToObjectId = require('../Helper/changeUuid');
-// const createTask = async (req, res) => {
-//   try {
-//     const {taskData } = req.body;
-//     // const user = await User.findOne({ personal_number });
-//     // console.log("err",personal_number);
-//     // if (!user) {
-//     //   return res.status(404).json({ error: 'User not found' });
-//     // }
-//     // taskData.assigned_user = user._id;
-//     console.log("Full request body:", req.body); // Check if taskData is inside req.body
-   
-//     if (!taskData || !taskData.start_time || !taskData.end_time) {
-//       return res.status(400).json({ error: "Missing required fields: start_time or end_time" });
-//     }
-//     console.log("Request body:", req.body);
+async function formatTaskData(taskData) {
+  if (taskData.facility) {
+    const facility = await Facility.findOne({ facility_name: taskData.facility });
+    taskData.facility = facility ? facility._id : null;
+  }
+  
+  if (taskData.machine) {
+    const machine = await Machine.findOne({ machine_name: taskData.machine });
+    taskData.machine = machine ? machine._id : null;
+  }
 
-//     taskData.start_time = new Date(taskData.start_time);  // Convert to Date object
-//     taskData.end_time = new Date(taskData.end_time);      // Convert to Date object
+  if (taskData.tools && Array.isArray(taskData.tools)) {
+    const toolIds = await Promise.all(
+      taskData.tools.map(async (toolName) => {
+        const tool = await Tool.findOne({ tool_name: toolName });
+        return tool ? tool._id : null;
+      })
+    );
+    taskData.tools = toolIds.filter(Boolean); // Filter out null values
+  }
 
-//     const newTask = await taskService.createTask(taskData);
-//     res.status(201).json(newTask);
-//   }  catch (error) {
-//     console.log("err",error);
-//     res.status(400).json({ error: 'Failed to create task', details: error.message });
-//   }
-// };
+  if (taskData.materials && Array.isArray(taskData.materials)) {
+    const materialIds = await Promise.all(
+      taskData.materials.map(async (materialName) => {
+        const material = await Material.findOne({ material_name: materialName });
+        return material ? material._id : null;
+      })
+    );
+    taskData.materials = materialIds.filter(Boolean); // Filter out null values
+  }
+}
 const createTask = async (req, res) => {
   try {
     const { taskData } = req.body;
@@ -42,14 +51,33 @@ const createTask = async (req, res) => {
 
     // Remove any client-generated _id to let MongoDB generate it
     delete taskData._id;
+    console.log("user",req.user)
+    taskData.created_by = req.user.id;
+    console.log("id",taskData.created_by);
+    const assignedUserEmail = taskData.assigned_to_email; // Assuming `assigned_to_email` is in the request body
+    if (assignedUserEmail) {
+      const assignedUser = await User.findOne({ email: assignedUserEmail });
 
-    const newTask = await taskService.createTask(taskData);
-    res.status(201).json(newTask);
-  } catch (error) {
-    console.log("Error:", error);
-    res.status(400).json({ error: 'Failed to create task', details: error.message });
-  }
+      if (!assignedUser) {
+        return res.status(400).json({ error: `User with email ${assignedUserEmail} not found` });
+      }
+
+      // Replace the email with the ObjectId of the assigned user
+      taskData.assigned_to = assignedUser._id;
+    }
+
+   // Format task data by resolving facility, machine, tools, and materials
+  //  await formatTaskData(taskData);
+
+   // Create the new task with formatted data
+   const newTask = await taskService.createTask(taskData);
+   res.status(201).json(newTask);
+ } catch (error) {
+   console.error("Error:", error);
+   res.status(400).json({ error: 'Failed to create task', details: error.message });
+ }
 };
+
 
 const getAllTasks = async (req, res) => {
   try {
@@ -71,11 +99,6 @@ const getTaskById = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch task', details: error.message });
   }
 };
-// const convertUuidToObjectId = (uuid) => {
-//   // UUID format: 123e4567-e89b-12d3-a456-426614174000
-//   const buffer = Buffer.from(uuid.replace(/-/g, ''), 'hex'); // Remove dashes from UUID and convert to Buffer
-//   return new ObjectId(buffer); // Create an ObjectId from the buffer
-// };
 
 const updateTask = async (req, res) => {
   

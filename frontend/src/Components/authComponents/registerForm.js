@@ -1,7 +1,7 @@
 // src/components/RegisterForm.js
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { login } from '../../Store/authSlice';
+import { login } from '../../features/authSlice';
 import { registerUser } from '../../Services/authService';
 import FormInput from './inputForm';
 import { useNavigate } from 'react-router-dom';

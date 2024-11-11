@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { login } from '../../Store/authSlice';
+import { login } from '../../features/authSlice';
 import { loginUser } from '../../Services/authService';
 import FormInput from './inputForm';
 import { useNavigate,Link } from 'react-router-dom';
@@ -28,7 +28,8 @@ const LoginForm = () => {
       try {
         const response = await loginUser(formData);
         const { user, token } = response;
-  
+        // Save token to localStorage for persistence
+        localStorage.setItem('token', token);
         // Dispatch login action to update Redux state
         dispatch(login({ user, token }));
   

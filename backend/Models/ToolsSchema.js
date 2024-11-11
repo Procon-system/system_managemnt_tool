@@ -3,8 +3,8 @@ const toolSchema = new mongoose.Schema({
  tool_name:{
     type:String,
     required:true,
-
- },
+    unique: true
+},
  available_since:{
     type:Date,
  },
