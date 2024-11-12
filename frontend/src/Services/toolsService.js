@@ -5,9 +5,10 @@ const API_URL = 'http://localhost:5000/api/tools';
 
 const toolService = {
   createTool: async (toolData, token) => {
+    console.log("datnnna",toolData);
     const response = await axios.post(
-      `${API_URL}/create-tool`, 
-      { toolData },
+      `${API_URL}/create-tools`, 
+      toolData ,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     return response.data;

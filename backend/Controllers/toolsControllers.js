@@ -6,6 +6,7 @@ const createTool = async (req, res) => {
     const newTool = await toolService.createTool(req.body);
     res.status(201).json(newTool);
   } catch (error) {
+    console.log("error",error)
     res.status(400).json({ error: 'Failed to create tool', details: error.message });
   }
 };

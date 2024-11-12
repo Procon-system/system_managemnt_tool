@@ -74,37 +74,7 @@ const HomePage = () => {
   if (status === 'failed') return <div>Error: {error}</div>;
 
   return (
-    <div className='mb-8'>
-      {/* <button
-        onClick={openCreateForm}
-        className="mb-4 bg-blue-500 text-white px-6 py-2 mt-5 ml-2 rounded-md"
-      >
-        + Task
-      </button>
-      <button
-        // onClick={openCreateForm}
-        className="mb-4 bg-blue-500 text-white px-6 py-2 mt-5 ml-2 rounded-md"
-      >
-        + Facility
-      </button>
-      <button
-        // onClick={openCreateForm}
-        className="mb-4 bg-blue-500 text-white px-6 py-2 mt-5 ml-2 rounded-md"
-      >
-        + Machine
-      </button>
-      <button
-        // onClick={openCreateForm}
-        className="mb-4 bg-blue-500 text-white px-6 py-2 mt-5 ml-2 rounded-md"
-      >
-        + Tools
-      </button>
-      <button
-        // onClick={openCreateForm}
-        className="mb-4 bg-blue-500 text-white px-6 py-2 mt-5 ml-2 rounded-md"
-      >
-        + Tools */}
-      {/* </button> */}
+    <div className=' mt-7 mb-8 ml-72'>
       <EventCalendarWrapper
         events={calendarEvents}
         onEventCreate={handleEventCreate}

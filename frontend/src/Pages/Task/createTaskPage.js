@@ -24,7 +24,7 @@ console.log("event acc",event);
   };
 
   return (
-    <div>
+    <div className='mt-7'>
       <h1 className="text-xl font-bold text-center flex justify-center mb-4">Create Task</h1>
       {loading && <p>Loading...</p>}
       {error && <p className="text-red-500">Error: {error}</p>}

@@ -28,6 +28,7 @@ export const fetchFacilities = createAsyncThunk(
 export const updateFacility = createAsyncThunk(
   'facilities/updateFacility',
   async ({ facilityId, updatedData }, { rejectWithValue }) => {
+    console.log("new",updatedData);
     try {
       return await facilityService.updateFacility(facilityId, updatedData);
     } catch (error) {

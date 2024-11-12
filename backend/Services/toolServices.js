@@ -2,6 +2,7 @@
 const Tool = require('../Models/ToolsSchema');
 
 const createTool = async (toolData) => {
+  console.log("data",toolData)
   const tool = new Tool(toolData);
   return await tool.save();
 };
