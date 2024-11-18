@@ -1,4 +1,58 @@
-# Service_managemnt_tool
+# installation guide
+Prerequisites
+Before starting, ensure you have the following installed on your system:
+
+Docker: Install Docker
+Docker Compose: Included with Docker Desktop or install it separately.
+Git: Install Git
+Node.js and npm (for local development without Docker): Install Node.js
+   # Project Setup
+1. Clone the Repository
+
+Clone project repository from GitHub:
+git clone git@github.com:Betelhemmesele/system_managemnt_tool.git
+
+2.Environment Variables
+
+Backend
+Navigate to the backend directory.
+Create a .env file if it doesn't exist:
+touch .env   # add .env code to this file
+Frontend
+Navigate to the frontend directory.
+Create a .env file:
+touch .env   # add .env code to this file
+
+3.Build and Run the Project
+
+Build the Docker images:
+ 
+docker-compose up --build
+Start the services:
+
+docker-compose up
+
+Access the application:
+Frontend: http://localhost:3000
+Backend: http://localhost:5000
+
+4.Stopping the Services
+To stop the services, use:
+docker-compose down
+
+Troubleshooting
+Port Conflicts:
+
+Ensure ports 3000, 5000, and 27017 are not in use.
+MongoDB Connection Issues:
+
+Check the MONGO_URI in your .env file.
+Rebuild Containers:
+
+If changes aren’t reflected, rebuild the containers:
+docker-compose up --build
+
+# Service_managemnt_tool description
 The service Management tool should be a platform were a service Manager is able to see move (move in Time by drag and drop) setup and distribute service Tasks from one or Multiple Machines. He should be able to distribute the Tasks to one ore Multiple Human or Technical resources such service Personal or needed Materials or Tools for the service etc. 
 
 The Service Personal should be able to Receive (view it in the App) and access the Task description and fulfill the Task and Flag it to “done” or “not possible”. In case of done the Task will move to a History List and can be reviewed from the service Manager. In case of not possible it will stay in the Task list and can be new distributed or modified. Both Manager and Service personal should be able to add Notes and Pictures to the Task until it is moved to the History list.
