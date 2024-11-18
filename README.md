@@ -1,26 +1,41 @@
 # installation guide
+
 Prerequisites
+
 Before starting, ensure you have the following installed on your system:
 
 Docker: Install Docker
+
 Docker Compose: Included with Docker Desktop or install it separately.
+
 Git: Install Git
+
 Node.js and npm (for local development without Docker): Install Node.js
+   
    # Project Setup
+
 1. Clone the Repository
 
 Clone project repository from GitHub:
+
 git clone git@github.com:Betelhemmesele/system_managemnt_tool.git
 
 2.Environment Variables
 
 Backend
+
 Navigate to the backend directory.
+
 Create a .env file if it doesn't exist:
+
 touch .env   # add .env code to this file
+
 Frontend
+
 Navigate to the frontend directory.
+
 Create a .env file:
+
 touch .env   # add .env code to this file
 
 3.Build and Run the Project
@@ -28,28 +43,37 @@ touch .env   # add .env code to this file
 Build the Docker images:
  
 docker-compose up --build
+
 Start the services:
 
 docker-compose up
 
 Access the application:
+
 Frontend: http://localhost:3000
+
 Backend: http://localhost:5000
 
 4.Stopping the Services
+
 To stop the services, use:
+
 docker-compose down
 
 Troubleshooting
+
 Port Conflicts:
 
 Ensure ports 3000, 5000, and 27017 are not in use.
+
 MongoDB Connection Issues:
 
 Check the MONGO_URI in your .env file.
+
 Rebuild Containers:
 
 If changes aren’t reflected, rebuild the containers:
+
 docker-compose up --build
 
 # Service_managemnt_tool description
