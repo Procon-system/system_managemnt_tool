@@ -77,12 +77,16 @@ If changes aren’t reflected, rebuild the containers:
 docker-compose up --build
 
 # Service_managemnt_tool description
-The service Management tool should be a platform were a service Manager is able to see move (move in Time by drag and drop) setup and distribute service Tasks from one or Multiple Machines. He should be able to distribute the Tasks to one ore Multiple Human or Technical resources such service Personal or needed Materials or Tools for the service etc. 
+The service Management tool should be a platform were a Person is able to see move (move in Time by drag and drop) setup and distribute service Tasks from one or Multiple Machines. 
+He should be able to distribute the Tasks to one ore Multiple Human or Technical resources such service Personal or needed Materials or Tools for the service etc. 
 
-The Service Personal should be able to Receive (view it in the App) and access the Task description and fulfill the Task and Flag it to “done” or “not possible”. In case of done the Task will move to a History List and can be reviewed from the service Manager. In case of not possible it will stay in the Task list and can be new distributed or modified. Both Manager and Service personal should be able to add Notes and Pictures to the Task until it is moved to the History list.
+The Service Personal should be able to Receive (view it in the App) and access the Task description and fulfill the Task and Flag it to “done” or “not possible”. In case of done the Task will be 
+moved to a History List and can be reviewed from the service Manager. In case of not possible it will stay in the Task list and can be new distributed or modified. Both Manager and Service personal 
+should be able to add Notes and Pictures to the Task until it is moved to the History list.
 The App should be able to receive Task Objects from a Machine. This Objects will be transferred using MQTT to the App.
 The Object of the Machine Task has the same structure like the objects that will be setup in the Application and will be further handled as a new setup Tasks.
-The Application should have a access Management were Manager and service personal need to  sign up (by admin) and sign in. This access management should have 5 login level (set able for the person by admin) this login level later will be used to view dedicated content in the App for example the Manager should have the right to edit new Tasks the Service Personal should be not able to do so etc.
+The Application should have a access Management were Manager and service personal need to  sign up (by admin) and sign in. This access management should have 5 login level (set able for the person by admin) 
+this login level later will be used to view dedicated content in the App for example the Manager should have the right to edit new Tasks the Service Personal should be not able to do so etc.
 
 The App should have a Warning Alarming structure and send mails ore SMS for information to the setup receiver.
 
