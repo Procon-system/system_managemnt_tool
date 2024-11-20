@@ -18,7 +18,7 @@ Node.js and npm (for local development without Docker): Install Node.js
 
 Clone project repository from GitHub:
 
-git clone [git@github.com:Betelhemmesele/system_managemnt_tool.git](https://github.com/Procon-system/system_managemnt_tool.git)
+git clone https://github.com/Procon-system/system_managemnt_tool.git
 
 2.Environment Variables
 
