@@ -46,7 +46,7 @@ const registerUser = async (userData) => {
   console.log("ccc",confirmationCode);
   await User.findByIdAndUpdate(newUser._id, { confirmationCode });
 
-  await sendConfirmationEmail(newUser.email, confirmationCode, newUser.first_name);
+  // await sendConfirmationEmail(newUser.email, confirmationCode, newUser.first_name);
 
    const token =await generateToken({id:newUser._id});
    if(!token){
