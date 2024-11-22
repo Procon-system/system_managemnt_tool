@@ -42,11 +42,11 @@ touch .env   # add .env code to this file
 
 Build the Docker images:
  
-docker-compose up --build
+docker compose up --build
 
 Start the services:
 
-docker-compose up
+docker compose up
 
 Access the application:
 
@@ -58,7 +58,7 @@ Backend: http://localhost:5000
 
 To stop the services, use:
 
-docker-compose down
+docker compose down
 
 Troubleshooting
 
@@ -74,7 +74,7 @@ Rebuild Containers:
 
 If changes aren’t reflected, rebuild the containers:
 
-docker-compose up --build
+docker compose up --build
 
 # Service_managemnt_tool description
 The service Management tool should be a platform were a Person is able to see move (move in Time by drag and drop) setup and distribute service Tasks from one or Multiple Machines. 
