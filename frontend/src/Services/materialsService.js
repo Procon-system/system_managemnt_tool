@@ -18,23 +18,40 @@ const materialService = {
   },
 
   // Fetch all materials
-  fetchMaterials: async () => {
-    const response = await axios.get(`${API_URL}/get-all-materials`);
+  fetchMaterials: async (token) => {
+    const response = await axios.get(`${API_URL}/get-all-materials`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
+    );
     return response.data;
   },
 
   // Update a material by ID
-  updateMaterial: async (materialId, updatedData) => {
+  updateMaterial: async (materialId, updatedData,token) => {
     const response = await axios.put(
       `${API_URL}/update-materials/${materialId}`,
-      updatedData
+      updatedData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
     );
     return response.data;
   },
 
   // Delete a material by ID
-  deleteMaterial: async (materialId) => {
-    const response = await axios.delete(`${API_URL}/delete-materials/${materialId}`);
+  deleteMaterial: async (materialId,token) => {
+    const response = await axios.delete(`${API_URL}/delete-materials/${materialId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
+    );
     return response.data;
   },
 };

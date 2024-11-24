@@ -26,14 +26,12 @@ const userSchema = new mongoose.Schema({
     unique: true,
 
   },
-  working_group:{
-    type:String
-  },
-  access_level:{
-    type:Number,
-    required:true,
-    min:1,
-    max:5,
+  access_level: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5,
+    enum: [1, 2, 3, 4, 5],
   },
   confirmationCode: {
     type: String,

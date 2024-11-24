@@ -7,6 +7,8 @@ const Tool = require('../Models/ToolsSchema');
 const Material = require('../Models/MaterialsSchema');
 const { ObjectId } = require('mongodb');
 const convertUuidToObjectId = require('../Helper/changeUuid');
+const uploadImage = require('../utils/uploadImage'); // Import the uploadImage utility
+const getColorForStatus =require('../utils/getColorForStatus')
 async function formatTaskData(taskData) {
   if (taskData.facility) {
     const facility = await Facility.findOne({ facility_name: taskData.facility });
@@ -51,21 +53,12 @@ const createTask = async (req, res) => {
 
     // Remove any client-generated _id to let MongoDB generate it
     delete taskData._id;
-    console.log("user",req.user)
     taskData.created_by = req.user.id;
-    console.log("id",taskData.created_by);
-    const assignedUserEmail = taskData.assigned_to_email; // Assuming `assigned_to_email` is in the request body
-    if (assignedUserEmail) {
-      const assignedUser = await User.findOne({ email: assignedUserEmail });
-
-      if (!assignedUser) {
-        return res.status(400).json({ error: `User with email ${assignedUserEmail} not found` });
-      }
-
-      // Replace the email with the ObjectId of the assigned user
-      taskData.assigned_to = assignedUser._id;
-    }
-
+    if (taskData.status) {
+            taskData.color_code = getColorForStatus(taskData.status);
+          } else {
+            taskData.color_code = getColorForStatus("pending"); // Default to 'pending' if no status is provided
+          }
    // Format task data by resolving facility, machine, tools, and materials
   //  await formatTaskData(taskData);
 
@@ -77,17 +70,57 @@ const createTask = async (req, res) => {
    res.status(400).json({ error: 'Failed to create task', details: error.message });
  }
 };
+const getAllDoneTasks = async (req, res) => {
+  try {
+    const tasks = await taskService.fetchAllDoneTasks();
+    res.status(200).json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+const getDoneTasksForUser = async (req, res) => {
+  const {userId} = req.query; // Extract user ID from query parameters
+  if (!userId) {
+    return res.status(400).json({ message: 'User ID is required' });
+  }
 
-
+  try {
+    const tasks = await taskService.fetchDoneTasksForUser(userId);
+    res.status(200).json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 const getAllTasks = async (req, res) => {
   try {
     const tasks = await taskService.getAllTasks();
+    
     res.status(200).json(tasks);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch tasks', details: error.message });
   }
 };
+const getTasksByAssignedUser = async (req, res) => {
+  try {
+    const { userId } = req.query; // Get userId from query parameters
 
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Fetch tasks assigned to the specified user
+    const tasks = await taskService.getTasksByAssignedUser(userId);
+
+    if (tasks.length === 0) {
+      return res.status(404).json({ message: 'No tasks found for the given user' });
+    }
+
+    return res.status(200).json(tasks); // Send the tasks to the client
+  } catch (error) {
+    console.error('Error fetching tasks:', error.message);
+    return res.status(500).json({ error: 'Failed to fetch tasks', details: error.message });
+  }
+};
 const getTaskById = async (req, res) => {
   try {
     const task = await taskService.getTaskById(req.params.id);
@@ -99,7 +132,6 @@ const getTaskById = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch task', details: error.message });
   }
 };
-
 const updateTask = async (req, res) => {
   
   try {
@@ -110,10 +142,16 @@ const updateTask = async (req, res) => {
     if (!ObjectId.isValid(taskId)) {
       return res.status(400).json({ error: 'Invalid task ID' });
     }
+    const updateData = { ...req.body };
 
-    // Call the updateTask service with the valid ObjectId
-    const updatedTask = await taskService.updateTask(taskId, req.body);
-    
+    // If status is provided, calculate the color code
+    if (updateData.status) {
+      updateData.color_code = getColorForStatus(updateData.status);
+    }
+
+    // Call the updateTask service with the valid ObjectId and update data
+    const updatedTask = await taskService.updateTask(taskId, updateData);
+
     if (!updatedTask) {
       return res.status(404).json({ error: 'Task not found' });
     }
@@ -124,7 +162,6 @@ const updateTask = async (req, res) => {
     res.status(400).json({ error: 'Failed to update task', details: error.message });
   }
 };
-
 const deleteTask = async (req, res) => {
   try {
     const deletedTask = await taskService.deleteTask(req.params.id);
@@ -136,7 +173,6 @@ const deleteTask = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete task', details: error.message });
   }
 };
-
 // Create a task from a machine object
 const createTaskFromMachine = async (req, res) => {
   try {
@@ -155,5 +191,9 @@ module.exports = {
   getTaskById,
   updateTask,
   deleteTask,
+  getTasksByAssignedUser,
+  getAllDoneTasks,
+  getDoneTasksForUser,
+  // uploadImageToTask,
   createTaskFromMachine,
 };

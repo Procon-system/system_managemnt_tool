@@ -17,12 +17,46 @@ export const createTask = createAsyncThunk(
     }
   }
 );
+export const getTasksByAssignedUser = createAsyncThunk(
+  'tasks/getTasksByAssignedUser',
+  async (userId, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token; // Get the token from Redux state
+      return await taskService.getTasksByAssignedUser(userId, token); // Call the service function
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Error fetching tasks for assigned user');
+    }
+  }
+);
+export const getTasksDoneByAssignedUser = createAsyncThunk(
+  'tasks/getTasksDoneByAssignedUser',
+  async (userId, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token; // Get the token from Redux state
+      return await taskService.getTasksDoneByAssignedUser(userId, token); // Call the service function
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Error fetching tasks for assigned user');
+    }
+  }
+); //getAllDoneTasks
+export const getAllDoneTasks = createAsyncThunk(
+  'tasks/getAllDoneTasks',
+  async (_, { rejectWithValue }) => {
+    
+    try {
+      return await taskService.getAllDoneTasks();
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Error fetching tasks');
+    }
+  }
+);
 // Fetch Tasks
 export const fetchTasks = createAsyncThunk(
   'tasks/fetchTasks',
   async (_, { rejectWithValue }) => {
+    
     try {
-      return await taskService.fetchTasks();
+      return await taskService.fetchTasks( );
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error fetching tasks');
     }
@@ -32,9 +66,10 @@ export const fetchTasks = createAsyncThunk(
 // Update Task
 export const updateTask = createAsyncThunk(
   'tasks/updateTask',
-  async ({ taskId, updatedData }, { rejectWithValue }) => {
+  async ({ taskId, updatedData }, {getState, rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await taskService.updateTask(taskId, updatedData);
+      return await taskService.updateTask(taskId, updatedData,token );
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error updating task');
     }
@@ -44,9 +79,10 @@ export const updateTask = createAsyncThunk(
 // Delete Task
 export const deleteTask = createAsyncThunk(
   'tasks/deleteTask',
-  async (taskId, { rejectWithValue }) => {
+  async (taskId, { getState,rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await taskService.deleteTask(taskId);
+      return await taskService.deleteTask(taskId,token );
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error deleting task');
     }
@@ -59,8 +95,13 @@ const taskSlice = createSlice({
     tasks: [],
     status: 'idle',
     error: null,
+    currentView: 'allTasks', // Default to showing all tasks
   },
-  reducers: {},
+  reducers: {
+    setTaskView: (state, action) => {
+      state.currentView = action.payload; // Update the view (e.g., 'allTasks' or 'userTasks')
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(createTask.pending, (state) => {
@@ -98,8 +139,44 @@ const taskSlice = createSlice({
       .addCase(deleteTask.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.tasks = state.tasks.filter(task => task.id !== action.payload.id);
+      })
+       // For getting tasks by assigned user
+       .addCase(getTasksByAssignedUser.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(getTasksByAssignedUser.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.tasks = action.payload; // Set the tasks to those fetched for the assigned user
+      })
+      .addCase(getTasksByAssignedUser.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(getTasksDoneByAssignedUser.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(getTasksDoneByAssignedUser.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.tasks = action.payload; // Set the tasks to those fetched for the assigned user
+      })
+      .addCase(getTasksDoneByAssignedUser.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(getAllDoneTasks.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(getAllDoneTasks.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.tasks = action.payload; // Set the tasks to those fetched for the assigned user
+      })
+      .addCase(getAllDoneTasks.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
       });
+      
   },
 });
+export const { setTaskView } = taskSlice.actions;
 
 export default taskSlice.reducer;

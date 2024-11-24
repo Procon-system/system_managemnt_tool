@@ -21,11 +21,13 @@ export const loginUser = async (credentials) => {
      const response = await axios.post(`${API_URL}/login`, credentials);
     return response.data;
   } catch (error) {
+    // Check if the error is an HTTP response error
     if (error.response && error.response.data) {
-        throw new Error(error.response.data.error || 'Error during email confirmation');
+      throw new Error(error.response.data.message || 'Login failed');
     }
+    // Handle network or server issues
     throw new Error('Network error or server unavailable');
-}
+  }
   };
 export const forgotPassword = async (emailData) => {
    try{

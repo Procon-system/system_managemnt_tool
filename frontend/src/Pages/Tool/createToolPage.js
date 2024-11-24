@@ -45,8 +45,8 @@ const CreateToolPage = () => {
 
   return (
     <div className="container mx-auto p-4 md:mx-96 lg:ml-72">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-4 space-y-2 md:space-y-0">
-        <h2 className="text-xl sm:text-2xl border p-2 rounded-md bg-blue-100 font-bold">Tools</h2>
+      <div className="flex md:flex-row justify-between items-center mb-4 space-y-2 md:space-y-0">
+        <h2 className="text-xl sm:text-2xl border p-1 rounded-md bg-blue-100 font-bold">Tools</h2>
         <button
           onClick={handleAddClick}
           className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition flex items-center space-x-2"

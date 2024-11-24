@@ -5,35 +5,121 @@ const API_URL = 'http://localhost:5000/api/tasks';
 
 const taskService = {
   createTask: async (taskData, token) => {
-    const response = await axios.post(
-      `${API_URL}/create-tasks`, 
-      { taskData },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
-        },
-      }
-    );
-    return response.data;
+    try {
+      const response = await axios.post(
+        `${API_URL}/create-tasks`, 
+        { taskData },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error creating task:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Error creating task');
+    }
   },
   // Fetch all tasks
   fetchTasks: async () => {
-    const response = await axios.get(`${API_URL}/get-all-tasks`);
-    return response.data;
+    try {
+      const response = await axios.get(`${API_URL}/get-all-tasks`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching tasks:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Error fetching tasks');
+    }
   },
-
+  
   // Update a task by ID
-  updateTask: async (taskId, updatedData) => {
-    console.log("updatedsclice",updatedData)
-    const response = await axios.put(`${API_URL}/update-tasks/${taskId}`, updatedData);
-    return response.data;
+  updateTask: async (taskId, updatedData, token) => {
+    try {
+      const response = await axios.put(
+        `${API_URL}/update-tasks/${taskId}`, 
+        updatedData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error updating task:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Error updating task');
+    }
   },
 
   // Delete a task by ID
-  deleteTask: async (taskId) => {
-    const response = await axios.delete(`${API_URL}/delete-tasks/${taskId}`);
-    return response.data;
+  deleteTask: async (taskId, token) => {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/delete-tasks/${taskId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting task:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Error deleting task');
+    }
+  },
+  getTasksByAssignedUser: async (userId, token) => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/get-tasks/assigned`, 
+        {
+          params: { userId }, // Pass userId as a query parameter
+          headers: {
+            Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching tasks:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Error fetching tasks');
+    }
+  },
+  getTasksDoneByAssignedUser: async (userId, token) => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/get-tasks/done/user`, 
+        {
+          params: { userId }, // Pass userId as a query parameter
+          headers: {
+            Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching tasks:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Error fetching tasks');
+    }
+  },
+  getAllDoneTasks: async (token) => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/get-tasks/done`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting task:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Error deleting task');
+    }
   },
 };
+
+
 
 export default taskService;

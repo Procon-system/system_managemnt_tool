@@ -16,7 +16,7 @@ const RichTextEditor = ({ value, onChange }) => {
             ['bold', 'italic', 'underline', 'strike'],
             [{ 'color': [] }, { 'background': [] }],
             [{ 'align': [] }],
-            ['link', 'image', 'blockquote', 'code-block'],
+            ['link',  'blockquote', 'code-block'],
             ['clean']
           ]
         }}

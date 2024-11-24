@@ -16,9 +16,10 @@ export const createFacility = createAsyncThunk(
 
 export const fetchFacilities = createAsyncThunk(
   'facilities/fetchFacilities',
-  async (_, { rejectWithValue }) => {
+  async (_, {getState, rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await facilityService.fetchFacilities();
+      return await facilityService.fetchFacilities(token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error fetching facilities');
     }
@@ -27,10 +28,11 @@ export const fetchFacilities = createAsyncThunk(
 
 export const updateFacility = createAsyncThunk(
   'facilities/updateFacility',
-  async ({ facilityId, updatedData }, { rejectWithValue }) => {
+  async ({ facilityId, updatedData }, {getState, rejectWithValue }) => {
+    const token = getState().auth.token;
     console.log("new",updatedData);
     try {
-      return await facilityService.updateFacility(facilityId, updatedData);
+      return await facilityService.updateFacility(facilityId, updatedData,token );
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error updating facility');
     }
@@ -39,9 +41,10 @@ export const updateFacility = createAsyncThunk(
 
 export const deleteFacility = createAsyncThunk(
   'facilities/deleteFacility',
-  async (facilityId, { rejectWithValue }) => {
+  async (facilityId, { getState,rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await facilityService.deleteFacility(facilityId);
+      return await facilityService.deleteFacility(facilityId,token );
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error deleting facility');
     }
