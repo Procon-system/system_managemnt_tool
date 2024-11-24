@@ -1,24 +1,4 @@
-// // src/store/store.js
-// import { configureStore } from '@reduxjs/toolkit';
-// import authReducer from '../features/authSlice';
-// import taskReducer from '../features/taskSlice';
-// import toolReducer from '../features/toolsSlice';
-// import materialReducer from '../features/materialsSlice';
-// import facilityReducer from '../features/facilitySlice';
-// import machineReducer from '../features/machineSlice';
 
-// const store = configureStore({
-//   reducer: {
-//     auth: authReducer,
-//     tasks: taskReducer,
-//     tools: toolReducer,
-//     materials: materialReducer,
-//     facilities: facilityReducer,
-//     machines: machineReducer,
-//   },
-// });
-
-// export default store;
 import { configureStore } from '@reduxjs/toolkit';
 import { persistReducer, persistStore } from 'redux-persist';
 import storage from 'redux-persist/lib/storage'; // defaults to localStorage for web
@@ -28,7 +8,7 @@ import toolReducer from '../features/toolsSlice';
 import materialReducer from '../features/materialsSlice';
 import facilityReducer from '../features/facilitySlice';
 import machineReducer from '../features/machineSlice';
-
+import userSlice from '../features/userSlice';
 import { combineReducers } from 'redux';
 
 // Define persist configuration for the auth slice
@@ -46,6 +26,7 @@ const rootReducer = combineReducers({
   materials: materialReducer,
   facilities: facilityReducer,
   machines: machineReducer,
+  users:userSlice,
 });
 
 // Wrap the root reducer with persistReducer

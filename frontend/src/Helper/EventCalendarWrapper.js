@@ -10,22 +10,83 @@ import ResourceTimeline from '@event-calendar/resource-timeline';
 import '@event-calendar/core/index.css';
 import { v4 as uuidv4 } from 'uuid';
 
-const EventCalendarWrapper = ({ events = [], onEventUpdate, onEventCreate, openForm, openCreateForm }) => {
+const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openForm, openCreateForm }) => {
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
+  // const getStatusColor = (endDate) => {
+  //   const now = new Date();
+  //   const deadline = new Date(endDate);
+  //   const daysLeft = (deadline - now) / (1000 * 60 * 60 * 24); // Calculate days difference
+  
+  //   if (daysLeft <= 0) {
+  //     return 'red'; // Overdue
+  //   } else if (daysLeft <= 2) {
+  //     return 'yellow'; // Approaching deadline
+  //   } else {
+  //     return 'green'; // Ongoing
+  //   }
+  // };
+  
   const mappedEvents = events.map(event => ({
     _id: event._id.toString(),
     start: event.start,
     end: event.end,
     title: event.title,
-    color: event.color,
+    color:  event.color,
     allDay: event.allDay,
+    notes:event.notes,
+    resourceIds: [
+      ...(event.assigned_resources.assigned_to || []).map(user => user._id ? user._id.toString() : 'undefined'),
+      ...(event.assigned_resources.tools || []).map(tool => tool._id ? tool._id.toString() : ''),
+      ...(event.assigned_resources.materials || []).map(material => material._id ? material._id.toString() : ''),
+    ],
     extendedProps: {
       _id: event._id.toString(),
     },
   }));
+  const groupedAssignedResources = [
+  {
+    id: 'assignedUsers',
+    title: 'Assigned Users',
+    children: events.flatMap(event => 
+      (event.assigned_resources.assigned_to || []).map(user => ({
+        id: user._id ? user._id.toString() : 'undefined',
+        title: `${user.first_name} ${user.last_name}`,
+        parent: 'assignedUsers'
+      }))
+    ),
+  },
+  {
+    id: 'tools',
+    title: 'Tools',
+    children: events.flatMap(event => 
+      (event.assigned_resources.tools || []).map(tool => ({
+        id: tool._id ? tool._id.toString() : '',
+        title: tool.tool_name,
+        parent: 'tools'
+      }))
+    ),
+  },
+  {
+    id: 'materials',
+    title: 'Materials',
+    children: events.flatMap(event => 
+      (event.assigned_resources.materials || []).map(material => ({
+        id: material._id ? material._id.toString() : '',
+        title: material.material_name,
+        parent: 'materials'
+      }))
+    ),
+  },
+];
 
+// Combine parent categories and children into a single array
+const assigned_resources = [
+  ...groupedAssignedResources,
+  // ...groupedAssignedResources.flatMap(group => group.children),
+];
+  console.log("mapped events",events)
   const adjustTimeForBackend = (time, timezoneOffset) => {
     const date = new Date(time);
     date.setHours(date.getHours() + timezoneOffset);
@@ -33,7 +94,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onEventCreate, openF
   };
  
   const handleViewChange = (view) => {
-    console.log("view",view)
     setChangedView(view); // Update view when a button is clicked
   };
   useEffect(() => {
@@ -50,11 +110,12 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onEventCreate, openF
           eventStartEditable: true,
           eventDurationEditable: true,
           events: mappedEvents,
+          resources:  assigned_resources,
           headerToolbar: {
-            // start: 'month', center: '', end: 'today prev,next'  
-            start: 'today,prev,next',  // "Today", "Prev", and "Next" buttons on the left
-  center: 'title',           // Title in the center
-  end: 'month,week,day,list resource,timeline' // Custom buttons on the right
+          // start: 'month', center: '', end: 'today prev,next'  
+          start: 'today,prev,next',  // "Today", "Prev", and "Next" buttons on the left
+          center: 'title',           // Title in the center
+          end: 'month,week,day,list resource,timeline' // Custom buttons on the right
 
           },
           customButtons: {
@@ -82,11 +143,9 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onEventCreate, openF
             },
             timeline: {
               text: 'Timeline',
-              click: () => handleViewChange('resourceTimeLine'),
-              
+              click: () => handleViewChange('resourceTimelineDay'), // Corrected view name
             },
           },
-         // Map events to be shown
           select: (info) => {
             const { start, end, resource } = info;
             const timezoneOffset = 3; // Adjust this value based on the expected timezone
@@ -180,15 +239,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onEventCreate, openF
   }, [changedView]);
   return (
     <div>
-      {/* View Switcher Buttons */}
-      {/* <div style={{ marginBottom: '10px' }}>
-        <button onClick={() => handleViewChange('dayGridMonth')}>+ Facility</button>
-        <button onClick={() => handleViewChange('timeGridWeek')}>+ Material</button>
-        <button onClick={() => handleViewChange('timeGridDay')}>+Tools</button>
-        <button onClick={() => handleViewChange('listWeek')}></button>
-        <button onClick={() => handleViewChange('resourceTimeGridWeek')}>Resource Week</button>
-      </div> */}
-
       {/* Calendar Container */}
       <div ref={calendarContainer} id="ec" />
     </div>

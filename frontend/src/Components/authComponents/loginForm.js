@@ -5,6 +5,8 @@ import { login } from '../../features/authSlice';
 import { loginUser } from '../../Services/authService';
 import FormInput from './inputForm';
 import { useNavigate,Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import {jwtDecode} from "jwt-decode";
 const LoginForm = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -23,23 +25,67 @@ const LoginForm = () => {
       }
     };
   
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      try {
-        const response = await loginUser(formData);
-        const { user, token } = response;
-        // Save token to localStorage for persistence
-        localStorage.setItem('token', token);
-        // Dispatch login action to update Redux state
-        dispatch(login({ user, token }));
-  
+  //   const handleSubmit = async (e) => {
+  //     e.preventDefault();
+  //     try {
+  //       const response = await loginUser(formData);
+  //       const { user, token } = response;
+  //       // Save token to localStorage for persistence
+  //       localStorage.setItem('token', token);
+  //       // Dispatch login action to update Redux state
+  //       dispatch(login({ user, token }));
+  //  // Show success toast
+  //  toast.success('Login successful!');
+
        
-            navigate('/home');
-      } catch (error) {
-        console.error('Login error:', error.response.data.error);
-           }
-    };
+  //           navigate('/home');
+  //     } catch (error) {
+  //       // Catch and display error message
+  //   // Show error toast
+  //   console.log("err",error)
+  //   toast.error(`Error: ${error.message}`);
+  // }
+  //   };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Make API call to log in the user
+      const response = await loginUser(formData);
   
+      if (!response) throw new Error("Invalid response from the server.");
+      const { user,token } = response;
+  
+      // Decode the JWT to extract user details, including access_level
+      const decodedToken = jwtDecode(token);
+  
+      if (!decodedToken) throw new Error("Failed to decode token.");
+  
+      const { access_level } = decodedToken;
+  
+      // Save token to localStorage for persistence
+      localStorage.setItem("token", token);
+  
+      // Dispatch login action to update Redux state
+      dispatch(
+        login({
+          user: user, // Full user object
+          token,
+          access_level, // Include access level explicitly
+        })
+      );
+      console.log("access level",access_level)
+      // Show success toast notification
+      toast.success("Login successful!");
+  
+      // Navigate to the home page
+      navigate("/home");
+    } catch (error) {
+      console.error("Login error:", error.message || error);
+  
+      // Show error toast notification
+      toast.error(`Login failed: ${error.response?.data?.message || error.message}`);
+    }
+  };
   return (
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required />

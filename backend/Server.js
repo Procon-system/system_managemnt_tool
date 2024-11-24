@@ -17,44 +17,17 @@ const machineRoutes = require('./Routes/machineRoutes');
 const materialsRoutes = require('./Routes/materialRoutes');
 const tasksRoutes = require('./Routes/taskRoutes');
 const toolRoutes = require('./Routes/toolRoutes');
+const userRoutes =require('./Routes/userRoutes');
+// const teamRoutes = require('./Routes/teamRoutes');
+// const departmentRoutes = require('./Routes/departmentRoutes');
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const config = require('./config/config'); 
 require('dotenv').config();
+const { GridFsStorage } = require('multer-gridfs-storage');
+const multer = require('multer');
 const app = express();
-// Middleware to parse JSON bodies
-// app.use(bodyParser.json());
-// app.use(express.urlencoded({ extended: true }));
-// app.use(
-//   cors({
-//     origin: [
-//       "http://localhost:3000",
-//     ],
-//     credentials: true,
-//   })
-// );
-// app.use(cookieParser());
-// const mongoURI = process.env.MONGO_URI
-
-// mongoose.connect(mongoURI, {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-//   serverSelectionTimeoutMS: 10000,
-// })
-//   .then(() => console.log('Connected to MongoDB'))
-//   .catch((err) => console.error('MongoDB connection error:', err));
-//   app.use('/api/auth', authRoutes);
-//   app.use('/api/facility',facilityRoutes);
-//   app.use('/api/machine',machineRoutes);
-//   app.use('/api/material',materialsRoutes);
-//   app.use('/api/tools',toolRoutes);
-//   app.use('/api/tasks',tasksRoutes);
-//   const port = process.env.PORT || 5000;
-
-// // Start the server
-// app.listen(port, () => {
-//   console.log('Server running on port 5000');
-// });
+const { initializeStorage } =require('./utils/uploadImage')
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
@@ -71,10 +44,18 @@ mongoose.connect(config.mongoURI, {
   useUnifiedTopology: true,
   serverSelectionTimeoutMS: 10000,
 })
-  .then(() => console.log('Connected to MongoDB'))
+  .then(() => {
+    console.log('Connected to MongoDB');
+    
+    // Initialize GridFsStorage after MongoDB connection
+    initializeStorage();
+  })
   .catch((err) => console.error('MongoDB connection error:', err));
 
-
+// Handle connection errors
+mongoose.connection.on('error', (err) => {
+  console.error('Mongoose connection error:', err);
+});
 // Routes setup
 app.use('/api/auth', authRoutes);
 app.use('/api/facility', facilityRoutes);
@@ -82,6 +63,9 @@ app.use('/api/machine', machineRoutes);
 app.use('/api/material', materialsRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/tasks', tasksRoutes);
+app.use('/api/users',userRoutes);
+// app.use('/api/teams', teamRoutes);
+// app.use('/api/departments', departmentRoutes);
 
 // Start the server
 app.listen(config.port, () => {

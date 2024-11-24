@@ -1,7 +1,7 @@
 const { registerUser ,loginUser,logoutUser,confirmEmail,forgotPassword,resetPassword} = require('../Services/authService');
 const registerController = async (req, res) => {
   try {
-    const { email, password, last_name, first_name, personal_number, working_group, access_level } = req.body;
+    const { email, password, last_name, first_name, personal_number,access_level } = req.body;
 
     const { user, token } = await registerUser({
       email,
@@ -9,7 +9,6 @@ const registerController = async (req, res) => {
       last_name,
       first_name,
       personal_number,
-      working_group,
       access_level,
     });
     const cookieOptions = {
@@ -42,16 +41,7 @@ const loginController = async (req, res) => {
     const email = String(req.body.email);
     const password = String(req.body.password);
     const rememberMe = req.body.rememberMe === 'true';
-    
-    console.log("Email:", email);
-    console.log("Password:", password);
-    console.log("Remember Me:", rememberMe);
-
     const { user, token } = await loginUser(email, password, rememberMe);
-    
-    console.log("User:", user);
-    console.log("Token:", token);
-
     const cookieOptions = {
       httpOnly: true,
       secure: false, // Set to true if using HTTPS

@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const hashPassword= require('../Middleware/hashPassword');
 const generateToken= require('../Middleware/generateToken');
 const registerValidator= require('../Helper/registerValidator');
+// const Team = require('../Models/TeamSchema');
+// const Department = require('../Models/DepartmentSchema');
 const {generateConfirmationCode }= require('../Helper/generateConfirmationCode');
 const {
   sendConfirmationEmail,
@@ -14,7 +16,7 @@ require('dotenv').config();
 // Service to register a new user
 const registerUser = async (userData) => {
   
-  const { email,password,last_name,first_name,personal_number,working_group, access_level } = userData;
+  const { email,password,last_name,first_name,personal_number,access_level} = userData;
   const validation=registerValidator.validate({email,password});
   if(validation.error){
     throw new Error(validation.error.details.map((d)=>
@@ -36,22 +38,20 @@ const registerUser = async (userData) => {
    last_name,
    first_name,
    personal_number,
-   working_group,
-   access_level
+   access_level,
   });
 
   // Save the user to the database
   await newUser.save();
   const confirmationCode = generateConfirmationCode();
-  console.log("ccc",confirmationCode);
   await User.findByIdAndUpdate(newUser._id, { confirmationCode });
 
-  await sendConfirmationEmail(newUser.email, confirmationCode, newUser.first_name);
+  // await sendConfirmationEmail(newUser.email, confirmationCode, newUser.first_name);
 
-   const token =await generateToken({id:newUser._id});
-   if(!token){
+  const token = await generateToken({ id: newUser._id, access_level: newUser.access_level });
+  if (!token) {
     throw new Error("Error generating token");
-   }
+  }
    return {user:newUser,token}
 };
 
@@ -79,7 +79,8 @@ const loginUser = async (email, password, rememberMe) => {
 
   // Define token expiry based on rememberMe
   const tokenExpiry = rememberMe ? '30d' : '1h';
-  const token = await generateToken({ id: user._id }, tokenExpiry);
+  // Generate a token including `access_level`
+  const token = await generateToken({ id: user._id, access_level: user.access_level }, tokenExpiry);
   console.log("Generated Token:", token);
 
   if (!token) {
@@ -105,7 +106,7 @@ async function forgotPassword(email) {
   const user = await User.findOne({ email });
   if (!user) throw new Error("User with this email does not exist");
 
-  const token = await generateToken({ id: user._id });
+  const token = await generateToken({ id: user._id,access_level: user.access_level });
   if (!token) throw new Error("Token generation failed");
 
   await sendRestPasswordLink(email, user._id, token);

@@ -54,6 +54,7 @@ services:
       - '27017:27017' 
     volumes:
       - mongo-data:/data/db 
+    command: ["--bind_ip_all"]
     networks:
       - app-network
     restart: unless-stopped

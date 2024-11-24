@@ -16,9 +16,10 @@ export const createMachine = createAsyncThunk(
 
 export const fetchMachines = createAsyncThunk(
   'machines/fetchMachines',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState,rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await machineService.fetchMachines();
+      return await machineService.fetchMachines(token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error fetching machines');
     }
@@ -27,9 +28,10 @@ export const fetchMachines = createAsyncThunk(
 
 export const updateMachine = createAsyncThunk(
   'machines/updateMachine',
-  async ({ machineId, updatedData }, { rejectWithValue }) => {
+  async ({ machineId, updatedData }, { getState,rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await machineService.updateMachine(machineId, updatedData);
+      return await machineService.updateMachine(machineId, updatedData,token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error updating machine');
     }
@@ -38,9 +40,10 @@ export const updateMachine = createAsyncThunk(
 
 export const deleteMachine = createAsyncThunk(
   'machines/deleteMachine',
-  async (machineId, { rejectWithValue }) => {
+  async (machineId, { getState,rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await machineService.deleteMachine(machineId);
+      return await machineService.deleteMachine(machineId,token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error deleting machine');
     }

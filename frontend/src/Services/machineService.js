@@ -18,23 +18,40 @@ const machineService = {
   },
 
   // Fetch all machines
-  fetchMachines: async () => {
-    const response = await axios.get(`${API_URL}/get-all-machines`);
+  fetchMachines: async (token) => {
+    const response = await axios.get(`${API_URL}/get-all-machines`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
+    );
     return response.data;
   },
 
   // Update a machine by ID
-  updateMachine: async (machineId, updatedData) => {
+  updateMachine: async (machineId, updatedData,token) => {
     const response = await axios.put(
       `${API_URL}/update-machines/${machineId}`,
-      updatedData
+      updatedData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
     );
     return response.data;
   },
 
   // Delete a machine by ID
-  deleteMachine: async (machineId) => {
-    const response = await axios.delete(`${API_URL}/delete-machines/${machineId}`);
+  deleteMachine: async (machineId,token) => {
+    const response = await axios.delete(`${API_URL}/delete-machines/${machineId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
+    );
     return response.data;
   },
 };

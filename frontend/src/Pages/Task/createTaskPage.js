@@ -2,7 +2,8 @@ import React from 'react';
 import { useDispatch,useSelector } from 'react-redux';
 import { createTask } from '../../features/taskSlice';
 import TaskForm from '../../Components/taskComponents/taskForm';
-const TaskPage = ({ onClose, event }) => {
+import { toast } from 'react-toastify';
+const TaskPage = ({ onClose, event ,isOffset = false}) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.tasks);
 console.log("event acc",event);
@@ -15,18 +16,22 @@ console.log("event acc",event);
   const handleTaskSubmit = async (taskData) => {
     try {
       const resultAction = await dispatch(createTask(taskData)).unwrap();
+      
       if (resultAction) {
-        onClose(); // Close form on successful submission
-      }
+        if (onClose) {
+          onClose(); // Call onClose only if it exists
+        }
+        toast.success("Task created successfully!");
+      }    
     } catch (error) {
       console.error("Failed to create task:", error);
+      toast.error(`Error: ${error.message}`);
     }
   };
 
   return (
-    <div className='mt-7'>
-      <h1 className="text-xl font-bold text-center flex justify-center mb-4">Create Task</h1>
-      {loading && <p>Loading...</p>}
+    <div className={`mt-3 ${isOffset ? '' : 'lg:ml-96'}`}>
+     {loading && <p>Loading...</p>}
       {error && <p className="text-red-500">Error: {error}</p>}
       <TaskForm onSubmit={handleTaskSubmit} initialData={initialTaskData} />
     </div>

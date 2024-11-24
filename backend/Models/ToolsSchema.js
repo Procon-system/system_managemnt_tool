@@ -8,6 +8,10 @@ const toolSchema = new mongoose.Schema({
  available_since:{
     type:Date,
  },
+ amount_available:{
+   type:Number,
+   default:0,
+},
  certification:{
     type:String,
  }

@@ -6,9 +6,65 @@ const createTask = async (taskData) => {
   const task = new Task(taskData);
   return await task.save();
 };
+const getTasksByAssignedUser = async (userId) => {
+  return Task.find({
+    assigned_to: { $in: [userId] }, // Check if userId is in the assigned_to array
+    status: { $ne: 'done' },       // Exclude tasks with 'done' status
+  });
+};
+
+/**
+ * Fetch tasks by filters
+ * @param {Object} filters - Query filters for fetching tasks
+ * @returns {Array} - Array of tasks matching the filters
+ */
+const fetchTasksByFilters = async (filters = {}) => {
+  try {
+    const tasks = await Task.find(filters).sort({ updatedAt: -1 }); // Sort by most recent
+    return tasks;
+  } catch (error) {
+    throw new Error('Error fetching tasks: ' + error.message);
+  }
+};
+
+const fetchDoneTasksForUser = async (userId) => {
+  try {
+    return await fetchTasksByFilters({ status: 'done', assigned_to: userId });
+  } catch (error) {
+    throw new Error('Error fetching done tasks for user: ' + error.message);
+  }
+};
+
+const fetchAllDoneTasks = async () => {
+  try {
+    return await fetchTasksByFilters({ status: 'done' });
+  } catch (error) {
+    throw new Error('Error fetching all done tasks: ' + error.message);
+  }
+}
 
 const getAllTasks = async () => {
-  return await Task.find().populate('facility machine assigned_to created_by tools materials');
+  try {
+    const tasks = await Task.find({ status: { $ne: 'done' } })
+      .populate('facility machine assigned_to created_by tools materials') // `virtuals` is already set in schema, no need to set here
+      .exec();
+
+    if (!tasks || tasks.length === 0) {
+      console.log('No tasks found.');
+      return;
+    }
+
+    tasks.forEach(task => {
+      console.log('Populated assigned_to:', task.assigned_to);
+      console.log('Populated tools:', task.tools);
+      console.log('Populated materials:', task.materials);
+      console.log('Assigned Resources:', task.assigned_resources); // Should now display correctly
+    });
+
+    return tasks;
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+  }
 };
 
 const getTaskById = async (id) => {
@@ -38,5 +94,8 @@ module.exports = {
   getTaskById,
   updateTask,
   deleteTask,
+  fetchAllDoneTasks,
+  fetchDoneTasksForUser,
+  getTasksByAssignedUser,
   createTaskFromMachine,
 };

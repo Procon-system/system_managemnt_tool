@@ -18,23 +18,40 @@ const facilityService = {
   },
 
   // Fetch all facilities
-  fetchFacilities: async () => {
-    const response = await axios.get(`${API_URL}/get-all-facility`);
+  fetchFacilities: async (token) => {
+    const response = await axios.get(`${API_URL}/get-all-facility`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
+    );
     return response.data;
   },
 
   // Update a facility by ID
-  updateFacility: async (facilityId, updatedData) => {
+  updateFacility: async (facilityId, updatedData,token) => {
     const response = await axios.put(
       `${API_URL}/update-facility/${facilityId}`,
-      updatedData
+      updatedData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
     );
     return response.data;
   },
 
   // Delete a facility by ID
-  deleteFacility: async (facilityId) => {
-    const response = await axios.delete(`${API_URL}/delete-facility/${facilityId}`);
+  deleteFacility: async (facilityId,token) => {
+    const response = await axios.delete(`${API_URL}/delete-facility/${facilityId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }
+    );
     return response.data;
   },
 };

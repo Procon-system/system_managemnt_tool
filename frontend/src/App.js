@@ -13,8 +13,14 @@ import ConfirmEmail from './Components/authComponents/confirmEmail';
 import CreateFacilityPage from './Pages/Facility/createFacilityPage';
 import CreateMachinePage from './Pages/Machine/createMachinePage';
 import CreateMaterialPage from './Pages/Material/createMaterialPage';
-import CreateToolPage from './Pages/Tool/createToolPage'
-import Navbar from './Components/navbarComponents'
+import CreateToolPage from './Pages/Tool/createToolPage';
+import Navbar from './Components/navbarComponents';
+import ProfilePage from './Components/profileComponents';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import ProtectedRoute from "./accessControl/protectedRoute";
+import { ROLES } from "./accessControl/roles";
+import UnauthorizedPage from "./Pages/unauthorizedPage";
 // ConditionalNavBar Component
 const ConditionalNavBar = () => {
   const location = useLocation();
@@ -31,26 +37,72 @@ const ConditionalNavBar = () => {
     </>
   );
 };
-
-// App Component with routes
 const App = () => {
   return (
     <Router>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar closeOnClick pauseOnFocusLoss pauseOnHover />
       <ConditionalNavBar />
       <div className="pt-16"> {/* Pushes content below navbar */}
         <Routes>
+          {/* Public Routes */}
           <Route path="/home" element={<HomePage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/logout" element={<LogoutPage />} />
-          <Route path="/create-task" element={<TaskPage />} />
-          <Route path="/create-facility" element={<CreateFacilityPage />} />
-          <Route path="/create-machines" element={<CreateMachinePage />} />
-          <Route path="/create-materials" element={<CreateMaterialPage />} />
-          <Route path="/create-tools" element={<CreateToolPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:id/:token" element={<ResetPasswordPage />} />
           <Route path="/confirm-email/:confirmationCode" element={<ConfirmEmail />} />
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create-task"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+                <TaskPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create-facility"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+                <CreateFacilityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create-machines"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+                <CreateMachinePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create-materials"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.FREE}>
+                <CreateMaterialPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create-tools"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.FREE}>
+                <CreateToolPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </div>
     </Router>

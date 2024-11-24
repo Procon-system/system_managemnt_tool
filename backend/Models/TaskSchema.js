@@ -26,10 +26,14 @@ const taskSchema=new mongoose.Schema({
     },
     status:{
       type:String,
-      enum:["pending","in progress","done","overdue"]
+      enum:["pending","in progress","done","overdue","impossible"]
     },
     notes:{
       type:String,
+    },
+    image: {  // New field for storing the image reference
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'fs.files', // Reference to GridFS
     },
     start_time:{
      type:Date,
@@ -42,7 +46,7 @@ const taskSchema=new mongoose.Schema({
     
     color_code:{
       type:String,
-      enum: ["green", "yellow", "red"], //green,yellow,red
+      enum: ["blue","green", "yellow", "red","gray"], //green,yellow,red,blue
 
     },
     alarm_enabled:{
@@ -50,10 +54,12 @@ const taskSchema=new mongoose.Schema({
       default:false,
     },
 
-    assigned_to:{
+    assigned_to:[
+      {
       type: mongoose.Schema.Types.ObjectId,
       ref:'User', //reference to user model
-    },
+    }
+  ],
     created_by:{
         type: mongoose.Schema.Types.ObjectId,
         ref:'User',
@@ -78,10 +84,21 @@ const taskSchema=new mongoose.Schema({
         type:Date,
         default:Date.now,
       }
+},
+{
+  toObject: { virtuals: true },
+  toJSON: { virtuals: true }
 });
 taskSchema.pre('save',function(next){
     this.updated_at=Date.now();
     next();
+});
+taskSchema.virtual('assigned_resources').get(function() {
+  return {
+    assigned_to: this.assigned_to,
+    tools: this.tools,
+    materials: this.materials,
+  };
 });
 const Task = mongoose.model('Task',
     taskSchema

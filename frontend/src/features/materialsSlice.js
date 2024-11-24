@@ -16,9 +16,10 @@ export const createMaterial = createAsyncThunk(
 
 export const fetchMaterials = createAsyncThunk(
   'materials/fetchMaterials',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState,rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await materialService.fetchMaterials();
+      return await materialService.fetchMaterials(token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error fetching materials');
     }
@@ -27,9 +28,10 @@ export const fetchMaterials = createAsyncThunk(
 
 export const updateMaterial = createAsyncThunk(
   'materials/updateMaterial',
-  async ({ materialId, updatedData }, { rejectWithValue }) => {
+  async ({ materialId, updatedData }, {getState, rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await materialService.updateMaterial(materialId, updatedData);
+      return await materialService.updateMaterial(materialId, updatedData,token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error updating material');
     }
@@ -38,9 +40,10 @@ export const updateMaterial = createAsyncThunk(
 
 export const deleteMaterial = createAsyncThunk(
   'materials/deleteMaterial',
-  async (materialId, { rejectWithValue }) => {
+  async (materialId, { getState,rejectWithValue }) => {
+    const token = getState().auth.token;
     try {
-      return await materialService.deleteMaterial(materialId);
+      return await materialService.deleteMaterial(materialId,token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error deleting material');
     }

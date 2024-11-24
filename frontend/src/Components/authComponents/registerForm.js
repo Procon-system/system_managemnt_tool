@@ -5,7 +5,7 @@ import { login } from '../../features/authSlice';
 import { registerUser } from '../../Services/authService';
 import FormInput from './inputForm';
 import { useNavigate } from 'react-router-dom';
-
+import { toast } from 'react-toastify';
 const RegisterForm = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -36,7 +36,7 @@ const RegisterForm = () => {
         const { user, token } = response;
         dispatch(login({ user, token }));
         setConfirmationMessage('Please check your email to confirm your registration.');
-
+        toast.success('Registration successful!');
         // Redirect to the login page after successful registration
         navigate('/login');
       } else {
@@ -44,6 +44,7 @@ const RegisterForm = () => {
       }
     } catch (error) {
       console.error('Registration error:', error.message);
+      toast.error(`Error: ${error.message}`);
     }
   };
 
@@ -54,16 +55,6 @@ const RegisterForm = () => {
       <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required />
       <FormInput label="Password" name="password" type="password" value={formData.password} onChange={handleChange} required />
       <FormInput label="Personal Number" name="personal_number" type="text" value={formData.personal_number} onChange={handleChange} />
-      <FormInput
-      label="Working Group"
-      name="working_group"
-      type="text"
-      value={formData.working_group}
-      onChange={handleChange}
-      required
-      options={['group1', 'group2', 'group3']}
-    />
-
     {/* Access Level Dropdown */}
     <FormInput
       label="Access Level"
