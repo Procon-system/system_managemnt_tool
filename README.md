@@ -78,19 +78,26 @@ docker compose up --build
 
 5.After any new changes to the code:
 
-Run git pull to fetch the latest changes from the repository.
+Run the following command to fetch the latest changes from the repository.
+
+git pull 
+
 Check for the .env file:
 
 If the .env file is not present, create it and add the environment variables.
+
 Rebuild Docker containers:
 
 Run the following commands to ensure the changes are reflected in the Docker containers:
+
 docker compose down
+
 docker compose up --build
 
 If no code changes have been made:
 
 To simply restart the application, run:
+
 docker compose up
 
 # Service_managemnt_tool description
