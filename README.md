@@ -75,6 +75,22 @@ Rebuild Containers:
 If changes aren’t reflected, rebuild the containers:
 
 docker compose up --build
+5.After making changes to the code:
+
+Run git pull to fetch the latest changes from the repository.
+Check for the .env file:
+
+If the .env file is not present, create it and add the environment variables.
+Rebuild Docker containers:
+
+Run the following commands to ensure the changes are reflected in the Docker containers:
+docker compose down
+docker compose up --build
+
+If no code changes have been made:
+
+To simply restart the application, run:
+docker compose up
 
 # Service_managemnt_tool description
 The service Management tool should be a platform were a Person is able to see move (move in Time by drag and drop) setup and distribute service Tasks from one or Multiple Machines. 
