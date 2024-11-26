@@ -27,7 +27,7 @@ const ConditionalNavBar = () => {
   const location = useLocation();
   
   // Paths where Navbar and Sidebar are not displayed
-  const authPaths = ["/login", "/logout", "/forgot-password", "/reset-password", "/confirm-email"];
+  const authPaths = ["/register","/login", "/logout", "/forgot-password", "/reset-password", "/confirm-email"];
   
   const hideNavBar = authPaths.some(path => location.pathname.startsWith(path));
 
@@ -47,7 +47,7 @@ const App = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/home" element={<HomePage />} />
-          {/* <Route path="/register" element={<RegisterPage />} /> */}
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/logout" element={<LogoutPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -64,14 +64,14 @@ const App = () => {
               </ProtectedRoute>
             }
           />
-          <Route
+          {/* <Route
   path="/register"
   element={
     <ProtectedRoute requiredAccessLevel={ROLES.ADMIN}>
       <RegisterPage />
     </ProtectedRoute>
   }
-/>
+/> */}
 <Route
   path="/user"
   element={

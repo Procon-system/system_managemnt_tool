@@ -17,7 +17,7 @@ const {
 
 const router = express.Router();
 
-router.post('/register',authenticateUser, isFreeAccess, registerController);
+router.post('/register',registerController);
 router.post('/login', loginController);
 router.post('/logout', logoutController);
 router.post('/confirm-email/:confirmationCode',confirmEmailController);

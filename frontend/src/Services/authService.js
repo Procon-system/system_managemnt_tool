@@ -1,18 +1,18 @@
 // src/services/authService.js
 import axios from 'axios';
-import store from '../Store/store';
+// import store from '../Store/store';
 const API_URL = 'http://localhost:5000/api/auth'; // Adjust based on your API setup
 
 export const registerUser = async (userData) => {
     try {
-      const token = store.getState().auth.token;
+      // const token = store.getState().auth.token;
       const response = await axios.post(`${API_URL}/register`, 
         userData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // Include the token in the Authorization header
-          },
-        },
+        // {
+        //   headers: {
+        //     Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        //   },
+        // },
         );
       return response.data; // Return the `data` directly
     } catch (error) {
