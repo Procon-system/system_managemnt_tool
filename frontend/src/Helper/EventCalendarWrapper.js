@@ -9,11 +9,13 @@ import TimeGrid from '@event-calendar/time-grid';
 import ResourceTimeline from '@event-calendar/resource-timeline';
 import '@event-calendar/core/index.css';
 import { v4 as uuidv4 } from 'uuid';
-
+import { useSelector } from 'react-redux';
+import { toast } from 'react-toastify';
 const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openForm, openCreateForm }) => {
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
+  const user =useSelector((state) => state.auth);
   // const getStatusColor = (endDate) => {
   //   const now = new Date();
   //   const deadline = new Date(endDate);
@@ -147,6 +149,11 @@ const assigned_resources = [
             },
           },
           select: (info) => {
+            if (user.access_level < 3) {
+              // toast.success("Login successful!");
+              toast.error('You do not have permission to create events.');
+              return;
+            }
             const { start, end, resource } = info;
             const timezoneOffset = 3; // Adjust this value based on the expected timezone
             const adjustedStartTime = adjustTimeForBackend(start, timezoneOffset);
@@ -163,6 +170,11 @@ const assigned_resources = [
             openCreateForm(newEvent);
           },
           dateClick: (info) => {
+            console.log("user",user);
+            if (user.access_level < 3) {
+              toast.error('You do not have permission to create events.');
+              return;
+            }
             const timezoneOffset = 3; 
             const adjustedStartTime = adjustTimeForBackend(info.date, timezoneOffset);
             const newEvent = {
@@ -174,6 +186,10 @@ const assigned_resources = [
             openCreateForm(newEvent); // Open form with pre-filled start time
           },
           eventClick: (info) => {
+            if (user.access_level < 2) {
+              toast.error('You do not have permission to create events.');
+              return;
+            }
             const { event } = info;
             const mongoId = event.extendedProps._id || event._id;
             const updatedEvent = {
@@ -183,6 +199,10 @@ const assigned_resources = [
             openForm(updatedEvent);
           },
           eventResize: (info) => {
+            if (user.access_level < 3) {
+              toast.error('You do not have permission to create events.');
+              return;
+            }
             const { event } = info;
             const mongoId = event.extendedProps._id;
             const timezoneOffset = 3;
@@ -196,6 +216,10 @@ const assigned_resources = [
             onEventUpdate(updatedEvent);
           },
           eventDrop: (info) => {
+            if (user.access_level < 3) {
+              toast.error('You do not have permission to create events.');
+              return;
+            }
             const { event, jsEvent } = info;
             const timezoneOffset = 3;
             const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);

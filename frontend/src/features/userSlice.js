@@ -10,10 +10,10 @@ export const getUsers = createAsyncThunk("users/getUserAll", async (_, {getState
     return rejectWithValue(error.message);
   }
 });
-// async ({ toolId, updatedData }, {getState, rejectWithValue }) => {
+
 export const updateUser = createAsyncThunk("users/update", async ({ id, updateData}, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
-  try {
+  try { console.log("id",id)
     return await updateUserProfile(id, updateData, token);
   } catch (error) {
     return rejectWithValue(error.message);

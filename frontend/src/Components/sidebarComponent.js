@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes } from 'react-icons/fa';
 import { setTaskView } from '../features/taskSlice';
 import { FiList, FiCheckCircle, FiArchive,FiClipboard, FiHome, FiCpu, FiTool, FiLayers } from "react-icons/fi";
+import { FaUser} from "react-icons/fa";
+
 import { AiOutlineHome } from "react-icons/ai";
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -64,7 +66,7 @@ const Sidebar = () => {
             className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
             onClick={handleHomeClick}
           >
-            <AiOutlineHome className="text-green-500 mr-3" size={24} />
+            <AiOutlineHome className="text-blue-500 mr-3" size={24} />
             Home
           </button>
           
@@ -83,7 +85,7 @@ const Sidebar = () => {
                 className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
                 onClick={handleViewYourDoneTasksClick}
               >
-                <FiCheckCircle className="text-green-500 mr-3" size={24} />
+                <FiCheckCircle className="text-blue-500 mr-3" size={24} />
                 Your Tasks History
               </button>
             </>
@@ -105,7 +107,7 @@ const Sidebar = () => {
         className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
         onClick={() => handleNavigation('/create-facility')}
       >
-        <FiHome className="text-green-500 mr-3" size={24} />
+        <FiHome className="text-blue-500 mr-3" size={24} />
         Facility
       </button>
 
@@ -114,7 +116,7 @@ const Sidebar = () => {
         className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
         onClick={() => handleNavigation('/create-machines')}
       >
-        <FiCpu className="text-purple-500 mr-3" size={24} />
+        <FiCpu className="text-blue-500 mr-3" size={24} />
         Machine
       </button>
 
@@ -123,7 +125,7 @@ const Sidebar = () => {
         className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
         onClick={() => handleNavigation('/create-tools')}
       >
-        <FiTool className="text-yellow-500 mr-3" size={24} />
+        <FiTool className="text-blue-500 mr-3" size={24} />
         Tool
       </button>
 
@@ -132,16 +134,27 @@ const Sidebar = () => {
         className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
         onClick={() => handleNavigation('/create-materials')}
       >
-        <FiLayers className="text-orange-500 mr-3" size={24} />
+        <FiLayers className="text-blue-500 mr-3" size={24} />
         Material
       </button>
             </>
+          )}
+          {access_level >=4 && (
+            <>
+            <button
+              className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
+              onClick={() => handleNavigation('/user')}
+            >
+                <FaUser className="text-blue-500 mr-3" size={24} />
+                User List
+              </button></>
+          
           )}
           <button
             className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
             onClick={handleViewAllDoneTasksClick}
           >
-            <FiArchive className="text-purple-500 mr-3" size={24} />
+            <FiArchive className="text-blue-500 mr-3" size={24} />
             Tasks History
           </button>
         </div>

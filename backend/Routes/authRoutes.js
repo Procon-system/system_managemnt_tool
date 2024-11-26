@@ -6,9 +6,18 @@ const {
   forgotPasswordController,
   resetPasswordController
 } = require('../Controllers/authController');
+const {
+  authenticateUser,
+  isRandomUser,
+  isServicePersonal,
+  isManager,
+  isFreeAccess,
+  isAdmin,
+} = require('../Middleware/authMiddleware');
+
 const router = express.Router();
 
-router.post('/register', registerController);
+router.post('/register',authenticateUser, isFreeAccess, registerController);
 router.post('/login', loginController);
 router.post('/logout', logoutController);
 router.post('/confirm-email/:confirmationCode',confirmEmailController);

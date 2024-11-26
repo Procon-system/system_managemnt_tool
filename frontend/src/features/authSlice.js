@@ -21,7 +21,7 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
-      state.accessLevel = null; // Clear accessLevel
+      state.access_level = null; // Clear accessLevel
       state.isLoggedIn = false;
     },
   },

@@ -63,7 +63,13 @@ const RegisterForm = () => {
       value={formData.access_level}
       onChange={handleChange}
       required
-      options={['1', '2', '3', '4', '5']}
+      options={[
+        { value: '1', description: '1 - Random User' },
+        { value: '2', description: '2 - Service Personnel' },
+        { value: '3', description: '3 - Manager' },
+        { value: '4', description: '4 - Free' },
+        { value: '5', description: '5 - Admin' },
+      ]}
     />
       {error && <p className="text-red-500">{error}</p>}
       {confirmationMessage && <p className="text-green-500">{confirmationMessage}</p>}

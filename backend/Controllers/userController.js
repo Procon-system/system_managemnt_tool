@@ -14,8 +14,15 @@ const getUsers = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   const { id } = req.params; // ID of the user being updated
   const loggedInUserId = req.user.id; // ID of the logged-in user (extracted from token)
+  // const { email, password, first_name, last_name } = req.body;
+  // const loggedInUserRole = req.user.access_level; // Role of the logged-in user
   const { email, password, first_name, last_name } = req.body;
 
+  // try {
+  //   // Check if the logged-in user is updating their own profile or is an admin
+  //   if (id !== loggedInUserId && loggedInUserRole < 4 ) {
+  //     return res.status(403).json({ error: 'You are not authorized to update this profile' });
+  //   }
   try {
     // Check if the logged-in user matches the user being updated
     if (id !== loggedInUserId) {
@@ -36,9 +43,9 @@ const deleteUserAccount = async (req, res) => {
 
   try {
     // Check if the logged-in user matches the user being deleted
-    if (id !== loggedInUserId) {
-      return res.status(403).json({ error: 'You can only delete your own account' });
-    }
+    // if (id !== loggedInUserId) {
+    //   return res.status(403).json({ error: 'You can only delete your own account' });
+    // }
 
     const success = await deleteUser(id);
     if (success) {

@@ -1,23 +1,4 @@
-// import React from "react";
-// import { Navigate } from "react-router-dom";
-// import { useSelector } from "react-redux";
 
-// const ProtectedRoute = ({ children, requiredAccessLevel }) => {
-//   const { isLoggedIn, access_level } = useSelector((state) => state.auth);
-//   if (!isLoggedIn) {
-//     // Redirect to login if not authenticated
-//     return <Navigate to="/login" replace />;
-//   }
-
-//   if (access_level < requiredAccessLevel) {
-//     // Redirect to unauthorized page if access level is insufficient
-//     return <Navigate to="/unauthorized" replace />;
-//   }
-
-//   return children; // Render the protected route content
-// };
-
-// export default ProtectedRoute;
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
