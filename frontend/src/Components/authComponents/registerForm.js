@@ -38,7 +38,7 @@ const RegisterForm = () => {
         setConfirmationMessage('Please check your email to confirm your registration.');
         toast.success('Registration successful!');
         // Redirect to the login page after successful registration
-        navigate('/login');
+        navigate('/home');
       } else {
         console.error('Unexpected response structure:', response);
       }
