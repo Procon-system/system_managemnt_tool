@@ -75,7 +75,8 @@ Rebuild Containers:
 If changes aren’t reflected, rebuild the containers:
 
 docker compose up --build
-5.After making changes to the code:
+
+5.After any new changes to the code:
 
 Run git pull to fetch the latest changes from the repository.
 Check for the .env file:
