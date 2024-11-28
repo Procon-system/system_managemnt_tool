@@ -3,7 +3,7 @@ const registerController = async (req, res) => {
   try {
     const { email, password, last_name, first_name, personal_number,access_level } = req.body;
 
-    const { user, token } = await registerUser({
+    const user = await registerUser({
       email,
       password,
       last_name,
@@ -11,19 +11,10 @@ const registerController = async (req, res) => {
       personal_number,
       access_level,
     });
-    const cookieOptions = {
-      httpOnly: true,
-      secure: false,
-      sameSite: "strict",
-      path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
-    };
-    res.cookie("jwt", token, cookieOptions);
-
     res.status(201).json({
       success: true,
       user,
-      message: "Please confirm/verify your email.",
+      message: "User registered successfully. Please verify the email.",
     });
   } catch (err) {
     if (err.message === "User already exists with this email") {
