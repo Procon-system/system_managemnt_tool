@@ -21,6 +21,7 @@ export const getAllUsers = async (token) => {
 // Update user profile
 export const updateUserProfile = async (id, updateData, token) => {
   try {
+    console.log("nnn1",updateData);
     const response = await axios.put(`${API_URL}/update-profile/${id}`, updateData, {
       headers: { Authorization: `Bearer ${token}` },
     });

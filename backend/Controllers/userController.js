@@ -12,26 +12,33 @@ const getUsers = async (req, res) => {
 
 // Controller to update user profile
 const updateUserProfile = async (req, res) => {
-  const { id } = req.params; // ID of the user being updated
-  const loggedInUserId = req.user.id; // ID of the logged-in user (extracted from token)
-  // const { email, password, first_name, last_name } = req.body;
-  // const loggedInUserRole = req.user.access_level; // Role of the logged-in user
-  const { email, password, first_name, last_name } = req.body;
-
-  // try {
-  //   // Check if the logged-in user is updating their own profile or is an admin
-  //   if (id !== loggedInUserId && loggedInUserRole < 4 ) {
-  //     return res.status(403).json({ error: 'You are not authorized to update this profile' });
-  //   }
+  const { id } = req.params;
+  const loggedInUserId = req.user.id; // ID of the logged-in user (from token)
+  const { email, password, first_name, last_name, access_level } = req.body; // Include 'status' in request body
+   console.log("req",req.body)
   try {
-    // Check if the logged-in user matches the user being updated
-    if (id !== loggedInUserId) {
-      return res.status(403).json({ error: 'You can only update your own profile' });
+    // Authorization check for updating own profile or admin-level access
+    if (id !== loggedInUserId && req.user.access_level < 4) {
+      return res.status(403).json({ error: 'You are not authorized to update this profile' });
     }
 
-    const updatedUser = await updateUser(id, { email, password, first_name, last_name });
-    res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
+    // Restrict status updates to access levels > 4
+    if (access_level !== undefined && req.user.access_level <= 4) {
+      return res.status(403).json({ error: 'You are not authorized to update the status field' });
+    }
+
+    // Perform the update
+    const updatedUser = await updateUser(id, { email, password, first_name, last_name, access_level });
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found or not updated' });
+    }
+
+    res.status(200).json({
+      message: 'User profile updated successfully',
+      user: updatedUser
+    });
   } catch (error) {
+    console.error('Error updating user:', error);
     res.status(500).json({ error: error.message });
   }
 };

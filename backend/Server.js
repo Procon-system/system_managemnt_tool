@@ -24,8 +24,8 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const config = require('./config/config'); 
 require('dotenv').config();
-const { GridFsStorage } = require('multer-gridfs-storage');
-const multer = require('multer');
+// const { GridFsStorage } = require('multer-gridfs-storage');
+// const multer = require('multer');
 const app = express();
 const { initializeStorage } =require('./utils/uploadImage')
 app.use(bodyParser.json());
@@ -46,9 +46,6 @@ mongoose.connect(config.mongoURI, {
 })
   .then(() => {
     console.log('Connected to MongoDB');
-    
-    // Initialize GridFsStorage after MongoDB connection
-    initializeStorage();
   })
   .catch((err) => console.error('MongoDB connection error:', err));
 
@@ -64,9 +61,6 @@ app.use('/api/material', materialsRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/users',userRoutes);
-// app.use('/api/teams', teamRoutes);
-// app.use('/api/departments', departmentRoutes);
-
 // Start the server
 app.listen(config.port, () => {
   console.log(`Server running on port ${config.port}`);
