@@ -13,7 +13,7 @@ export const getUsers = createAsyncThunk("users/getUserAll", async (_, {getState
 
 export const updateUser = createAsyncThunk("users/update", async ({ id, updateData}, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
-  try { console.log("id",id)
+  try { console.log("nnnn",updateData)
     return await updateUserProfile(id, updateData, token);
   } catch (error) {
     return rejectWithValue(error.message);
@@ -22,6 +22,7 @@ export const updateUser = createAsyncThunk("users/update", async ({ id, updateDa
 
 export const deleteUser = createAsyncThunk("users/delete", async ({ id }, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
+    console.log("id",id)
   try {
     return await deleteUserAccount(id, token);
   } catch (error) {

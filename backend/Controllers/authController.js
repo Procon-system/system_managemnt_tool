@@ -32,7 +32,7 @@ const registerController = async (req, res) => {
       return res.status(500).json({ error: err.message });
     } else {
       console.log("err",err);
-      return res.status(500).json({ error: "An error occurred while registering the user" });
+      return res.status(500).json({ error:err.message });
     }
   }
 };

@@ -35,7 +35,8 @@ const updateUser = async (id, updateData) => {
 
     if (updateData.first_name) user.first_name = updateData.first_name;
     if (updateData.last_name) user.last_name = updateData.last_name;
-
+    if (updateData.access_level) user.access_level = updateData.access_level;
+    
     user.updated_at = new Date();
 
     return await user.save();
@@ -47,12 +48,10 @@ const updateUser = async (id, updateData) => {
 // Delete user account
 const deleteUser = async (id) => {
   try {
-    const user = await User.findById(id);
+    const user = await User.findByIdAndDelete(id);
     if (!user) {
       throw new Error('User not found');
     }
-
-    await user.remove();
     return true;
   } catch (error) {
     throw new Error(error.message || 'Error deleting user account');

@@ -8,7 +8,8 @@ const Material = require('../Models/MaterialsSchema');
 const { ObjectId } = require('mongodb');
 const convertUuidToObjectId = require('../Helper/changeUuid');
 const uploadImage = require('../utils/uploadImage'); // Import the uploadImage utility
-const getColorForStatus =require('../utils/getColorForStatus')
+const getColorForStatus =require('../utils/getColorForStatus');
+const uploadFileToGridFS = require('../utils/uploadImage'); // Import the upload function
 async function formatTaskData(taskData) {
   if (taskData.facility) {
     const facility = await Facility.findOne({ facility_name: taskData.facility });
@@ -50,7 +51,11 @@ const createTask = async (req, res) => {
 
     taskData.start_time = new Date(taskData.start_time);
     taskData.end_time = new Date(taskData.end_time);
-
+    // If an image file is uploaded, handle the upload
+    if (req.file) {
+      const uploadResult = await uploadFileToGridFS(req.file);
+      taskData.image = uploadResult.file._id; // Store the image file's ObjectId in the task
+    }
     // Remove any client-generated _id to let MongoDB generate it
     delete taskData._id;
     taskData.created_by = req.user.id;
@@ -148,6 +153,14 @@ const updateTask = async (req, res) => {
     if (updateData.status) {
       updateData.color_code = getColorForStatus(updateData.status);
     }
+    // If an image file is uploaded, handle the upload and associate the file with the task
+    if (req.file) {
+      // Upload the image and get the file's MongoDB ObjectId
+      const uploadResult = await uploadFileToGridFS(req.file);
+      console.log("fileee",uploadResult);
+      updateData.image = uploadResult.file._id; // Associate the file's ObjectId with the task
+    }
+
 
     // Call the updateTask service with the valid ObjectId and update data
     const updatedTask = await taskService.updateTask(taskId, updateData);

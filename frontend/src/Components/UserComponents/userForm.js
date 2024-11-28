@@ -6,7 +6,7 @@ const UserForm = ({ onSubmit, user, onClose }) => {
     first_name: '',
     last_name: '',
     email: '',
-    role: '',
+    access_level: '',
   });
 
   // Populate form data when editing a user
@@ -16,7 +16,7 @@ const UserForm = ({ onSubmit, user, onClose }) => {
         first_name: user.first_name || '',
         last_name: user.last_name || '',
         email: user.email || '',
-        role: user.role || '',
+        access_level: user.access_level || '',
       });
     }
   }, [user]);
@@ -84,12 +84,12 @@ const UserForm = ({ onSubmit, user, onClose }) => {
       {/* Role Dropdown */}
       <div>
         <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-          Role
+          Access Level
         </label>
         <select
-          id="role"
-          name="role"
-          value={formData.role}
+          id="access_level"
+          name="access_level"
+          value={formData.access_level}
           onChange={handleChange}
           className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
           required

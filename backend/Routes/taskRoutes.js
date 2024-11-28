@@ -19,84 +19,45 @@ const {
       isFreeAccess,
       isAdmin,
     } = require('../Middleware/authMiddleware');
-    
+    const { uploadImage } = require('../utils/uploadImage'); // Import the function
+
+const { GridFSBucket } = require('mongodb');
+const multer = require('multer');
 const router = express.Router();
+
+// Configure Multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
 const mongoose = require('mongoose');
-router.post('/create-tasks',authenticateUser,isManager,createTask);
+router.post('/create-tasks',authenticateUser,isManager,upload.single('image'),createTask);
 router.get('/get-all-tasks', getAllTasks);
 router.get('/get-tasks-id/:id',authenticateUser,isServicePersonal,getTaskById);
-router.put('/update-tasks/:id',authenticateUser,isServicePersonal,updateTask);
+router.put('/update-tasks/:id',upload.single('image'),updateTask);
 router.delete('/delete-tasks/:id', authenticateUser,isManager,deleteTask);
 router.get('/get-tasks/assigned', authenticateUser,isServicePersonal,getTasksByAssignedUser);
 router.get('/get-tasks/done', getAllDoneTasks);
 router.get('/get-tasks/done/user',authenticateUser,isServicePersonal,getDoneTasksForUser);
 router.post('/tasks/fromMachine/:machineId',authenticateUser,isFreeAccess,createTaskFromMachine);
-// router.post('/upload', (req, res) => {
-//   let storage;
-//   try {
-//     storage = getStorage();
-//     console.log("Retrieved storage:", storage);
-//   } catch (error) {
-//     console.error('Storage not initialized:', error);
-//     return res.status(500).json({ error: 'GridFS storage is not initialized yet' });
-//   }
 
-//   const upload = multer({ storage }).single('image');
+const uploadFileToGridFS = require('../utils/uploadImage'); // Import the upload function
 
-//   console.log('Starting upload middleware...');
-//   upload(req, res, (err) => {
-//     console.log('Upload middleware completed'); // Ensure this gets logged
-  
-//     if (err) {
-//       console.error('Error during upload:', err);
-//       return res.status(500).json({ error: 'File upload failed', details: err.message });
-//     }
-  
-//     if (!req.file) {
-//       console.error('No file received during upload');
-//       return res.status(400).json({ error: 'No file uploaded' });
-//     }
-  
-//     console.log('Uploaded file metadata:', req.file);
-//     res.status(200).json({
-//       message: 'File uploaded successfully',
-//       file: req.file,
-//     });
-//   });
-  
-// });
-const { GridFSBucket } = require('mongodb');
+// Configure Multer for memory storage
+// const storage = multer.memoryStorage();
+// const upload = multer({ storage });
 
-const multer = require('multer');
-
-// Set up multer storage (if needed, adjust for memory or other storage options)
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-router.post('/upload', upload.single('image'), (req, res) => {
+// File Upload Endpoint
+router.post('/upload', upload.single('image'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
- console.log("file",req.file)
-  const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'fs' });
-  const uploadStream = bucket.openUploadStream(req.file.originalname);
 
-  // Use multer memory buffer stream for the upload
-  const stream = require('stream');
-  const readableStream = new stream.PassThrough();
-  readableStream.end(req.file.buffer);
-
-  readableStream
-    .pipe(uploadStream)
-    .on('error', (err) => {
-      console.error('GridFS upload error:', err);
-      res.status(500).json({ error: 'File upload failed', details: err.message });
-    })
-    .on('finish', (file) => {
-      console.log('Uploaded file:', file);
-      res.status(200).json({ message: 'File uploaded successfully', file });
-    });
+  try {
+    const uploadResult = await uploadFileToGridFS(req.file); // Call the function to upload the file
+    res.status(200).json(uploadResult); // Return the success message with file metadata
+  } catch (err) {
+    res.status(500).json(err); // Return error if upload fails
+  }
 });
-
 
 module.exports = router;
