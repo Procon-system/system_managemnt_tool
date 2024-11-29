@@ -11,6 +11,7 @@ const registerController = async (req, res) => {
       personal_number,
       access_level,
     });
+    console.log("user",user)
     res.status(201).json({
       success: true,
       user,

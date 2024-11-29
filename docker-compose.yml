@@ -48,15 +48,14 @@ services:
     restart: unless-stopped
   # MongoDB service
   mongo:
-    image: mongodb/mongodb-community-server:6.0-ubi8
-    
+    image: mongo:6.0  #the official MongoDB image 
     ports:
       - '27017:27017' 
     volumes:
       - mongo-data:/data/db 
-    command: ["--bind_ip_all"]
     networks:
       - app-network
+    command: ["mongod", "--bind_ip_all"]
     restart: unless-stopped
 volumes:
   mongo-data:

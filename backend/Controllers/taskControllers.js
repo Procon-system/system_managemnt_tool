@@ -44,7 +44,7 @@ async function formatTaskData(taskData) {
 const createTask = async (req, res) => {
   try {
     const { taskData } = req.body;
-
+     console.log("task data",taskData);
     if (!taskData || !taskData.start_time || !taskData.end_time) {
       return res.status(400).json({ error: "Missing required fields: start_time or end_time" });
     }
@@ -157,11 +157,8 @@ const updateTask = async (req, res) => {
     if (req.file) {
       // Upload the image and get the file's MongoDB ObjectId
       const uploadResult = await uploadFileToGridFS(req.file);
-      console.log("fileee",uploadResult);
       updateData.image = uploadResult.file._id; // Associate the file's ObjectId with the task
     }
-
-
     // Call the updateTask service with the valid ObjectId and update data
     const updatedTask = await taskService.updateTask(taskId, updateData);
 
@@ -207,6 +204,5 @@ module.exports = {
   getTasksByAssignedUser,
   getAllDoneTasks,
   getDoneTasksForUser,
-  // uploadImageToTask,
   createTaskFromMachine,
 };

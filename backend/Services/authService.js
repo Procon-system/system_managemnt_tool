@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const hashPassword= require('../Middleware/hashPassword');
 const generateToken= require('../Middleware/generateToken');
 const registerValidator= require('../Helper/registerValidator');
+// const Team = require('../Models/TeamSchema');
+// const Department = require('../Models/DepartmentSchema');
 const {generateConfirmationCode }= require('../Helper/generateConfirmationCode');
 const {
   sendConfirmationEmail,
@@ -45,6 +47,7 @@ const registerUser = async (userData) => {
   await User.findByIdAndUpdate(newUser._id, { confirmationCode });
 
   // await sendConfirmationEmail(newUser.email, confirmationCode, newUser.first_name);
+   return {user:newUser}
 };
 
 const loginUser = async (email, password, rememberMe) => {

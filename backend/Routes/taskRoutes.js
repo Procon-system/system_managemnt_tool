@@ -33,7 +33,7 @@ const mongoose = require('mongoose');
 router.post('/create-tasks',authenticateUser,isManager,upload.single('image'),createTask);
 router.get('/get-all-tasks', getAllTasks);
 router.get('/get-tasks-id/:id',authenticateUser,isServicePersonal,getTaskById);
-router.put('/update-tasks/:id',upload.single('image'),updateTask);
+router.put('/update-tasks/:id',authenticateUser,isServicePersonal,upload.single('image'),updateTask);
 router.delete('/delete-tasks/:id', authenticateUser,isManager,deleteTask);
 router.get('/get-tasks/assigned', authenticateUser,isServicePersonal,getTasksByAssignedUser);
 router.get('/get-tasks/done', getAllDoneTasks);
