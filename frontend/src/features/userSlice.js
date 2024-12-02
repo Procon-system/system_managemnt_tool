@@ -10,7 +10,17 @@ export const getUsers = createAsyncThunk("users/getUserAll", async (_, {getState
     return rejectWithValue(error.message);
   }
 });
-
+export const getUsersByIds = createAsyncThunk(
+  "users/getUsersByIds", 
+  async ({ userIds }, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    try {
+      return await getUsersByIds(userIds, token); // Call the new service function
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
 export const updateUser = createAsyncThunk("users/update", async ({ id, updateData}, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
   try { console.log("nnnn",updateData)
@@ -56,7 +66,19 @@ const userSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     });
-
+    // Fetch users by IDs
+    builder.addCase(getUsersByIds.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(getUsersByIds.fulfilled, (state, action) => {
+      state.loading = false;
+      state.users = action.payload;  // This replaces users with those by ID
+    });
+    builder.addCase(getUsersByIds.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
     // Update user
     builder.addCase(updateUser.pending, (state) => {
       state.loading = true;

@@ -33,7 +33,7 @@ const taskSchema=new mongoose.Schema({
     },
     image: {  // New field for storing the image reference
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'fs.files', // Reference to GridFS
+      ref: 'uploads.files', // Reference to GridFS
     },
     start_time:{
      type:Date,

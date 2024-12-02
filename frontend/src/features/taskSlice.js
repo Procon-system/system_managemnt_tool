@@ -8,7 +8,7 @@ export const createTask = createAsyncThunk(
       // Get the token from the Redux state
       console.log("token", getState().auth); 
       const token = getState().auth.token;
-
+     console.log("task in slice",taskData);
       // Call the taskService with taskData and token
       return await taskService.createTask(taskData, token);
     } catch (error) {
@@ -64,12 +64,40 @@ export const fetchTasks = createAsyncThunk(
 );
 
 // Update Task
+// export const updateTask = createAsyncThunk(
+//   'tasks/updateTask',
+//   async ({ taskId, updatedData }, {getState, rejectWithValue }) => {
+//     const token = getState().auth.token;
+//     try {
+//       return await taskService.updateTask(taskId, updatedData,token );
+//     } catch (error) {
+//       return rejectWithValue(error.response?.data || 'Error updating task');
+//     }
+//   }
+// );
 export const updateTask = createAsyncThunk(
   'tasks/updateTask',
-  async ({ taskId, updatedData }, {getState, rejectWithValue }) => {
+  async ({ taskId, updatedData }, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
+    
     try {
-      return await taskService.updateTask(taskId, updatedData,token );
+      // Prepare the FormData object to handle file uploads
+      const formData = new FormData();
+
+      // Append non-image fields
+      for (const key in updatedData) {
+        if (updatedData[key] && key !== 'image') {
+          formData.append(key, updatedData[key]);
+        }
+      }
+
+      // If there is an image file, append it to FormData
+      if (updatedData.image) {
+        formData.append('image', updatedData.image);
+      }
+
+      // Call the service with the prepared FormData
+      return await taskService.updateTask(taskId, formData, token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error updating task');
     }
@@ -109,7 +137,7 @@ const taskSlice = createSlice({
       })
       .addCase(createTask.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.tasks.push(action.payload);
+        state.tasks=action.payload;
       })
       .addCase(createTask.rejected, (state, action) => {
         state.status = 'failed';

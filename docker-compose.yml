@@ -41,22 +41,22 @@ services:
       - ./backend/.env  # Load environment variables from .env file in backend directory
     ports:
       - '5000:5000' 
-    depends_on:
-      - mongo 
+    # depends_on:
+    #   - mongo 
     networks:
       - app-network
     restart: unless-stopped
   # MongoDB service
-  mongo:
-    image: mongo:6.0  #the official MongoDB image 
-    ports:
-      - '27017:27017' 
-    volumes:
-      - mongo-data:/data/db 
-    networks:
-      - app-network
-    command: ["mongod", "--bind_ip_all"]
-    restart: unless-stopped
+  # mongo:
+  #   image: mongo:6.0  #the official MongoDB image 
+  #   ports:
+  #     - '27017:27017' 
+  #   volumes:
+  #     - mongo-data:/data/db 
+  #   networks:
+  #     - app-network
+  #   command: ["mongod", "--bind_ip_all"]
+  #   restart: unless-stopped
 volumes:
   mongo-data:
 networks:

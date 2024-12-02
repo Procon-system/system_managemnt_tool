@@ -30,28 +30,33 @@ const HomePage = () => {
       dispatch(getAllDoneTasks());
     }
   }, [currentView, dispatch, user]);
-
+  console.log("tasks",tasks);
   const calendarEvents = Array.isArray(tasks)
   ? tasks.map(task => ({
+    
       _id: task._id,
       title: task.title || 'No Title',
       start: task.start_time,
       end: task.end_time,
       color: task.color_code,
+      image: task.image,
       notes: task.notes ||'this',
-      resourceIds: [
-        ...(task.assigned_to || []).map(user => user._id ? user._id.toString() : ''),
-        ...(task.tools || []).map(tool => tool._id ? tool._id.toString() : ''),
-        ...(task.materials || []).map(material => material._id ? material._id.toString() : ''),
-      ],
+      status:task.status || null,
       assigned_resources: {
         assigned_to: task.assigned_to || [],
         tools: task.tools || [],
         materials: task.materials || [],
       },
+      resourceIds: [
+        ...(task.assigned_to || []).map(userId => userId.toString()),
+        ...(task.tools || []).map(toolId => toolId.toString()),
+        ...(task.materials || []).map(materialId => materialId.toString()),
+      ],
+      
+    
     }))
   : [];
-
+ console.log("calaender",calendarEvents)
   const handleEventCreate = (newEvent) => {
     dispatch(createTask(newEvent));
   };
@@ -68,12 +73,15 @@ const HomePage = () => {
     setIsCreateFormVisible(true);
     setIsEditFormVisible(false);
     setSelectedEvent(event); 
+  
   };
 
   const openEditForm = (event) => {
     setSelectedEvent(event);
+    console.log("event",event);
     setIsCreateFormVisible(false);
     setIsEditFormVisible(true);
+
   };
 
   const closeModal = () => {

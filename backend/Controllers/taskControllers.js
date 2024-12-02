@@ -7,8 +7,8 @@ const Tool = require('../Models/ToolsSchema');
 const Material = require('../Models/MaterialsSchema');
 const { ObjectId } = require('mongodb');
 const convertUuidToObjectId = require('../Helper/changeUuid');
-const uploadImage = require('../utils/uploadImage'); // Import the uploadImage utility
 const getColorForStatus =require('../utils/getColorForStatus');
+const mongoose = require('mongoose');
 const uploadFileToGridFS = require('../utils/uploadImage'); // Import the upload function
 async function formatTaskData(taskData) {
   if (taskData.facility) {
@@ -41,10 +41,29 @@ async function formatTaskData(taskData) {
     taskData.materials = materialIds.filter(Boolean); // Filter out null values
   }
 }
+const getImage = async (req, res) => {
+  try {
+    const fileId = new mongoose.Types.ObjectId(req.params.id);
+
+    // Call the service to fetch the image
+    const image = await taskService.fetchImage(fileId);
+
+    // Pipe the image data to the response
+    res.set('Content-Type', 'image/jpeg'); // Set appropriate content type
+    return res.send(image);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(error.status || 500).json({ error: error.error || 'Failed to fetch image' });
+  }
+};
 const createTask = async (req, res) => {
   try {
-    const { taskData } = req.body;
-     console.log("task data",taskData);
+    // Check if the data is wrapped in { taskData } or is flat
+    const taskData = req.body.taskData || req.body;
+
+    // Log the incoming data for debugging
+    console.log("Received task data:", taskData);
+
     if (!taskData || !taskData.start_time || !taskData.end_time) {
       return res.status(400).json({ error: "Missing required fields: start_time or end_time" });
     }
@@ -201,6 +220,7 @@ module.exports = {
   getTaskById,
   updateTask,
   deleteTask,
+  getImage,
   getTasksByAssignedUser,
   getAllDoneTasks,
   getDoneTasksForUser,

@@ -5,22 +5,30 @@ const API_URL = 'http://localhost:5000/api/tasks';
 
 const taskService = {
   createTask: async (taskData, token) => {
+    console.log("tasks",taskData);
     try {
+      const isFormData = taskData instanceof FormData;
+  
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        },
+      };
+  
       const response = await axios.post(
-        `${API_URL}/create-tasks`, 
-        { taskData },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // Include the token in the Authorization header
-          },
-        }
+        `${API_URL}/create-tasks`,
+        isFormData ? taskData : { taskData },
+        config
       );
-      return response.data;
+  return response.data;
     } catch (error) {
       console.error('Error creating task:', error.response?.data || error.message);
       throw error.response?.data || new Error('Error creating task');
     }
   },
+  
+  
   // Fetch all tasks
   fetchTasks: async () => {
     try {
@@ -33,14 +41,32 @@ const taskService = {
   },
   
   // Update a task by ID
+  // updateTask: async (taskId, updatedData, token) => {
+  //   try {
+  //     const response = await axios.put(
+  //       `${API_URL}/update-tasks/${taskId}`, 
+  //       updatedData,
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+  //         },
+  //       }
+  //     );
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error('Error updating task:', error.response?.data || error.message);
+  //     throw error.response?.data || new Error('Error updating task');
+  //   }
+  // },
   updateTask: async (taskId, updatedData, token) => {
     try {
       const response = await axios.put(
-        `${API_URL}/update-tasks/${taskId}`, 
-        updatedData,
+        `${API_URL}/update-tasks/${taskId}`,
+        updatedData,  // Send the FormData (it will contain image and task data)
         {
           headers: {
             Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+            'Content-Type': 'multipart/form-data', // Make sure the content type is set to 'multipart/form-data' for file upload
           },
         }
       );
@@ -50,7 +76,7 @@ const taskService = {
       throw error.response?.data || new Error('Error updating task');
     }
   },
-
+  
   // Delete a task by ID
   deleteTask: async (taskId, token) => {
     try {

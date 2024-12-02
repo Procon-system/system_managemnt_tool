@@ -10,6 +10,7 @@ const {
     getTasksByAssignedUser,
     getAllDoneTasks,
     getDoneTasksForUser,
+    getImage,
   } = require('../Controllers/taskControllers');
 const {
       authenticateUser,
@@ -19,7 +20,7 @@ const {
       isFreeAccess,
       isAdmin,
     } = require('../Middleware/authMiddleware');
-    const { uploadImage } = require('../utils/uploadImage'); // Import the function
+   // const { uploadFileToGridFS } = require('../utils/uploadImage'); // Import the function
 
 const { GridFSBucket } = require('mongodb');
 const multer = require('multer');
@@ -31,6 +32,7 @@ const upload = multer({ storage });
 
 const mongoose = require('mongoose');
 router.post('/create-tasks',authenticateUser,isManager,upload.single('image'),createTask);
+router.get('/get-image/:id', getImage);
 router.get('/get-all-tasks', getAllTasks);
 router.get('/get-tasks-id/:id',authenticateUser,isServicePersonal,getTaskById);
 router.put('/update-tasks/:id',authenticateUser,isServicePersonal,upload.single('image'),updateTask);

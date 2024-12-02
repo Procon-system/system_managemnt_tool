@@ -1,6 +1,8 @@
 
 const Task = require('../Models/TaskSchema'); 
 const { ObjectId } = require('mongodb');
+const { GridFSBucket } = require('mongodb');
+const mongoose = require('mongoose');
 const createTask = async (taskData) => {
   
   const task = new Task(taskData);
@@ -42,6 +44,26 @@ const fetchAllDoneTasks = async () => {
     throw new Error('Error fetching all done tasks: ' + error.message);
   }
 }
+const fetchImage = async (fileId) => {
+  return new Promise((resolve, reject) => {
+    const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+     console.log("image comming",bucket)
+    try {
+      const downloadStream = bucket.openDownloadStream(fileId);
+
+      downloadStream.on('data', (chunk) => {
+        resolve(chunk); // Resolve when data is available
+      });
+
+      downloadStream.on('error', (error) => {
+        console.error('Error fetching image:', error);
+        reject({ status: 404, error: 'Image not found' });
+      });
+    } catch (error) {
+      reject({ status: 500, error: 'Failed to fetch image' });
+    }
+  });
+};
 
 const getAllTasks = async () => {
   try {
@@ -54,12 +76,12 @@ const getAllTasks = async () => {
       return;
     }
 
-    tasks.forEach(task => {
-      console.log('Populated assigned_to:', task.assigned_to);
-      console.log('Populated tools:', task.tools);
-      console.log('Populated materials:', task.materials);
-      console.log('Assigned Resources:', task.assigned_resources); // Should now display correctly
-    });
+    // tasks.forEach(task => {
+    //   console.log('Populated assigned_to:', task.assigned_to);
+    //   console.log('Populated tools:', task.tools);
+    //   console.log('Populated materials:', task.materials);
+    //   console.log('Assigned Resources:', task.assigned_resources); // Should now display correctly
+    // });
 
     return tasks;
   } catch (error) {
@@ -94,6 +116,7 @@ module.exports = {
   getTaskById,
   updateTask,
   deleteTask,
+  fetchImage,
   fetchAllDoneTasks,
   fetchDoneTasksForUser,
   getTasksByAssignedUser,

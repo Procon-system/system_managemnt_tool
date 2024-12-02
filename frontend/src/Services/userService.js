@@ -18,6 +18,20 @@ export const getAllUsers = async (token) => {
   }
 };
 
+// Fetch users by IDs
+export const getUsersByIds = async (userIds, token) => {
+  try {
+    const response = await axios.post(`${API_URL}/get-users-by-ids`, { userIds }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data) {
+      throw new Error(error.response.data.error || 'Error fetching users by IDs');
+    }
+    throw new Error('Network error or server unavailable');
+  }
+};
 // Update user profile
 export const updateUserProfile = async (id, updateData, token) => {
   try {

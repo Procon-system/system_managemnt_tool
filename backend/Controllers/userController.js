@@ -9,6 +9,19 @@ const getUsers = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+const getUsersByIds = async (req, res) => {
+  try {
+    const { userIds } = req.body; // Expect an array of user IDs in the request body
+    if (!Array.isArray(userIds)) {
+      return res.status(400).json({ error: 'Invalid input: userIds must be an array' });
+    }
+
+    const users = await User.find({ _id: { $in: userIds } }, '-password'); // Exclude passwords
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 // Controller to update user profile
 const updateUserProfile = async (req, res) => {
@@ -65,6 +78,7 @@ const deleteUserAccount = async (req, res) => {
 
 module.exports = {
   getUsers,
+  getUsersByIds,
   updateUserProfile,
   deleteUserAccount,
 };

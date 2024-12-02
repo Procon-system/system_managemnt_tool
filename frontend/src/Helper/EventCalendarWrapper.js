@@ -29,7 +29,7 @@ const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openFo
   //     return 'green'; // Ongoing
   //   }
   // };
-  
+  console.log("events",events)
   const mappedEvents = events.map(event => ({
     _id: event._id.toString(),
     start: event.start,
@@ -37,14 +37,27 @@ const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openFo
     title: event.title,
     color:  event.color,
     allDay: event.allDay,
-    notes:event.notes,
+    
     resourceIds: [
       ...(event.assigned_resources.assigned_to || []).map(user => user._id ? user._id.toString() : 'undefined'),
       ...(event.assigned_resources.tools || []).map(tool => tool._id ? tool._id.toString() : ''),
       ...(event.assigned_resources.materials || []).map(material => material._id ? material._id.toString() : ''),
     ],
+    // resourceIds: [
+    //   ...(event.assigned_resources.assigned_to || []).map(userId => userId.toString()),
+    //   ...(event.assigned_resources.tools || []).map(toolId => toolId.toString()),
+    //   ...(event.assigned_resources.materials || []).map(materialId => materialId.toString()),
+    // ],
     extendedProps: {
       _id: event._id.toString(),
+      image: event.image,
+      notes:event.notes,
+      status:event.status,
+      assigned_resources: {
+        assigned_to:event.assigned_resources.assigned_to || [],
+        tools: event.assigned_resources.tools || [],
+        materials: event.assigned_resources.materials || [],
+      },
     },
   }));
   const groupedAssignedResources = [
@@ -88,7 +101,7 @@ const assigned_resources = [
   ...groupedAssignedResources,
   // ...groupedAssignedResources.flatMap(group => group.children),
 ];
-  console.log("mapped events",events)
+  console.log("mapped events",mappedEvents)
   const adjustTimeForBackend = (time, timezoneOffset) => {
     const date = new Date(time);
     date.setHours(date.getHours() + timezoneOffset);
@@ -190,12 +203,25 @@ const assigned_resources = [
               toast.error('You do not have permission to create events.');
               return;
             }
-            const { event } = info;
-            const mongoId = event.extendedProps._id || event._id;
-            const updatedEvent = {
-              ...event,
-              _id: mongoId,
-            };
+             // Extract event details
+  const { event } = info;
+  const { extendedProps } = event;
+
+  // Ensure `_id` is extracted properly, either from extendedProps or the event itself
+  const mongoId = extendedProps?._id || event.id;
+
+  // Construct updatedEvent with image and notes
+  const updatedEvent = {
+    _id: mongoId,
+    title: event.title,
+    start: event.start,
+    end: event.end,
+    color: event.backgroundColor,
+    image: extendedProps?.image || null, // Add image if available
+    notes: extendedProps?.notes || 'No notes available', // Add notes if available
+    status: extendedProps?.status || null,
+    assigned_to: (extendedProps?.assigned_resources?.assigned_to || []).map((userId) => userId.toString()),};
+          console.log("updated",updatedEvent)  
             openForm(updatedEvent);
           },
           eventResize: (info) => {
