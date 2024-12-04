@@ -1,5 +1,5 @@
 # docker-compose.yml
-version: '3.8'
+# version: '3.8'
 
 services:
 # React.js service
@@ -41,8 +41,23 @@ services:
       - ./backend/.env  # Load environment variables from .env file in backend directory
     ports:
       - '5000:5000' 
-    # depends_on:
-    #   - mongo 
+    depends_on:
+      - couchdb 
+    networks:
+      - app-network
+    restart: unless-stopped
+    # CouchDB service
+  couchdb:
+    image: couchdb:3.4  # Official CouchDB image
+    ports:
+      - "5984:5984"  # Expose CouchDB on port 5984
+    environment:
+      - COUCHDB_USER=admin  # Replace with your admin username
+      - COUCHDB_PASSWORD=admin123hjy  # Replace with your admin password
+      - COUCHDB_CLUSTER_Q=1     # Set the default `q` value to 1 for single-node setup
+      - COUCHDB_CLUSTER_N=1  
+    volumes:
+      - couchdb-data:/opt/couchdb/data  # Persistent storage for CouchDB
     networks:
       - app-network
     restart: unless-stopped
@@ -57,7 +72,9 @@ services:
   #     - app-network
   #   command: ["mongod", "--bind_ip_all"]
   #   restart: unless-stopped
+# volumes:
+#   mongo-data:
 volumes:
-  mongo-data:
+  couchdb-data:
 networks:
   app-network:
