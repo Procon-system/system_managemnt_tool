@@ -1,9 +1,13 @@
-
 const machineService = require('../Services/machineServices'); // Adjust path as needed
 
 const createMachine = async (req, res) => {
   try {
-    const newMachine = await machineService.createMachine(req.body);
+    const machineData = {
+      ...req.body,
+      type: 'machine', // Explicitly set the document type
+    };
+
+    const newMachine = await machineService.createMachine(machineData);
     res.status(201).json(newMachine);
   } catch (error) {
     res.status(400).json({ error: 'Failed to create machine', details: error.message });
@@ -19,11 +23,10 @@ const getAllMachines = async (req, res) => {
   }
 };
 
-
 const getMachineById = async (req, res) => {
   try {
     const machine = await machineService.getMachineById(req.params.id);
-    if (!machine) {
+    if (!machine || machine.type !== 'machine') { // Ensure it's a machine document
       return res.status(404).json({ error: 'Machine not found' });
     }
     res.status(200).json(machine);
@@ -32,11 +35,15 @@ const getMachineById = async (req, res) => {
   }
 };
 
-
 const updateMachine = async (req, res) => {
   try {
-    const updatedMachine = await machineService.updateMachine(req.params.id, req.body);
-    if (!updatedMachine) {
+    const updatedData = {
+      ...req.body,
+      updated_at: new Date().toISOString(), // Update timestamp
+    };
+
+    const updatedMachine = await machineService.updateMachine(req.params.id, updatedData);
+    if (!updatedMachine || updatedMachine.type !== 'machine') { // Ensure it's a machine document
       return res.status(404).json({ error: 'Machine not found' });
     }
     res.status(200).json(updatedMachine);
@@ -45,11 +52,10 @@ const updateMachine = async (req, res) => {
   }
 };
 
-
 const deleteMachine = async (req, res) => {
   try {
     const deletedMachine = await machineService.deleteMachine(req.params.id);
-    if (!deletedMachine) {
+    if (!deletedMachine || deletedMachine.type !== 'machine') { // Ensure it's a machine document
       return res.status(404).json({ error: 'Machine not found' });
     }
     res.status(200).json({ message: 'Machine deleted successfully' });

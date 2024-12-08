@@ -1,5 +1,4 @@
-// controllers/materialController.js
-const materialService = require('../Services/materialServices'); // Adjust path as needed
+const materialService = require('../Services/materialServices'); // Material service layer
 
 // Create a new material
 const createMaterial = async (req, res) => {

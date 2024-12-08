@@ -59,6 +59,14 @@ const taskService = {
   //   }
   // },
   updateTask: async (taskId, updatedData, token) => {
+    console.log("taskId:", taskId);
+  console.log("UpdatedData (FormData):");
+  for (let [key, value] of updatedData.entries()) {
+    console.log(`${key}: ${value}`);
+  }
+  console.log("Token:", token);
+
+
     try {
       const response = await axios.put(
         `${API_URL}/update-tasks/${taskId}`,

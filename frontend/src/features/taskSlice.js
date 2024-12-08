@@ -79,7 +79,7 @@ export const updateTask = createAsyncThunk(
   'tasks/updateTask',
   async ({ taskId, updatedData }, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
-    
+    console.log("dispatched data",taskId, updatedData);
     try {
       // Prepare the FormData object to handle file uploads
       const formData = new FormData();
@@ -97,6 +97,11 @@ export const updateTask = createAsyncThunk(
       }
 
       // Call the service with the prepared FormData
+      console.log("FormData contents:");
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+      }
+      
       return await taskService.updateTask(taskId, formData, token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error updating task');

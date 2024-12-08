@@ -1,23 +1,11 @@
 
-// const mongoose = require('mongoose');
-// const express = require('express');
-// const bodyParser = require('body-parser');
-// const User = require('./Models/UserSchema');
-// const Task = require('./Models/TaskSchema');
-// const Resource = require('./Models/ResourceSchema');
-// const TaskHistory =require('./Models/HistoricalTaskSchema');
-// const Notification = require('./Models/NotificationSchema');
-// const Machine = require('./Models/MachineSchema');
-// const Tool=require('./Models/ToolsSchema');
-// const Material = require('./Models/MaterialsSchema');
-// const Facility = require('./Models/FacilitySchema');
-// const authRoutes = require('./Routes/authRoutes');
-// const facilityRoutes =require('./Routes/facilityRoutes');
-// const machineRoutes = require('./Routes/machineRoutes');
-// const materialsRoutes = require('./Routes/materialRoutes');
-// const tasksRoutes = require('./Routes/taskRoutes');
-// const toolRoutes = require('./Routes/toolRoutes');
-// const userRoutes =require('./Routes/userRoutes');
+const authRoutes = require('./Routes/authRoutes');
+const facilityRoutes =require('./Routes/facilityRoutes');
+const machineRoutes = require('./Routes/machineRoutes');
+const materialsRoutes = require('./Routes/materialRoutes');
+const tasksRoutes = require('./Routes/taskRoutes');
+const toolRoutes = require('./Routes/toolRoutes');
+const userRoutes =require('./Routes/userRoutes');
 // // const teamRoutes = require('./Routes/teamRoutes');
 // // const departmentRoutes = require('./Routes/departmentRoutes');
 // const cookieParser = require("cookie-parser");
@@ -77,6 +65,7 @@ const app = express();
 
 // Middleware setup
 app.use(bodyParser.json());
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
@@ -86,39 +75,39 @@ app.use(
 );
 app.use(cookieParser());
 
-// CouchDB connection check function
-const checkCouchDBConnection = async () => {
-  const couchdbUrl = process.env.COUCHDB_URL;
-  const couchdbUser = process.env.COUCHDB_USER;
-  const couchdbPassword = process.env.COUCHDB_PASSWORD;
+// // CouchDB connection check function
+// const checkCouchDBConnection = async () => {
+//   const couchdbUrl = process.env.COUCHDB_URL;
+//   const couchdbUser = process.env.COUCHDB_USER;
+//   const couchdbPassword = process.env.COUCHDB_PASSWORD;
 
-  try {
-    const response = await axios.get(couchdbUrl, {
-      auth: {
-        username: couchdbUser,
-        password: couchdbPassword,
-      },
-    });
-    console.log('CouchDB is running:', response.data);
-  } catch (error) {
-    console.error('Error connecting to CouchDB:', error.message);
-    process.exit(1); // Stop server startup if connection fails
-  }
-};
+//   try {
+//     const response = await axios.get(couchdbUrl, {
+//       auth: {
+//         username: couchdbUser,
+//         password: couchdbPassword,
+//       },
+//     });
+//     console.log('CouchDB is running:', response.data);
+//   } catch (error) {
+//     console.error('Error connecting to CouchDB:', error.message);
+//     process.exit(1); // Stop server startup if connection fails
+//   }
+// };
 
-// Check CouchDB connection and then start the server
-checkCouchDBConnection().then(() => {
+// // Check CouchDB connection and then start the server
+// checkCouchDBConnection().then(() => {
   // Routes setup
-  // app.use('/api/auth', authRoutes);
-  // app.use('/api/facility', facilityRoutes);
-  // app.use('/api/machine', machineRoutes);
-  // app.use('/api/material', materialsRoutes);
-  // app.use('/api/tools', toolRoutes);
-  // app.use('/api/tasks', tasksRoutes);
-  // app.use('/api/users', userRoutes);
+  app.use('/api/auth', authRoutes);
+  app.use('/api/facility', facilityRoutes);
+  app.use('/api/machine', machineRoutes);
+  app.use('/api/material', materialsRoutes);
+  app.use('/api/tools', toolRoutes);
+  app.use('/api/tasks', tasksRoutes);
+  app.use('/api/users', userRoutes);
 
   // Start the server if CouchDB is connected
   app.listen(config.port, () => {
     console.log(`Server running on port ${config.port}`);
   });
-});
+

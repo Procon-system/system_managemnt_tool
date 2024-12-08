@@ -95,6 +95,7 @@ const LoginForm = () => {
     <Link to="/forgot-password" className="text-blue-500 hover:underline">
       Forgot Password?
     </Link>
+    
   </div>
         <button
           type="submit"
@@ -102,7 +103,11 @@ const LoginForm = () => {
         >
           Login
         </button>
-  
+        <div className='mt-3'>
+        <Link to="/register" className="text-blue-500 hover:underline">
+      Don't you have an account? Register
+    </Link>
+        </div>
         {/* Forgot Password Link */}
         
       </form>

@@ -1,4 +1,8 @@
-const { fetchUsers, updateUser, deleteUser } = require('../Services/userService');
+const { 
+  fetchUsers,
+  updateUser,
+  deleteUser
+} = require('../Services/userService');
 
 // Controller to fetch all users
 const getUsers = async (req, res) => {

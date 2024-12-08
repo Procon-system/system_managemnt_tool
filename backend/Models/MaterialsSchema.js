@@ -1,20 +1,12 @@
-const mongoose = require('mongoose');
-const materialSchema = new mongoose.Schema({
-    material_name:{
-    type:String,
-    required:true,
-    unique: true
-
- },
- amount_available:{
-    type:Number,
-    default:0,
- },
- material_description:{
-    type:String,
- },
-
-});
-const Material = mongoose.model('Material', materialSchema);
-
-module.exports = Material;
+const MaterialModel = {
+   _id: '',                   // Unique identifier for the material
+   type: 'material',          // Explicit type to identify the document
+   material_name: '',         // Material name (Required, Unique)
+   amount_available: 0,       // Available amount (Default: 0)
+   material_description: '',  // Optional description
+   created_at: '',            // Timestamp for creation
+   updated_at: '',            // Timestamp for updates
+ };
+ 
+ module.exports = MaterialModel;
+ 
