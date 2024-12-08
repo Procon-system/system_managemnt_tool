@@ -56,12 +56,28 @@ const createIndex = async () => {
     console.error('Failed to create index:', error.message);
   }
 };
+const createStatusAssignedToIndex = async () => {
+  try {
+    const response = await db.createIndex({
+      index: {
+        fields: ['status', 'assigned_to'], // Fields for fetchDoneTasksForUser
+      },
+      name: 'status-assigned_to-index',
+      ddoc: 'status-assigned_to-ddoc',
+      type: 'json',
+    });
+    console.log('Status-Assigned_To Index created successfully:', response);
+  } catch (error) {
+    console.error('Failed to create Status-Assigned_To index:', error.message);
+  }
+};
 
 // Call these functions at server startup
 (async () => {
   await testConnection();
   await createDatabase();
-  await createIndex(); // Ensure the index is created
+  await createIndex();
+  await createStatusAssignedToIndex(); // Ensure the index is created
 })();
 
 module.exports = { db };

@@ -62,47 +62,97 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       const handleNotesChange = (value) => {
         setFormData({ ...formData, notes: value });
       };
+      // const handleFileChange = (e) => {
+      //   const file = e.target.files[0];
+      //   if (file && file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024) { // 2MB limit
+      //     setFormData({
+      //       ...formData,
+      //       image: file,
+      //     });
+      //   } else {
+      //     alert("Please select a valid image file (max 2MB).");
+      //   }
+      // };
       const handleFileChange = (e) => {
         const file = e.target.files[0];
-        if (file && file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024) { // 2MB limit
-          setFormData({
-            ...formData,
-            image: file,
-          });
+        if (file && file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024) {
+            console.log("Selected file:", file); // Add this to debug
+            setFormData({
+                ...formData,
+                image: file,
+            });
         } else {
-          alert("Please select a valid image file (max 2MB).");
+            alert("Please select a valid image file (max 2MB).");
         }
+    };
+    const handleSubmit = (e) => {
+      e.preventDefault();
+    
+      const taskData = {
+        ...formData,
+        tools: formData.tools || [],
+        materials: formData.materials || [],
       };
-      
-      const handleSubmit = (e) => {
-        e.preventDefault();
-        const taskData = {
-          ...formData,
-          tools: formData.tools || [],
-          materials: formData.materials || [],
-        };
-      
-        if (formData.image) {
-          const formDataPayload = new FormData();
-      
-          Object.keys(taskData).forEach((key) => {
-            if (Array.isArray(taskData[key])) {
-              taskData[key].forEach((item) => formDataPayload.append(key, item));
-            } else {
-              formDataPayload.append(key, taskData[key]);
-            }
-          });
-      
-          formDataPayload.append("image", formData.image);
-      
-          console.log("Submitting with image:",formDataPayload);
-          formDataPayload.forEach((value, key) => console.log(`${key}:`, value));
-          onSubmit(formDataPayload);
-        } else {
-          console.log("Submitting without image:", taskData);
-          onSubmit(taskData);
+    
+      if (formData.image) {
+        const formDataPayload = new FormData();
+        console.log("image before appending:", formData.image);
+    
+        // Only append image for debugging
+        formDataPayload.append("image", formData.image, formData.image.name);
+    
+        // Check FormData contents
+        console.log("Submitting with image:",formDataPayload);
+        for (let [key, value] of formDataPayload.entries()) {
+          console.log(`${key}:`, value);
         }
-      };
+        
+        //     formDataPayload.forEach((value, key) => {
+        //       console.log(`${key}:`, value); // Debugging statement
+        //   });
+          
+        // Submit FormData
+        onSubmit(formDataPayload);
+      } else {
+        console.log("Submitting without image:", taskData);
+        onSubmit(taskData);
+      }
+    };
+    
+      // const handleSubmit = (e) => {
+      //   e.preventDefault();
+      //   const taskData = {
+      //     ...formData,
+      //     tools: formData.tools || [],
+      //     materials: formData.materials || [],
+      //   };
+      
+      //   if (formData.image) {
+      //     const formDataPayload = new FormData();
+      //      console.log("image before appending",formData.image)
+      //     Object.keys(taskData).forEach((key) => {
+      //       if (Array.isArray(taskData[key])) {
+      //         taskData[key].forEach((item) => formDataPayload.append(key, item));
+      //       } else {
+      //         formDataPayload.append(key, taskData[key]);
+      //       }
+      //     });
+      
+      //     // formDataPayload.append("image", formData.image);
+      //     formDataPayload.append("image", formData.image, formData.image.name);
+
+      //     console.log("Submitting with image:",formDataPayload);
+      //     formDataPayload.forEach((value, key) => {
+      //       console.log(`${key}:`, value); // Debugging statement
+      //   });
+        
+      //     // formDataPayload.forEach((value, key) => console.log(`${key}:`, value));
+      //     onSubmit(formDataPayload);
+      //   } else {
+      //     console.log("Submitting without image:", taskData);
+      //     onSubmit(taskData);
+      //   }
+      // };
       
     return (
 <form onSubmit={handleSubmit} className="space-y-4 p-4 mt-7 md:px-6 bg-blue-50 shadow-md rounded-md max-w-full lg:max-w-6xl  lg:mr-4">

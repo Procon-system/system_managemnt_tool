@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation , Navigate } from 'react-router-dom';
 import Sidebar from './Components/sidebarComponent';
 import RegisterPage from './Pages/Auth/registerPage';
 import LoginPage from './Pages/Auth/loginPage';
@@ -22,6 +22,7 @@ import ProtectedRoute from "./accessControl/protectedRoute";
 import { ROLES } from "./accessControl/roles";
 import UnauthorizedPage from "./Pages/unauthorizedPage";
 import UserManagementPage from "./Pages/User/userPage"
+import { useSelector } from "react-redux";
 // ConditionalNavBar Component
 const ConditionalNavBar = () => {
   const location = useLocation();
@@ -39,12 +40,16 @@ const ConditionalNavBar = () => {
   );
 };
 const App = () => {
+  const { isLoggedIn } = useSelector((state) => state.auth);
+
   return (
     <Router>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar closeOnClick pauseOnFocusLoss pauseOnHover />
       <ConditionalNavBar />
       <div className="pt-16"> {/* Pushes content below navbar */}
         <Routes>
+        <Route path="/" element={isLoggedIn ? <Navigate to="/home" /> : <Navigate to="/login" />} />
+
           {/* Public Routes */}
           <Route path="/home" element={<HomePage />} />
           <Route path="/register" element={<RegisterPage />} />
