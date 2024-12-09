@@ -31,7 +31,7 @@ const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openFo
   // };
   console.log("events",events)
   const mappedEvents = events.map(event => ({
-    _id: event._id.toString(),
+    _id: event._id,
     start: event.start,
     end: event.end,
     title: event.title,
@@ -49,7 +49,7 @@ const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openFo
     //   ...(event.assigned_resources.materials || []).map(materialId => materialId.toString()),
     // ],
     extendedProps: {
-      _id: event._id.toString(),
+      _id: event._id,
       image: event.image,
       notes:event.notes,
       status:event.status,
@@ -206,10 +206,8 @@ const assigned_resources = [
              // Extract event details
   const { event } = info;
   const { extendedProps } = event;
-
   // Ensure `_id` is extracted properly, either from extendedProps or the event itself
   const mongoId = extendedProps?._id || event.id;
-
   // Construct updatedEvent with image and notes
   const updatedEvent = {
     _id: mongoId,
@@ -220,7 +218,18 @@ const assigned_resources = [
     image: extendedProps?.image || null, // Add image if available
     notes: extendedProps?.notes || 'No notes available', // Add notes if available
     status: extendedProps?.status || null,
-    assigned_to: (extendedProps?.assigned_resources?.assigned_to || []).map((userId) => userId.toString()),};
+    // assigned_to: (extendedProps?.assigned_resources?.assigned_to || []).map((userId) => userId.toString()),};
+  //   assigned_to: Array.isArray(extendedProps?.assigned_resources?.assigned_to)
+  //   ? extendedProps.assigned_resources.assigned_to.map((userId) =>
+  //       userId ? userId.toString() : "Unknown User"
+  //     )
+  //   : [],
+  // materials: Array.isArray(extendedProps?.materials) ? extendedProps.materials : [],
+  // tools: Array.isArray(extendedProps?.tools) ? extendedProps.tools : [],
+  // resourceIds: Array.isArray(event.resourceIds)
+  //   ? event.resourceIds.filter((id) => id && id !== "undefined") // Exclude invalid entries
+  //   : [],
+};
           console.log("updated",updatedEvent)  
             openForm(updatedEvent);
           },

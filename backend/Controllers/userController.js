@@ -1,4 +1,8 @@
-const { fetchUsers, updateUser, deleteUser } = require('../Services/userService');
+const { 
+  fetchUsers,
+  updateUser,
+  deleteUser
+} = require('../Services/userService');
 
 // Controller to fetch all users
 const getUsers = async (req, res) => {
@@ -28,7 +32,6 @@ const updateUserProfile = async (req, res) => {
   const { id } = req.params;
   const loggedInUserId = req.user.id; // ID of the logged-in user (from token)
   const { email, password, first_name, last_name, access_level } = req.body; // Include 'status' in request body
-   console.log("req",req.body)
   try {
     // Authorization check for updating own profile or admin-level access
     if (id !== loggedInUserId && req.user.access_level < 4) {

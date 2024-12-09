@@ -30,7 +30,6 @@ const HomePage = () => {
       dispatch(getAllDoneTasks());
     }
   }, [currentView, dispatch, user]);
-  console.log("tasks",tasks);
   const calendarEvents = Array.isArray(tasks)
   ? tasks.map(task => ({
     
@@ -56,7 +55,7 @@ const HomePage = () => {
     
     }))
   : [];
- console.log("calaender",calendarEvents)
+
   const handleEventCreate = (newEvent) => {
     dispatch(createTask(newEvent));
   };
@@ -78,7 +77,6 @@ const HomePage = () => {
 
   const openEditForm = (event) => {
     setSelectedEvent(event);
-    console.log("event",event);
     setIsCreateFormVisible(false);
     setIsEditFormVisible(true);
 

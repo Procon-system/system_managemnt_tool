@@ -34,7 +34,7 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
         created_by: '',
         tools: [],
         materials: [],
-        image: null,
+        // image: null,
       });
       useEffect(() => {
         dispatch(fetchTools()); // Dispatch action to fetch tools
@@ -62,49 +62,60 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       const handleNotesChange = (value) => {
         setFormData({ ...formData, notes: value });
       };
-      const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file && file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024) { // 2MB limit
-          setFormData({
-            ...formData,
-            image: file,
-          });
-        } else {
-          alert("Please select a valid image file (max 2MB).");
-        }
+      // const handleFileChange = (e) => {
+      //   const file = e.target.files[0];
+      //   if (file && file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024) { // 2MB limit
+      //     setFormData({
+      //       ...formData,
+      //       image: file,
+      //     });
+      //   } else {
+      //     alert("Please select a valid image file (max 2MB).");
+      //   }
+      // };
+    //   const handleFileChange = (e) => {
+    //     const file = e.target.files[0];
+    //     if (file && file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024) {
+    //         console.log("Selected file:", file); // Add this to debug
+    //         setFormData({
+    //             ...formData,
+    //             image: file,
+    //         });
+    //     } else {
+    //         alert("Please select a valid image file (max 2MB).");
+    //     }
+    // };
+    const handleSubmit = (e) => {
+      e.preventDefault();
+    
+      const taskData = {
+        ...formData,
+        tools: formData.tools || [],
+        materials: formData.materials || [],
       };
-      
-      const handleSubmit = (e) => {
-        e.preventDefault();
-        const taskData = {
-          ...formData,
-          tools: formData.tools || [],
-          materials: formData.materials || [],
-        };
-      
-        if (formData.image) {
-          const formDataPayload = new FormData();
-      
-          Object.keys(taskData).forEach((key) => {
-            if (Array.isArray(taskData[key])) {
-              taskData[key].forEach((item) => formDataPayload.append(key, item));
-            } else {
-              formDataPayload.append(key, taskData[key]);
-            }
-          });
-      
-          formDataPayload.append("image", formData.image);
-      
-          console.log("Submitting with image:",formDataPayload);
-          formDataPayload.forEach((value, key) => console.log(`${key}:`, value));
-          onSubmit(formDataPayload);
-        } else {
-          console.log("Submitting without image:", taskData);
-          onSubmit(taskData);
+    
+      if (formData.image) {
+        const formDataPayload = new FormData();
+        console.log("image before appending:", formData.image);
+    
+        // Only append image for debugging
+        formDataPayload.append("image", formData.image, formData.image.name);
+    
+        // Check FormData contents
+        console.log("Submitting with image:",formDataPayload);
+        for (let [key, value] of formDataPayload.entries()) {
+          console.log(`${key}:`, value);
         }
-      };
-      
-    return (
+        
+        // Submit FormData
+        onSubmit(formDataPayload);
+      } else {
+        console.log("Submitting without image:", taskData);
+        onSubmit(taskData);
+      }
+    };
+    
+      return (
 <form onSubmit={handleSubmit} className="space-y-4 p-4 mt-7 md:px-6 bg-blue-50 shadow-md rounded-md max-w-full lg:max-w-6xl  lg:mr-4">
 <h1 className="text-xl  font-bold text-center flex justify-center mb-6">Create Task</h1>
  
@@ -202,7 +213,7 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
     <label className="block mb-1 text-sm font-medium text-gray-600">Notes</label>
     <RichTextEditor value={formData.notes} onChange={handleNotesChange} />
   </div>
-  <div className="mb-4">
+  {/* <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700">Image</label>
         <input
           type="file"
@@ -211,7 +222,7 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
           onChange={handleFileChange} // Handle file input
           className="mt-1"
         />
-      </div>
+      </div> */}
   <button type="submit" className="w-full px-4 py-2 mt-4 text-white bg-blue-600 rounded-lg hover:bg-blue-700">
     Create Task
   </button>

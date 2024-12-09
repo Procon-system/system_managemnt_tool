@@ -16,7 +16,7 @@ const RegisterForm = () => {
     last_name: '',
     personal_number: '',
     working_group: '',
-    access_level: '',
+    access_level: 1,
   });
   const [error, setError] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('');
@@ -65,11 +65,11 @@ const RegisterForm = () => {
       onChange={handleChange}
       required
       options={[
-        { value: '1', description: '1 - Random User' },
-        { value: '2', description: '2 - Service Personnel' },
-        { value: '3', description: '3 - Manager' },
-        { value: '4', description: '4 - Free' },
-        { value: '5', description: '5 - Admin' },
+        { value: 1, description: '1 - Random User' },
+        { value: 2, description: '2 - Service Personnel' },
+        { value: 3, description: '3 - Manager' },
+        { value: 4, description: '4 - Free' },
+        { value: 5, description: '5 - Admin' },
       ]}
     />
       {error && <p className="text-red-500">{error}</p>}

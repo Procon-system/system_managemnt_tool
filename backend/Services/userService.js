@@ -1,65 +1,81 @@
-const User = require('../Models/UserSchema');
+const { db } = require('../config/couchdb'); // CouchDB connection
+const UserModel = require('../Models/UserSchema'); // User schema
 const bcrypt = require('bcryptjs');
 
-// Fetch all users
+/**
+ * Format a user based on the UserModel schema.
+ */
+const formatUser = (userData) => {
+  const formattedUser = { ...UserModel, ...userData };
+  formattedUser.created_at = formattedUser.created_at || new Date().toISOString();
+  formattedUser.updated_at = new Date().toISOString();
+  return formattedUser;
+};
+
+/**
+ * Fetch all users (excluding passwords).
+ */
 const fetchUsers = async () => {
   try {
-    const users = await User.find({}, '-password'); // Exclude passwords
-    return users;
+    const result = await db.find({
+      selector: { type: UserModel.type },
+      fields: ['_id', 'email', 'first_name', 'last_name', 'personal_number', 'access_level', 'isConfirmed', 'created_at', 'updated_at'], // Exclude password
+    });
+    return result.docs;
   } catch (error) {
-    throw new Error('Error fetching users');
+    throw new Error('Error fetching users: ' + error.message);
   }
 };
 
-// Update user profile
+/**
+ * Update a user by ID.
+ */
 const updateUser = async (id, updateData) => {
   try {
-    const user = await User.findById(id);
-    if (!user) {
-      throw new Error('User not found');
+    const existingUser = await db.get(id);
+    if (!existingUser) throw new Error('User not found');
+
+    // Validate email uniqueness
+    if (updateData.email && updateData.email !== existingUser.email) {
+      const emailExists = await db.find({
+        selector: { type: UserModel.type, email: updateData.email },
+      });
+      if (emailExists.docs.length > 0) throw new Error('Email already in use');
     }
 
-    // Update fields
-    if (updateData.email) {
-      const emailExists = await User.findOne({ email: updateData.email });
-      if (emailExists && emailExists.id !== id) {
-        throw new Error('Email already in use');
-      }
-      user.email = updateData.email;
-    }
-
+    // Hash password if updated
     if (updateData.password) {
       const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(updateData.password, salt);
+      updateData.password = await bcrypt.hash(updateData.password, salt);
     }
 
-    if (updateData.first_name) user.first_name = updateData.first_name;
-    if (updateData.last_name) user.last_name = updateData.last_name;
-    if (updateData.access_level) user.access_level = updateData.access_level;
-    
-    user.updated_at = new Date();
-
-    return await user.save();
+    // Merge updates and save
+    const updatedUser = formatUser({ ...existingUser, ...updateData });
+    const response = await db.insert(updatedUser);
+    return response;
   } catch (error) {
-    throw new Error(error.message || 'Error updating user profile');
+    throw new Error('Error updating user: ' + error.message);
   }
 };
 
-// Delete user account
+/**
+ * Delete a user by ID.
+ */
 const deleteUser = async (id) => {
   try {
-    const user = await User.findByIdAndDelete(id);
-    if (!user) {
-      throw new Error('User not found');
-    }
-    return true;
+    const user = await db.get(id);
+    if (!user) throw new Error('User not found');
+    const response = await db.destroy(id, user._rev);
+    return response;
   } catch (error) {
-    throw new Error(error.message || 'Error deleting user account');
+    throw new Error('Error deleting user: ' + error.message);
   }
 };
+
 
 module.exports = {
   fetchUsers,
   updateUser,
   deleteUser,
+  
 };

@@ -1,15 +1,78 @@
 
 const taskService = require('../Services/taskServices'); 
-const User = require('../Models/UserSchema');
+const UserModel = require('../Models/UserSchema');
 const Facility = require('../Models/FacilitySchema');
 const Machine = require('../Models/MachineSchema');
 const Tool = require('../Models/ToolsSchema');
 const Material = require('../Models/MaterialsSchema');
-const { ObjectId } = require('mongodb');
 const convertUuidToObjectId = require('../Helper/changeUuid');
+const { db } = require('../config/couchdb');
+const upload = require('../utils/uploadImage');  // assuming multer upload setup
+const { saveAttachment } = require('../Services/imageService');  // importing the saveAttachment function
 const getColorForStatus =require('../utils/getColorForStatus');
-const mongoose = require('mongoose');
-const uploadFileToGridFS = require('../utils/uploadImage'); // Import the upload function
+const { v4: uuidv4 } = require('uuid'); // UUID for unique IDs
+
+const createTask = async (req, res) => {
+  try {
+    // Extract task data from the request body
+    const taskData = req.body.taskData || req.body;
+
+    console.log("Received task data:", taskData);
+
+    // Validate required fields
+    if (!taskData || !taskData.start_time || !taskData.end_time) {
+      return res.status(400).json({ error: "Missing required fields: start_time or end_time" });
+    }
+
+    // Convert start_time and end_time to ISO format
+    taskData.start_time = new Date(taskData.start_time).toISOString();
+    taskData.end_time = new Date(taskData.end_time).toISOString();
+
+    // Generate a unique ID for the task if not provided
+    if (!taskData._id) {
+      taskData._id = `task:${uuidv4()}`;
+    }
+
+    // Set created_by field from authenticated user
+    taskData.created_by = req.user.id;
+
+    // Assign default or computed color code based on status
+    taskData.color_code = getColorForStatus(taskData.status || "pending");
+
+    // Include only required fields for CouchDB
+    const sanitizedTaskData = {
+      _id: taskData._id,
+      type: "task",
+      title: taskData.title || "",
+      service_location: taskData.service_location || "",
+      task_period: taskData.task_period || "",
+      repeat_frequency: taskData.repeat_frequency || "",
+      status: taskData.status || "pending",
+      notes: taskData.notes || "",
+      image: null, // Image will be added if provided
+      start_time: taskData.start_time,
+      end_time: taskData.end_time,
+      color_code: taskData.color_code,
+      alarm_enabled: taskData.alarm_enabled || false,
+      assigned_to: taskData.assigned_to || [],
+      created_by: taskData.created_by,
+      tools: taskData.tools || [],
+      materials: taskData.materials || [],
+      facility: taskData.facility, // Save only the foreign key for facility
+      machine: taskData.machine, // Save only the foreign key for machine
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Pass the sanitized task data and file to the service (file may be null)
+    const result = await taskService.createTask(sanitizedTaskData, req.file);
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error("Error creating task:", error);
+    res.status(400).json({ error: "Failed to create task", details: error.message });
+  }
+};
 async function formatTaskData(taskData) {
   if (taskData.facility) {
     const facility = await Facility.findOne({ facility_name: taskData.facility });
@@ -41,59 +104,6 @@ async function formatTaskData(taskData) {
     taskData.materials = materialIds.filter(Boolean); // Filter out null values
   }
 }
-const getImage = async (req, res) => {
-  try {
-    const fileId = new mongoose.Types.ObjectId(req.params.id);
-
-    // Call the service to fetch the image
-    const image = await taskService.fetchImage(fileId);
-
-    // Pipe the image data to the response
-    res.set('Content-Type', 'image/jpeg'); // Set appropriate content type
-    return res.send(image);
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(error.status || 500).json({ error: error.error || 'Failed to fetch image' });
-  }
-};
-const createTask = async (req, res) => {
-  try {
-    // Check if the data is wrapped in { taskData } or is flat
-    const taskData = req.body.taskData || req.body;
-
-    // Log the incoming data for debugging
-    console.log("Received task data:", taskData);
-
-    if (!taskData || !taskData.start_time || !taskData.end_time) {
-      return res.status(400).json({ error: "Missing required fields: start_time or end_time" });
-    }
-
-    taskData.start_time = new Date(taskData.start_time);
-    taskData.end_time = new Date(taskData.end_time);
-    // If an image file is uploaded, handle the upload
-    if (req.file) {
-      const uploadResult = await uploadFileToGridFS(req.file);
-      taskData.image = uploadResult.file._id; // Store the image file's ObjectId in the task
-    }
-    // Remove any client-generated _id to let MongoDB generate it
-    delete taskData._id;
-    taskData.created_by = req.user.id;
-    if (taskData.status) {
-            taskData.color_code = getColorForStatus(taskData.status);
-          } else {
-            taskData.color_code = getColorForStatus("pending"); // Default to 'pending' if no status is provided
-          }
-   // Format task data by resolving facility, machine, tools, and materials
-  //  await formatTaskData(taskData);
-
-   // Create the new task with formatted data
-   const newTask = await taskService.createTask(taskData);
-   res.status(201).json(newTask);
- } catch (error) {
-   console.error("Error:", error);
-   res.status(400).json({ error: 'Failed to create task', details: error.message });
- }
-};
 const getAllDoneTasks = async (req, res) => {
   try {
     const tasks = await taskService.fetchAllDoneTasks();
@@ -157,38 +167,114 @@ const getTaskById = async (req, res) => {
   }
 };
 const updateTask = async (req, res) => {
-  
   try {
-    const uuid = req.params.id;  // Get the UUID from the request params
-  const taskId = convertUuidToObjectId(uuid);  // Convert UUID to ObjectId
-
-    // Ensure the taskId is a valid ObjectId
-    if (!ObjectId.isValid(taskId)) {
-      return res.status(400).json({ error: 'Invalid task ID' });
-    }
-    const updateData = { ...req.body };
-
-    // If status is provided, calculate the color code
+    const uuid = req.params.id; // Document ID
+    const isMultipart = req.is('multipart/form-data');
+    let updateData = { ...req.body };
+      // If status is provided, calculate the color code
     if (updateData.status) {
       updateData.color_code = getColorForStatus(updateData.status);
     }
-    // If an image file is uploaded, handle the upload and associate the file with the task
-    if (req.file) {
-      // Upload the image and get the file's MongoDB ObjectId
-      const uploadResult = await uploadFileToGridFS(req.file);
-      updateData.image = uploadResult.file._id; // Associate the file's ObjectId with the task
-    }
-    // Call the updateTask service with the valid ObjectId and update data
-    const updatedTask = await taskService.updateTask(taskId, updateData);
+    if (isMultipart) {
+      // Handle file upload via multer
+      upload.single('image')(req, res, async (err) => {
+        if (err) {
+          return res.status(400).json({ error: 'Failed to process file upload', details: err.message });
+        }
 
-    if (!updatedTask) {
+        const file = req.file;
+
+        if (file) {
+          // Check if the task already has an image and remove the old one
+          const task = await db.get(uuid); // Fetch the task document
+
+          if (task.image) {
+            // If there's an existing image, you may want to delete the old one
+            const oldImageName = task.image.split('/').pop(); // Extract the image name from the URL
+            try {
+              await deleteAttachment(uuid, oldImageName); // Function to delete the old image attachment
+            } catch (deleteError) {
+              return res.status(500).json({ error: 'Failed to delete old image', details: deleteError.message });
+            }
+          }
+
+          // Save the new image as an attachment in CouchDB
+          const fileBuffer = file.buffer; // Image as Buffer
+          const fileName = file.originalname;
+          const mimeType = file.mimetype;
+
+          try {
+            // Save the new image as an attachment
+            const attachmentResponse = await saveAttachment(uuid, fileBuffer, fileName, mimeType);
+
+            // Get the URL or reference of the new attachment (CouchDB attachment URL)
+            const imageUrl = `/path_to_attachments/${fileName}`; // Customize this URL as needed based on your CouchDB setup
+            updateData.image = imageUrl; // Store the new image URL in the image field
+
+          } catch (saveError) {
+            return res.status(500).json({ error: 'Failed to save new image', details: saveError.message });
+          }
+        }
+         
+        // Proceed with updating the task document with the new image URL
+        await performTaskUpdate(uuid, updateData, res);
+      });
+    } else {
+      // Handle JSON update (no file upload)
+      console.log("updateData without image:", updateData);
+      await performTaskUpdate(uuid, updateData, res);
+    }
+  } catch (error) {
+    console.error('Error updating task:', error);
+    res.status(400).json({ error: 'Failed to update task', details: error.message });
+  }
+};
+const deleteAttachment = async (uuid, fileName) => {
+  try {
+    // Fetch the document containing the attachment
+    const taskDoc = await db.get(uuid);
+
+    if (taskDoc._attachments && taskDoc._attachments[fileName]) {
+      // Remove the attachment from the document
+      delete taskDoc._attachments[fileName];
+
+      // Update the document in the database
+      const response = await db.insert(taskDoc);
+      console.log(`Deleted attachment ${fileName} for task ${uuid}:`, response);
+    } else {
+      console.log(`Attachment ${fileName} not found for task ${uuid}`);
+    }
+  } catch (error) {
+    throw new Error(`Failed to delete attachment ${fileName}: ${error.message}`);
+  }
+};
+const performTaskUpdate = async (id, updateData, res) => {
+  try {
+    // Fetch the existing task to ensure the _rev is current
+    const existingTask = await db.get(id);
+    if (!existingTask) {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    res.status(200).json(updatedTask);
+    // Merge the updates with the existing task
+    const updatedTask = {
+      ...existingTask,
+      ...updateData,
+      updated_at: new Date().toISOString(),
+    };
+     console.log("updateData",updateData);
+     console.log("updateTask",updatedTask)
+    // Save the updated task
+    const response = await db.insert(updatedTask);
+
+    // Return the updated task
+    res.status(200).json({
+      message: 'Task updated successfully',
+      task: { ...updatedTask, _rev: response.rev },
+    });
   } catch (error) {
-    console.log("er",error);
-    res.status(400).json({ error: 'Failed to update task', details: error.message });
+    console.error('Error performing task update:', error);
+    res.status(500).json({ error: 'Failed to update task', details: error.message });
   }
 };
 const deleteTask = async (req, res) => {
@@ -220,7 +306,6 @@ module.exports = {
   getTaskById,
   updateTask,
   deleteTask,
-  getImage,
   getTasksByAssignedUser,
   getAllDoneTasks,
   getDoneTasksForUser,

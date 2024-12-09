@@ -7,7 +7,7 @@ const {
 const router = express.Router();
 
 // Route to fetch all users
-router.get('/get-users', authenticateUser,getUsers);
+router.get('/get-users',getUsers);
 // Route to fetch users by IDs
 router.post('/get-users-by-ids', authenticateUser, getUsersByIds);
 

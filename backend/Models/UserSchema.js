@@ -1,58 +1,17 @@
-// models/User.js
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
-// User Schema
-const userSchema = new mongoose.Schema({
-  email: {
-    type: String,
-    required: true,
-    unique: true, 
-  },
-  password: {
-    type: String,
-    required: true,
-  },
-  last_name:{
-    type:String,
-    required: true,
-  },
-  first_name:{
-    type:String,
-    required: true,
-  },
-  personal_number:{
-    type:String,
-    unique: true,
+const UserModel = {
+  _id: '',                   // Unique identifier for the user
+  type: 'user',              // Type to distinguish user documents
+  email: '',                 // Required: User email
+  password: '',              // Required: Hashed password
+  first_name: '',            // Required: First name
+  last_name: '',             // Required: Last name
+  personal_number: '',       // Required: Unique personal number
+  access_level: 1,           // Required: Access level (1-5 scale)
+  confirmationCode: null,    // Email confirmation code
+  isConfirmed: false,        // Email confirmation status
+  created_at: '',            // Timestamp when the user is created
+  updated_at: '',            // Timestamp when the user is updated
+};
 
-  },
-  access_level: {
-    type: Number,
-    required: true,
-    min: 1,
-    max: 5,
-    enum: [1, 2, 3, 4, 5],
-  },
-  confirmationCode: {
-    type: String,
-    allowNull: true,
-    defaultValue: "null",
-  },
-  isConfirmed: {
-    type: Boolean,
-    allowNull: false,
-    defaultValue: false,
-  },
-  created_at:{
-    type:Date,
-    default:Date.now,
-  },
-  updated_at:{
-    type:Date,
-    default:Date.now,
-  }
-});
-
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;
+module.exports = UserModel;
