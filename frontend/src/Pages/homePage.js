@@ -47,9 +47,9 @@ const HomePage = () => {
         materials: task.materials || [],
       },
       resourceIds: [
-        ...(task.assigned_to || []).map(userId => userId.toString()),
-        ...(task.tools || []).map(toolId => toolId.toString()),
-        ...(task.materials || []).map(materialId => materialId.toString()),
+        ...(task.assigned_to || []).map(userId => userId),
+        ...(task.tools || []).map(toolId => toolId),
+        ...(task.materials || []).map(materialId => materialId),
       ],
       
     

@@ -73,18 +73,7 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       //     alert("Please select a valid image file (max 2MB).");
       //   }
       // };
-    //   const handleFileChange = (e) => {
-    //     const file = e.target.files[0];
-    //     if (file && file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024) {
-    //         console.log("Selected file:", file); // Add this to debug
-    //         setFormData({
-    //             ...formData,
-    //             image: file,
-    //         });
-    //     } else {
-    //         alert("Please select a valid image file (max 2MB).");
-    //     }
-    // };
+
     const handleSubmit = (e) => {
       e.preventDefault();
     

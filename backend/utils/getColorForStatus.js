@@ -6,7 +6,7 @@ function getColorForStatus(status) {
       case 'in progress':
         return 'green';
       case 'pending':
-        return 'yellow';
+          return '#ffcc00'; // Dark Yellow
       case 'overdue':
         return 'red';
       case 'impossible':

@@ -5,13 +5,12 @@ const Facility = require('../Models/FacilitySchema');
 const Machine = require('../Models/MachineSchema');
 const Tool = require('../Models/ToolsSchema');
 const Material = require('../Models/MaterialsSchema');
-const convertUuidToObjectId = require('../Helper/changeUuid');
 const { db } = require('../config/couchdb');
 const upload = require('../utils/uploadImage');  // assuming multer upload setup
 const { saveAttachment } = require('../Services/imageService');  // importing the saveAttachment function
 const getColorForStatus =require('../utils/getColorForStatus');
 const { v4: uuidv4 } = require('uuid'); // UUID for unique IDs
-
+const {decrementMaterialCount} = require('../utils/decIncLogic');
 const createTask = async (req, res) => {
   try {
     // Extract task data from the request body
@@ -63,7 +62,11 @@ const createTask = async (req, res) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-
+    console.log("sanitizedTaskData.materials",sanitizedTaskData.materials)
+    // Decrement material quantities
+    if (sanitizedTaskData.materials && sanitizedTaskData.materials.length > 0) {
+      await decrementMaterialCount(sanitizedTaskData.materials);
+    }
     // Pass the sanitized task data and file to the service (file may be null)
     const result = await taskService.createTask(sanitizedTaskData, req.file);
 
@@ -175,6 +178,7 @@ const updateTask = async (req, res) => {
     if (updateData.status) {
       updateData.color_code = getColorForStatus(updateData.status);
     }
+  
     if (isMultipart) {
       // Handle file upload via multer
       upload.single('image')(req, res, async (err) => {
@@ -217,12 +221,12 @@ const updateTask = async (req, res) => {
         }
          
         // Proceed with updating the task document with the new image URL
-        await performTaskUpdate(uuid, updateData, res);
+        await taskService.updateTask(uuid, updateData, res);
       });
     } else {
       // Handle JSON update (no file upload)
       console.log("updateData without image:", updateData);
-      await performTaskUpdate(uuid, updateData, res);
+      await taskService.updateTask(uuid, updateData, res);
     }
   } catch (error) {
     console.error('Error updating task:', error);
@@ -248,35 +252,6 @@ const deleteAttachment = async (uuid, fileName) => {
     throw new Error(`Failed to delete attachment ${fileName}: ${error.message}`);
   }
 };
-const performTaskUpdate = async (id, updateData, res) => {
-  try {
-    // Fetch the existing task to ensure the _rev is current
-    const existingTask = await db.get(id);
-    if (!existingTask) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-
-    // Merge the updates with the existing task
-    const updatedTask = {
-      ...existingTask,
-      ...updateData,
-      updated_at: new Date().toISOString(),
-    };
-     console.log("updateData",updateData);
-     console.log("updateTask",updatedTask)
-    // Save the updated task
-    const response = await db.insert(updatedTask);
-
-    // Return the updated task
-    res.status(200).json({
-      message: 'Task updated successfully',
-      task: { ...updatedTask, _rev: response.rev },
-    });
-  } catch (error) {
-    console.error('Error performing task update:', error);
-    res.status(500).json({ error: 'Failed to update task', details: error.message });
-  }
-};
 const deleteTask = async (req, res) => {
   try {
     const deletedTask = await taskService.deleteTask(req.params.id);
@@ -299,7 +274,6 @@ const createTaskFromMachine = async (req, res) => {
     res.status(400).json({ error: 'Failed to create task from machine', details: error.message });
   }
 };
-
 module.exports = {
   createTask,
   getAllTasks,

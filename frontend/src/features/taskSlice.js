@@ -13,7 +13,7 @@ export const createTask = createAsyncThunk(
       return await taskService.createTask(taskData, token);
     } catch (error) {
       console.log("error", error);
-      return rejectWithValue(error.response?.data || 'Error creating task');
+      return rejectWithValue(error.details || 'Error creating task');
     }
   }
 );

@@ -30,77 +30,142 @@ const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openFo
   //   }
   // };
   console.log("events",events)
+  
+  // const mappedEvents = events.map(event => ({
+  //   _id: event._id,
+  //   start: event.start,
+  //   end: event.end,
+  //   title: event.title,
+  //   color:  event.color,
+  //   allDay: event.allDay,
+    
+  //   resourceIds: [
+  //     ...(event.assigned_resources.assigned_to || []).map(user => user._id ? user._id: 'undefined'),
+  //     ...(event.assigned_resources.tools || []).map(tool => tool._id ? tool._id : ''),
+  //     ...(event.assigned_resources.materials || []).map(material => material._id ? material._id : ''),
+  //   ],
+  //   // resourceIds: [
+  //   //   ...(event.assigned_resources.assigned_to || []).map(userId => userId.toString()),
+  //   //   ...(event.assigned_resources.tools || []).map(toolId => toolId.toString()),
+  //   //   ...(event.assigned_resources.materials || []).map(materialId => materialId.toString()),
+  //   // ],
+    
+  //   extendedProps: {
+  //     _id: event._id,
+  //     image: event.image,
+  //     notes:event.notes,
+  //     status:event.status,
+  //     assigned_resources: {
+  //       assigned_to:event.assigned_resources.assigned_to || [],
+  //       tools: event.assigned_resources.tools || [],
+  //       materials: event.assigned_resources.materials || [],
+  //     },
+  //   },
+  // }));
   const mappedEvents = events.map(event => ({
     _id: event._id,
     start: event.start,
     end: event.end,
     title: event.title,
-    color:  event.color,
+    color: event.color,
     allDay: event.allDay,
-    
     resourceIds: [
-      ...(event.assigned_resources.assigned_to || []).map(user => user._id ? user._id.toString() : 'undefined'),
-      ...(event.assigned_resources.tools || []).map(tool => tool._id ? tool._id.toString() : ''),
-      ...(event.assigned_resources.materials || []).map(material => material._id ? material._id.toString() : ''),
+      ...(event.assigned_resources?.assigned_to || []).map(user => user?._id || 'undefined'),
+      ...(event.assigned_resources?.tools || []).map(tool => tool?._id || ''),
+      ...(event.assigned_resources?.materials || []).map(material => material?._id || ''),
     ],
-    // resourceIds: [
-    //   ...(event.assigned_resources.assigned_to || []).map(userId => userId.toString()),
-    //   ...(event.assigned_resources.tools || []).map(toolId => toolId.toString()),
-    //   ...(event.assigned_resources.materials || []).map(materialId => materialId.toString()),
-    // ],
     extendedProps: {
       _id: event._id,
       image: event.image,
-      notes:event.notes,
-      status:event.status,
+      notes: event.notes,
+      status: event.status,
       assigned_resources: {
-        assigned_to:event.assigned_resources.assigned_to || [],
-        tools: event.assigned_resources.tools || [],
-        materials: event.assigned_resources.materials || [],
+        assigned_to: event.assigned_resources?.assigned_to || [],
+        tools: event.assigned_resources?.tools || [],
+        materials: event.assigned_resources?.materials || [],
       },
     },
   }));
-  const groupedAssignedResources = [
+  
+  
+//   const groupedAssignedResources = [
+//   {
+//     id: 'assignedUsers',
+//     title: 'Assigned Users',
+//     children: events.flatMap(event => 
+//       (event.assigned_resources.assigned_to || []).map(user => ({
+//         id: user.id ? user.id : 'undefined',
+//         title: `${user.first_name} ${user.last_name}`,
+//         parent: 'assignedUsers'
+//       }))
+//     ),
+//   },
+//   {
+//     id: 'tools',
+//     title: 'Tools',
+//     children: events.flatMap(event => 
+//       (event.assigned_resources.tools || []).map(tool => ({
+//         id: tool.id ? tool.id : '',
+//         title: tool.tool_name,
+//         parent: 'tools'
+//       }))
+//     ),
+//   },
+//   {
+//     id: 'materials',
+//     title: 'Materials',
+//     children: events.flatMap(event => 
+//       (event.assigned_resources.materials || []).map(material => ({
+//         id: material._id ? material._id : '',
+//         title: material.material_name,
+//         parent: 'materials'
+//       }))
+//     ),
+//   },
+// ];
+const groupedAssignedResources = [
   {
     id: 'assignedUsers',
     title: 'Assigned Users',
-    children: events.flatMap(event => 
-      (event.assigned_resources.assigned_to || []).map(user => ({
-        id: user._id ? user._id.toString() : 'undefined',
-        title: `${user.first_name} ${user.last_name}`,
-        parent: 'assignedUsers'
+    children: events.flatMap(event =>
+      (event.assigned_resources?.assigned_to || []).map(user => ({
+        id: user?._id || 'undefined',
+        title: `${user?.first_name || 'Unknown'} ${user?.last_name || 'Unknown'}`,
+        parent: 'assignedUsers',
       }))
     ),
   },
   {
     id: 'tools',
     title: 'Tools',
-    children: events.flatMap(event => 
-      (event.assigned_resources.tools || []).map(tool => ({
-        id: tool._id ? tool._id.toString() : '',
-        title: tool.tool_name,
-        parent: 'tools'
+    children: events.flatMap(event =>
+      (event.assigned_resources?.tools || []).map(tool => ({
+        id: tool?._id || '',
+        title: tool?.tool_name || 'Unknown Tool',
+        parent: 'tools',
       }))
     ),
   },
   {
     id: 'materials',
     title: 'Materials',
-    children: events.flatMap(event => 
-      (event.assigned_resources.materials || []).map(material => ({
-        id: material._id ? material._id.toString() : '',
-        title: material.material_name,
-        parent: 'materials'
+    children: events.flatMap(event =>
+      (event.assigned_resources?.materials || []).map(material => ({
+        id: material?._id || '',
+        title: material?.material_name || 'Unknown Material',
+        parent: 'materials',
       }))
     ),
   },
 ];
+
 
 // Combine parent categories and children into a single array
 const assigned_resources = [
   ...groupedAssignedResources,
   // ...groupedAssignedResources.flatMap(group => group.children),
 ];
+console.log("assigned resources",assigned_resources);
   console.log("mapped events",mappedEvents)
   const adjustTimeForBackend = (time, timezoneOffset) => {
     const date = new Date(time);

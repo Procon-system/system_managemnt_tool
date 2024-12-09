@@ -24,15 +24,17 @@ console.log("event acc",event);
         toast.success("Task created successfully!");
       }    
     } catch (error) {
-      console.error("Failed to create task:", error);
-      toast.error(`Error: ${error.message}`);
+      // Display detailed error message
+      console.log("errrrrr",error);
+    const errorMessage =
+    error || error?.message || "An unknown error occurred while creating the task.";
+  toast.error(`Error: ${errorMessage}`);
+
     }
   };
 
   return (
     <div className={`mt-3 ${isOffset ? '' : 'lg:ml-96'}`}>
-     {loading && <p>Loading...</p>}
-      {error && <p className="text-red-500">Error: {error}</p>}
       <TaskForm onSubmit={handleTaskSubmit} initialData={initialTaskData} />
     </div>
   );
