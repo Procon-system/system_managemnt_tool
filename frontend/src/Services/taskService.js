@@ -39,32 +39,13 @@ const taskService = {
       throw error.response?.data || new Error('Error fetching tasks');
     }
   },
-  
-  // Update a task by ID
-  // updateTask: async (taskId, updatedData, token) => {
-  //   try {
-  //     const response = await axios.put(
-  //       `${API_URL}/update-tasks/${taskId}`, 
-  //       updatedData,
-  //       {
-  //         headers: {
-  //           Authorization: `Bearer ${token}`, // Include the token in the Authorization header
-  //         },
-  //       }
-  //     );
-  //     return response.data;
-  //   } catch (error) {
-  //     console.error('Error updating task:', error.response?.data || error.message);
-  //     throw error.response?.data || new Error('Error updating task');
-  //   }
-  // },
   updateTask: async (taskId, updatedData, token) => {
-    console.log("taskId:", taskId);
-  console.log("UpdatedData (FormData):");
-  for (let [key, value] of updatedData.entries()) {
-    console.log(`${key}: ${value}`);
-  }
-  console.log("Token:", token);
+  //   console.log("taskId:", taskId);
+  // console.log("UpdatedData (FormData):");
+  // for (let [key, value] of updatedData.entries()) {
+  //   console.log(`${key}: ${value}`);
+  // }
+  // console.log("Token:", token);
 
 
     try {

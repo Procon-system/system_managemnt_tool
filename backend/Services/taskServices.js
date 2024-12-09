@@ -175,7 +175,7 @@ const fetchImage = async (taskId) => {
       }
 
       // Assume the latest image is the last one added (or use a naming convention to identify it)
-      const latestImageName = attachmentKeys[attachmentKeys.length - (attachmentKeys.length-1) ];
+      const latestImageName = attachmentKeys[attachmentKeys.length - 1 ];
 
       // Fetch the attachment based on whether it's a stub
       const attachmentDetails = task._attachments[latestImageName];

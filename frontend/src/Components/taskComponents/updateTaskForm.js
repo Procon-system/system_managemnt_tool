@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { FaClock, FaStickyNote, FaCheckCircle } from 'react-icons/fa';
 import { getUsersByIds } from '../../features/userSlice';  // Import your API call for getting user by ID
 import { useDispatch} from 'react-redux';
+import { deleteTask } from '../../features/taskSlice';
+import { toast } from 'react-toastify';
 const EventDetailsModal = ({
   isVisible,
   closeModal,
@@ -12,10 +14,18 @@ const EventDetailsModal = ({
 }) => {
   const dispatch = useDispatch();
   const [assignedUsers, setAssignedUsers] = useState([]); // State to store full user details
-
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      try {
+        await dispatch(deleteTask(selectedEvent._id)).unwrap();
+        toast.success('Task deleted successfully!');
+      } catch (error) {
+        toast.error(`Failed to delete task: ${error}`);
+      }
+    }
+  };
   useEffect(() => {
     // Fetch user details when the modal is visible and selectedEvent is set
-    console.log("selected event",selectedEvent);
     const fetchAssignedUsers = async () => {
       if (selectedEvent && selectedEvent.assigned_to) {
         const users = await Promise.all(
@@ -80,10 +90,19 @@ const EventDetailsModal = ({
             <h3 className="font-semibold bg-blue-400 text-white px-5 py-1 rounded-md hover:bg-blue-400">
               Event Information
             </h3>
+            {role >= 3 && (
+            <button
+               type="submit"
+               className="bg-red-700 md:ml-[100px] text-white px-4 py-1 rounded-md hover:bg-red-600 transition"
+               onClick={handleDelete}
+             >
+               Delete
+             </button>
+            )}
             <button
               type="button"
               onClick={toggleEditMode}
-              className="bg-blue-400 text-white px-5 py-1 rounded-md hover:bg-blue-600 transition"
+              className="bg-blue-400 text-white px-5 py-1 mr-2 rounded-md hover:bg-blue-600 transition"
             >
               {isEditMode ? 'Cancel' : 'Edit'}
             </button>
@@ -123,6 +142,7 @@ const EventDetailsModal = ({
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   </div>
+                  
                 </>
               )}
 
@@ -155,7 +175,9 @@ const EventDetailsModal = ({
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   </div>
+                 
                 </div>
+                
               )}
             </>
           ) : (
@@ -210,12 +232,14 @@ const EventDetailsModal = ({
 
           <div className="flex justify-between mt-6">
             {isEditMode && (
-              <button
+             <div className='flex md:flex-row '>
+               <button
                 type="submit"
                 className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition"
               >
                 Save Changes
               </button>
+              </div>
             )}
           </div>
         </form>

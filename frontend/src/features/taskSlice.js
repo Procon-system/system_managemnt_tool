@@ -63,18 +63,6 @@ export const fetchTasks = createAsyncThunk(
   }
 );
 
-// Update Task
-// export const updateTask = createAsyncThunk(
-//   'tasks/updateTask',
-//   async ({ taskId, updatedData }, {getState, rejectWithValue }) => {
-//     const token = getState().auth.token;
-//     try {
-//       return await taskService.updateTask(taskId, updatedData,token );
-//     } catch (error) {
-//       return rejectWithValue(error.response?.data || 'Error updating task');
-//     }
-//   }
-// );
 export const updateTask = createAsyncThunk(
   'tasks/updateTask',
   async ({ taskId, updatedData }, { getState, rejectWithValue }) => {

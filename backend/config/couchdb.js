@@ -14,6 +14,24 @@ const couch = nano({
 
 const dbName = 'task_management';
 const db = couch.use(dbName);
+// Function to create system databases
+const createSystemDatabases = async () => {
+  const systemDbs = ['_global_changes', '_replicator', '_users'];
+  try {
+    const existingDbs = await couch.db.list();
+
+    for (const systemDb of systemDbs) {
+      if (!existingDbs.includes(systemDb)) {
+        await couch.db.create(systemDb);
+        console.log(`System database "${systemDb}" created.`);
+      } else {
+        console.log(`System database "${systemDb}" already exists.`);
+      }
+    }
+  } catch (error) {
+    console.error('Error ensuring system databases:', error.message);
+  }
+};
 
 // Test CouchDB connection
 const testConnection = async () => {
@@ -75,6 +93,7 @@ const createStatusAssignedToIndex = async () => {
 // Call these functions at server startup
 (async () => {
   await testConnection();
+  await createSystemDatabases();
   await createDatabase();
   await createIndex();
   await createStatusAssignedToIndex(); // Ensure the index is created

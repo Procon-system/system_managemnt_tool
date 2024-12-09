@@ -17,7 +17,7 @@ const {
 const registerController = async (req, res) => {
   try {
     const newUser = await createUser(req.body);
-    await sendConfirmationEmail(newUser.email, newUser.confirmationCode, newUser.first_name);
+    // await sendConfirmationEmail(newUser.email, newUser.confirmationCode, newUser.first_name);
 res.status(201).json({
         success: true,
         user:newUser,

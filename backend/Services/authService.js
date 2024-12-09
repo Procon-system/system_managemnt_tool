@@ -1,16 +1,9 @@
 
-const bcrypt = require('bcryptjs');
 const { db } = require('../config/couchdb');
 const UserModel = require('../Models/UserSchema');
 const hashPassword = require('../Middleware/hashPassword');
-const generateToken = require('../Middleware/generateToken');
 const registerValidator = require('../Helper/registerValidator');
 const { generateConfirmationCode } = require('../Helper/generateConfirmationCode');
-const {
-  sendConfirmationEmail,
-  sendWelcomeEmail,
-  sendRestPasswordLink,
-} = require('../Helper/sendEmail');
 
 const createUser = async (userData) => {
   // Validate required fields
@@ -37,7 +30,7 @@ const createUser = async (userData) => {
     first_name,
     last_name,
     personal_number,
-    access_level,
+    access_level: Number(access_level),
     confirmationCode: generateConfirmationCode(),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
