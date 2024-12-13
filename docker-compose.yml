@@ -42,7 +42,8 @@ services:
     ports:
       - '5000:5000' 
     depends_on:
-      - couchdb 
+      couchdb:
+          condition: service_healthy 
     networks:
       - app-network
     restart: unless-stopped
@@ -61,6 +62,11 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5984/_up"]
+      interval: 10s  # Check every 10 seconds
+      timeout: 5s    # Timeout for the check
+      retries: 5     # Retry up to 5 times
   # MongoDB service
   # mongo:
   #   image: mongo:6.0  #the official MongoDB image 
