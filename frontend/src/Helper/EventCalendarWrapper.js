@@ -29,39 +29,6 @@ const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openFo
   //     return 'green'; // Ongoing
   //   }
   // };
-  console.log("events",events)
-  
-  // const mappedEvents = events.map(event => ({
-  //   _id: event._id,
-  //   start: event.start,
-  //   end: event.end,
-  //   title: event.title,
-  //   color:  event.color,
-  //   allDay: event.allDay,
-    
-  //   resourceIds: [
-  //     ...(event.assigned_resources.assigned_to || []).map(user => user._id ? user._id: 'undefined'),
-  //     ...(event.assigned_resources.tools || []).map(tool => tool._id ? tool._id : ''),
-  //     ...(event.assigned_resources.materials || []).map(material => material._id ? material._id : ''),
-  //   ],
-  //   // resourceIds: [
-  //   //   ...(event.assigned_resources.assigned_to || []).map(userId => userId.toString()),
-  //   //   ...(event.assigned_resources.tools || []).map(toolId => toolId.toString()),
-  //   //   ...(event.assigned_resources.materials || []).map(materialId => materialId.toString()),
-  //   // ],
-    
-  //   extendedProps: {
-  //     _id: event._id,
-  //     image: event.image,
-  //     notes:event.notes,
-  //     status:event.status,
-  //     assigned_resources: {
-  //       assigned_to:event.assigned_resources.assigned_to || [],
-  //       tools: event.assigned_resources.tools || [],
-  //       materials: event.assigned_resources.materials || [],
-  //     },
-  //   },
-  // }));
   const mappedEvents = events.map(event => ({
     _id: event._id,
     start: event.start,
@@ -86,43 +53,6 @@ const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openFo
       },
     },
   }));
-  
-  
-//   const groupedAssignedResources = [
-//   {
-//     id: 'assignedUsers',
-//     title: 'Assigned Users',
-//     children: events.flatMap(event => 
-//       (event.assigned_resources.assigned_to || []).map(user => ({
-//         id: user.id ? user.id : 'undefined',
-//         title: `${user.first_name} ${user.last_name}`,
-//         parent: 'assignedUsers'
-//       }))
-//     ),
-//   },
-//   {
-//     id: 'tools',
-//     title: 'Tools',
-//     children: events.flatMap(event => 
-//       (event.assigned_resources.tools || []).map(tool => ({
-//         id: tool.id ? tool.id : '',
-//         title: tool.tool_name,
-//         parent: 'tools'
-//       }))
-//     ),
-//   },
-//   {
-//     id: 'materials',
-//     title: 'Materials',
-//     children: events.flatMap(event => 
-//       (event.assigned_resources.materials || []).map(material => ({
-//         id: material._id ? material._id : '',
-//         title: material.material_name,
-//         parent: 'materials'
-//       }))
-//     ),
-//   },
-// ];
 const groupedAssignedResources = [
   {
     id: 'assignedUsers',
@@ -158,16 +88,11 @@ const groupedAssignedResources = [
     ),
   },
 ];
-
-
 // Combine parent categories and children into a single array
 const assigned_resources = [
   ...groupedAssignedResources,
-  // ...groupedAssignedResources.flatMap(group => group.children),
 ];
-console.log("assigned resources",assigned_resources);
-  console.log("mapped events",mappedEvents)
-  const adjustTimeForBackend = (time, timezoneOffset) => {
+const adjustTimeForBackend = (time, timezoneOffset) => {
     const date = new Date(time);
     date.setHours(date.getHours() + timezoneOffset);
     return date.toISOString();
@@ -192,10 +117,11 @@ console.log("assigned resources",assigned_resources);
           events: mappedEvents,
           resources:  assigned_resources,
           headerToolbar: {
-          // start: 'month', center: '', end: 'today prev,next'  
+          // start: 'month', 
+          // center: '', end: 'today prev,next' , 
           start: 'today,prev,next',  // "Today", "Prev", and "Next" buttons on the left
           center: 'title',           // Title in the center
-          end: 'month,week,day,list resource,timeline' // Custom buttons on the right
+          end: 'year,month,week,day,list, resource,timeline' // Custom buttons on the right
 
           },
           customButtons: {
@@ -216,6 +142,10 @@ console.log("assigned resources",assigned_resources);
               text: 'List',
               click: () => handleViewChange('listWeek'),
             },
+            year: {
+              text: 'Year',
+              click: () => handleViewChange('listYear'),
+            },
             resource: {
               text: 'Resource',
               click: () => handleViewChange('resourceTimeGridWeek'),
@@ -228,7 +158,6 @@ console.log("assigned resources",assigned_resources);
           },
           select: (info) => {
             if (user.access_level < 3) {
-              // toast.success("Login successful!");
               toast.error('You do not have permission to create events.');
               return;
             }
@@ -295,7 +224,7 @@ console.log("assigned resources",assigned_resources);
   //   ? event.resourceIds.filter((id) => id && id !== "undefined") // Exclude invalid entries
   //   : [],
 };
-          console.log("updated",updatedEvent)  
+ 
             openForm(updatedEvent);
           },
           eventResize: (info) => {
