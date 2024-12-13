@@ -24,28 +24,6 @@ const LoginForm = () => {
         setFormData({ ...formData, [name]: value });
       }
     };
-  
-  //   const handleSubmit = async (e) => {
-  //     e.preventDefault();
-  //     try {
-  //       const response = await loginUser(formData);
-  //       const { user, token } = response;
-  //       // Save token to localStorage for persistence
-  //       localStorage.setItem('token', token);
-  //       // Dispatch login action to update Redux state
-  //       dispatch(login({ user, token }));
-  //  // Show success toast
-  //  toast.success('Login successful!');
-
-       
-  //           navigate('/home');
-  //     } catch (error) {
-  //       // Catch and display error message
-  //   // Show error toast
-  //   console.log("err",error)
-  //   toast.error(`Error: ${error.message}`);
-  // }
-  //   };
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {

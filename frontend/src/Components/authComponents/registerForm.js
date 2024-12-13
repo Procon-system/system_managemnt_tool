@@ -1,13 +1,11 @@
 // src/components/RegisterForm.js
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { login } from '../../features/authSlice';
 import { registerUser } from '../../Services/authService';
 import FormInput from './inputForm';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 const RegisterForm = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -55,6 +53,9 @@ const RegisterForm = () => {
       <FormInput label="Last Name" name="last_name" type="text" value={formData.last_name} onChange={handleChange} required />
       <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required />
       <FormInput label="Password" name="password" type="password" value={formData.password} onChange={handleChange} required />
+      <p className="text-sm text-blue-600">
+        Password must be at least 6 characters long and include a mix of letters and numbers.
+      </p>
       <FormInput label="Personal Number" name="personal_number" type="text" value={formData.personal_number} onChange={handleChange} />
     {/* Access Level Dropdown */}
     <FormInput
