@@ -11,24 +11,11 @@ import '@event-calendar/core/index.css';
 import { v4 as uuidv4 } from 'uuid';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openForm, openCreateForm }) => {
+  const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openForm, openCreateForm , calendarStartDate, calendarEndDate}) => {
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
   const user =useSelector((state) => state.auth);
-  // const getStatusColor = (endDate) => {
-  //   const now = new Date();
-  //   const deadline = new Date(endDate);
-  //   const daysLeft = (deadline - now) / (1000 * 60 * 60 * 24); // Calculate days difference
-  
-  //   if (daysLeft <= 0) {
-  //     return 'red'; // Overdue
-  //   } else if (daysLeft <= 2) {
-  //     return 'yellow'; // Approaching deadline
-  //   } else {
-  //     return 'green'; // Ongoing
-  //   }
-  // };
   const mappedEvents = events.map(event => ({
     _id: event._id,
     start: event.start,
@@ -53,7 +40,7 @@ const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openFo
       },
     },
   }));
-const groupedAssignedResources = [
+  const groupedAssignedResources = [
   {
     id: 'assignedUsers',
     title: 'Assigned Users',
@@ -87,42 +74,69 @@ const groupedAssignedResources = [
       }))
     ),
   },
-];
-// Combine parent categories and children into a single array
-const assigned_resources = [
+  ];
+  // Combine parent categories and children into a single array
+  const assigned_resources = [
   ...groupedAssignedResources,
-];
-const adjustTimeForBackend = (time, timezoneOffset) => {
+  ];
+  const adjustTimeForBackend = (time, timezoneOffset) => {
     const date = new Date(time);
     date.setHours(date.getHours() + timezoneOffset);
     return date.toISOString();
   };
- 
-  const handleViewChange = (view) => {
-    setChangedView(view); // Update view when a button is clicked
+  //  Function to change the current view
+   const handleViewChange = (view) => {
+    setChangedView(view);
+    if (calendarRef.current) {
+      calendarRef.current.setOption('view', view);
+      if (view === 'year') {
+        const { start, end } = getYearRange();
+        calendarRef.current.setOption({visibleRange:{ start, end }},);
+      }
+    }
+  };
+  const getYearRange = () => {
+    const currentYear = new Date().getFullYear();
+    const startOfYear = new Date(currentYear, 0, 1); // Jan 1
+    const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59); // Dec 31
+  
+    // Validate the dates
+    if (isNaN(startOfYear.getTime()) || isNaN(endOfYear.getTime())) {
+      console.error('Invalid date range!');
+    }
+  
+    return { start: startOfYear, end: endOfYear };
   };
   useEffect(() => {
     if (!calendarContainer.current) return;
-
+    // Destroy existing calendar to prevent multiple instances
+    if (calendarRef.current) {
+      calendarRef.current.destroy();
+    }
+  
     calendarRef.current = new Calendar({
       target: calendarContainer.current,
       props: {
         plugins: [DayGrid, TimeGrid, List, ResourceTimeGrid, ResourceTimeline, Interaction],
         options: {
-          view: changedView, // Set the default view
+          view: changedView,
           selectable: true,
           editable: true,
           eventStartEditable: true,
           eventDurationEditable: true,
           events: mappedEvents,
-          resources:  assigned_resources,
+          resources: assigned_resources,
           headerToolbar: {
-          // start: 'month', 
-          // center: '', end: 'today prev,next' , 
-          start: 'today,prev,next',  // "Today", "Prev", and "Next" buttons on the left
-          center: 'title',           // Title in the center
-          end: 'year,month,week,day,list, resource,timeline' // Custom buttons on the right
-
+            start: 'today,prev,next',
+            center: 'title',
+            end: 'year,month,week,day,list,resource,timeline',
+          },
+          views: {
+            listYear: {
+              type: 'list',
+              duration: { months: 24 },
+              buttonText: 'Year',
+            },
           },
           customButtons: {
             month: {
@@ -278,24 +292,24 @@ const adjustTimeForBackend = (time, timezoneOffset) => {
         },
       },
     });
-    // calendarRef.current.render();
+    
+    calendarRef.current.refetchEvents();
 
-    return () => 
-      calendarRef.current.destroy();
-   // return () => ec.destroy(); // Cleanup on component unmount
-  }, [events, onEventUpdate, onEventCreate, openForm, openCreateForm]);
-  useEffect(() => {
-    // Update the calendar view when `changedView` changes
-    if (calendarRef.current) {
-      calendarRef.current.setOption('view', changedView);
-    }
-  }, [changedView]);
+    // Cleanup on Unmount
+    return () => {
+      if (calendarRef.current) {
+        calendarRef.current.destroy();
+        calendarRef.current = null;
+      }
+    };
+  }, [events, assigned_resources, changedView]);
   return (
-    <div>
+    <>
       {/* Calendar Container */}
       <div ref={calendarContainer} id="ec" />
-    </div>
+    </>
   );
 };
+
 
 export default EventCalendarWrapper;

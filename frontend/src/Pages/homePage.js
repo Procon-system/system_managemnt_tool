@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect ,useMemo} from 'react';
 import EventCalendarWrapper from '../Helper/EventCalendarWrapper';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
@@ -12,12 +12,17 @@ import {
 } from '../features/taskSlice';
 import TaskPage from './Task/createTaskPage';
 import EventDetailsModal from '../Components/taskComponents/updateTaskForm';
+import DateRangeFilter from '../Components/taskComponents/datePicker';
+
 const HomePage = () => {
   const dispatch = useDispatch();
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isCreateFormVisible, setIsCreateFormVisible] = useState(false);
   const [isEditFormVisible, setIsEditFormVisible] = useState(false);
   const { tasks, status, error, currentView } = useSelector((state) => state.tasks);
+  const [calendarStartDate, setCalendarStartDate] = useState(null); // This will control the calendar's displayed start date
+  const [calendarEndDate, setCalendarEndDate] = useState(null); // This will control the calendar's displayed end date
+
   const { user } = useSelector((state) => state.auth);
   useEffect(() => {
     if (currentView === 'allTasks') {
@@ -30,36 +35,59 @@ const HomePage = () => {
       dispatch(getAllDoneTasks());
     }
   }, [currentView, dispatch, user]);
-  const calendarEvents = Array.isArray(tasks)
-  ? tasks.map(task => ({
-    
-      _id: task._id,
-      title: task.title || 'No Title',
-      start: task.start_time,
-      end: task.end_time,
-      color: task.color_code,
-      image: task.image,
-      notes: task.notes ||'this',
-      status:task.status || null,
-      assigned_resources: {
-        assigned_to: task.assigned_to || [],
-        tools: task.tools || [],
-        materials: task.materials || [],
-      },
-      resourceIds: [
-        ...(task.assigned_to || []).map(userId => userId),
-        ...(task.tools || []).map(toolId => toolId),
-        ...(task.materials || []).map(materialId => materialId),
-      ],
-      
-    
-    }))
-  : [];
+const calendarEvents = useMemo(() => {
+  return Array.isArray(tasks)
+    ? tasks.map((task) => ({
+        _id: task._id,
+        title: task.title || 'No Title',
+        start: task.start_time,
+        end: task.end_time,
+        color: task.color_code,
+        image: task.image,
+        notes: task.notes || 'No Notes',
+        status: task.status || null,
+        assigned_resources: {
+          assigned_to: task.assigned_to || [],
+          tools: task.tools || [],
+          materials: task.materials || [],
+        },
+        resourceIds: [
+          ...(task.assigned_to || []),
+          ...(task.tools || []),
+          ...(task.materials || []),
+        ],
+      }))
+    : [];
+}, [tasks]); // Recompute only when tasks changes
+
+const [filteredEvents, setFilteredEvents] = useState([]);
+
+// Update filtered events when calendarEvents changes
+useEffect(() => {
+  setFilteredEvents(calendarEvents);
+}, [calendarEvents]);
 
   const handleEventCreate = (newEvent) => {
     dispatch(createTask(newEvent));
   };
-
+  const handleDateRangeSelect = (startDate, endDate) => {
+    if (!startDate || !endDate) {
+      // Reset to all events when no date range is selected
+      setFilteredEvents(calendarEvents);
+    } else {
+      // Filter events within the selected range
+      const filtered = calendarEvents.filter((event) => {
+        const eventStart = new Date(event.start);
+        return eventStart >= new Date(startDate) && eventStart <= new Date(endDate);
+      });
+      setFilteredEvents(filtered);
+    }
+  };
+  const handleCalendarDateChange = (startDate, endDate) => {
+    // Update the calendar's start and end date when a date range is selected
+    setCalendarStartDate(startDate);
+    setCalendarEndDate(endDate);
+  };
   const handleEventUpdate = (updatedEvent) => {
     if (updatedEvent._id) {
       dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }));
@@ -97,8 +125,16 @@ const HomePage = () => {
 
   return (
     <div className=' mt-7 lg:ml-72 mb-8'>
+      <DateRangeFilter 
+      onDateRangeSelect={handleDateRangeSelect}
+      onCalendarDateChange={handleCalendarDateChange} 
+     />
+
       <EventCalendarWrapper
-        events={calendarEvents}
+        // events={calendarEvents}
+        events={filteredEvents}
+        calendarStartDate={calendarStartDate} // Pass the updated start date
+        calendarEndDate={calendarEndDate} // Pass the updated end date
         onEventCreate={handleEventCreate}
         onEventUpdate={handleEventUpdate}
         openForm={openEditForm}
