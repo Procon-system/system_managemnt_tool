@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect ,useMemo} from 'react';
 import EventCalendarWrapper from '../Helper/EventCalendarWrapper';
+import { io } from "socket.io-client";
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   createTask, 
@@ -13,17 +14,60 @@ import {
 import TaskPage from './Task/createTaskPage';
 import EventDetailsModal from '../Components/taskComponents/updateTaskForm';
 import DateRangeFilter from '../Components/taskComponents/datePicker';
+const socket = io("http://localhost:5000"); // Replace with your server URL
 
 const HomePage = () => {
   const dispatch = useDispatch();
+  const [filteredEvents, setFilteredEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isCreateFormVisible, setIsCreateFormVisible] = useState(false);
   const [isEditFormVisible, setIsEditFormVisible] = useState(false);
   const { tasks, status, error, currentView } = useSelector((state) => state.tasks);
   const [calendarStartDate, setCalendarStartDate] = useState(null); // This will control the calendar's displayed start date
   const [calendarEndDate, setCalendarEndDate] = useState(null); // This will control the calendar's displayed end date
-
   const { user } = useSelector((state) => state.auth);
+  // Connect to WebSocket on mount and handle incoming updates
+  useEffect(() => {
+    // Confirm socket connection
+    console.log("Establishing WebSocket connection...");
+    socket.on("connect", () => {
+      console.log("WebSocket connected:", socket.id);
+    });
+  
+    // Listen for updates
+    socket.on("taskUpdated", (updatedTask) => {
+      console.log("Real-time task update received:", updatedTask);
+    
+      setFilteredEvents((prevEvents) => {
+        console.log("prev events",prevEvents)
+        // const updatedEvents = prevEvents.map((event) =>
+        //   event._id === updatedTask._id ? { ...event, ...updatedTask } : event
+        // );
+        // console.log("updatedEvents",updatedEvents)
+        // return [...updatedEvents]; // Ensure a new array reference is created
+        const eventExists = prevEvents.some(event => event._id === updatedTask._id);
+  
+        if (eventExists) {
+          // Update existing event
+          return prevEvents.map((event) =>
+            event._id === updatedTask._id ? { ...event, ...updatedTask } : event
+          );
+        } else {
+          // Append new event
+          return [...prevEvents, updatedTask];
+        }
+      });
+      
+    });
+    
+    // Clean up on unmount
+    return () => {
+      console.log("Disconnecting WebSocket...");
+      socket.disconnect();
+    };
+  }, []);
+  console.log("filteredEvents",filteredEvents)
+
   useEffect(() => {
     if (currentView === 'allTasks') {
       dispatch(fetchTasks());
@@ -60,12 +104,21 @@ const calendarEvents = useMemo(() => {
     : [];
 }, [tasks]); // Recompute only when tasks changes
 
-const [filteredEvents, setFilteredEvents] = useState([]);
 
 // Update filtered events when calendarEvents changes
+// useEffect(() => {
+//   console.log("Initializing filteredEvents with calendarEvents:", calendarEvents);
+//   setFilteredEvents(calendarEvents);
+//   // setFilteredEvents(calendarEvents);
+// }, [calendarEvents]);
 useEffect(() => {
-  setFilteredEvents(calendarEvents);
+  console.log("Initializing filteredEvents with calendarEvents:", calendarEvents);
+  setFilteredEvents(calendarEvents || []); // Ensure it initializes with a valid array
 }, [calendarEvents]);
+
+useEffect(() => {
+  console.log("Filtered events updated:", filteredEvents);
+}, [filteredEvents]);
 
   const handleEventCreate = (newEvent) => {
     dispatch(createTask(newEvent));
@@ -90,12 +143,20 @@ useEffect(() => {
   };
   const handleEventUpdate = (updatedEvent) => {
     if (updatedEvent._id) {
-      dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }));
+      dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }))
+        .then(() => {
+          console.log("Task successfully updated on backend, emitting WebSocket event...");
+          // Emit the updated task to the server
+          socket.emit("updateTask", updatedEvent);
+        })
+        .catch((err) => {
+          console.error("Task update failed:", err);
+        });
     } else {
       console.error("Update failed: Event ID is undefined.");
     }
   };
-
+  
   const openCreateForm = (event = null) => {
     setIsCreateFormVisible(true);
     setIsEditFormVisible(false);

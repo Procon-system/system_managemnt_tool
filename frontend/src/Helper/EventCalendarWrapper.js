@@ -11,15 +11,41 @@ import '@event-calendar/core/index.css';
 import { v4 as uuidv4 } from 'uuid';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
+// import moment from 'moment';
+
   const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openForm, openCreateForm , calendarStartDate, calendarEndDate}) => {
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
+  // const [currentDate, setCurrentDate] = useState(moment().format("YYYY-MM-DD"));
   const user =useSelector((state) => state.auth);
+  // Function to handle date changes
+  // const handleDateChange = (info) => {
+  //   console.log("Complete info object:", info);
+  //   if (info && info.startStr) {
+  //     const newDate = moment(info.startStr).format("YYYY-MM-DD");
+  //     console.log("New date:", newDate);
+  //     // Only update if the date has actually changed
+  //     if (currentDate !== newDate) {
+  //       setCurrentDate(currentDate);
+  //       // Delay the second update
+  // setTimeout(() => {
+  //   setCurrentDate(newDate); // Update state after delay
+  //   console.log("Updated currentDate:", newDate);
+  // }, 1000000); // 2000 milliseconds = 2 seconds
+
+  //       console.log("currentdate",newDate)
+  //       console.log("currentdate",currentDate)
+  //     }
+  //   } else {
+  //     console.warn("Invalid info object received:", info);
+  //   }
+  // };
+ 
   const mappedEvents = events.map(event => ({
     _id: event._id,
-    start: event.start,
-    end: event.end,
+    start: event.start || event.start_time,
+    end: event.end || event.end_time,
     title: event.title,
     color: event.color,
     allDay: event.allDay,
@@ -83,9 +109,8 @@ import { toast } from 'react-toastify';
     const date = new Date(time);
     date.setHours(date.getHours() + timezoneOffset);
     return date.toISOString();
-  };
-  //  Function to change the current view
-   const handleViewChange = (view) => {
+  };   
+  const handleViewChange = (view) => {
     setChangedView(view);
     if (calendarRef.current) {
       calendarRef.current.setOption('view', view);
@@ -113,12 +138,13 @@ import { toast } from 'react-toastify';
     if (calendarRef.current) {
       calendarRef.current.destroy();
     }
-  
+    // if (!calendarRef.current) {
     calendarRef.current = new Calendar({
       target: calendarContainer.current,
       props: {
         plugins: [DayGrid, TimeGrid, List, ResourceTimeGrid, ResourceTimeline, Interaction],
         options: {
+          // initialDate: currentDate,
           view: changedView,
           selectable: true,
           editable: true,
@@ -131,6 +157,7 @@ import { toast } from 'react-toastify';
             center: 'title',
             end: 'year,month,week,day,list,resource,timeline',
           },
+          // datesSet: handleDateChange, // Attach handler
           views: {
             listYear: {
               type: 'list',
@@ -241,22 +268,43 @@ import { toast } from 'react-toastify';
  
             openForm(updatedEvent);
           },
-          eventResize: (info) => {
+          eventResize: async (info) => {
             if (user.access_level < 3) {
               toast.error('You do not have permission to create events.');
               return;
             }
             const { event } = info;
-            const mongoId = event.extendedProps._id;
-            const timezoneOffset = 3;
-            const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
-            const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
-            const updatedEvent = {
-              _id: mongoId,
-              start_time: adjustedStartTime,
-              end_time: adjustedEndTime,
-            };
-            onEventUpdate(updatedEvent);
+            // const mongoId = event.extendedProps._id;
+            // const timezoneOffset = 3;
+            // const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
+            // const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
+            // const updatedEvent = {
+            //   _id: mongoId,
+            //   start_time: adjustedStartTime,
+            //   end_time: adjustedEndTime,
+            // };
+            // await onEventUpdate(updatedEvent);
+            // calendarRef.current.refetchEvents(); // Refresh events
+            try {
+              const mongoId = event.extendedProps._id; // Ensure this exists
+              const timezoneOffset = 3;
+              const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
+              const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
+          
+              const updatedEvent = {
+                _id: mongoId,
+                start_time: adjustedStartTime,
+                end_time: adjustedEndTime,
+                // Add other fields if necessary, e.g., title, color, etc.
+              };
+          
+              await onEventUpdate(updatedEvent); // Call the provided update handler
+          
+              calendarRef.current.refetchEvents(); // Optionally refetch events after update
+            } catch (error) {
+              console.error('Error updating event:', error);
+              info.revert(); // Revert changes if update fails
+            }
           },
           eventDrop: (info) => {
             if (user.access_level < 3) {
@@ -292,9 +340,6 @@ import { toast } from 'react-toastify';
         },
       },
     });
-    
-    calendarRef.current.refetchEvents();
-
     // Cleanup on Unmount
     return () => {
       if (calendarRef.current) {
@@ -303,7 +348,7 @@ import { toast } from 'react-toastify';
       }
     };
   }, [events, assigned_resources, changedView]);
-  return (
+   return (
     <>
       {/* Calendar Container */}
       <div ref={calendarContainer} id="ec" />
