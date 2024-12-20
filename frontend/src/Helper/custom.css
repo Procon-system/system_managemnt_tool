@@ -12,7 +12,10 @@
     border: 1px solid #007bff; /* Different border color for the Day button */
     background-color: #e0f7ff; /* Different background color */
   }
-  
+  #calendar-container {
+  min-height: 500px; /* Set a default height */
+}
+
   /* Hover effect */
   .fc .custom-button:hover {
     background-color: #ddd;

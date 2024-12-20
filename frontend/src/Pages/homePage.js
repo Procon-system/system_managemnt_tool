@@ -9,11 +9,14 @@ import {
   fetchTasks,
   getTasksByAssignedUser,
   getAllDoneTasks, 
+  deleteTask,
   getTasksDoneByAssignedUser  
 } from '../features/taskSlice';
+import { toast } from 'react-toastify';
 import TaskPage from './Task/createTaskPage';
 import EventDetailsModal from '../Components/taskComponents/updateTaskForm';
 import DateRangeFilter from '../Components/taskComponents/datePicker';
+import getColorForStatus from '../Helper/getColorForStatus';
 const socket = io("http://localhost:5000"); // Replace with your server URL
 
 const HomePage = () => {
@@ -29,46 +32,47 @@ const HomePage = () => {
   // Connect to WebSocket on mount and handle incoming updates
   useEffect(() => {
     // Confirm socket connection
-    console.log("Establishing WebSocket connection...");
-    socket.on("connect", () => {
+      socket.on("connect", () => {
       console.log("WebSocket connected:", socket.id);
     });
   
     // Listen for updates
     socket.on("taskUpdated", (updatedTask) => {
-      console.log("Real-time task update received:", updatedTask);
-    
-      setFilteredEvents((prevEvents) => {
-        console.log("prev events",prevEvents)
-        // const updatedEvents = prevEvents.map((event) =>
-        //   event._id === updatedTask._id ? { ...event, ...updatedTask } : event
-        // );
-        // console.log("updatedEvents",updatedEvents)
-        // return [...updatedEvents]; // Ensure a new array reference is created
-        const eventExists = prevEvents.some(event => event._id === updatedTask._id);
-  
+        setFilteredEvents((prevEvents) => {
+        const validEvents = prevEvents.filter(event => event._id);
+        const eventExists = validEvents.some(event => event._id === updatedTask._id);
+        console.log("updatedTask",updatedTask)
         if (eventExists) {
-          // Update existing event
-          return prevEvents.map((event) =>
+          return validEvents.map(event =>
             event._id === updatedTask._id ? { ...event, ...updatedTask } : event
           );
+         
         } else {
-          // Append new event
-          return [...prevEvents, updatedTask];
+          return [updatedTask, ...validEvents];
         }
       });
-      
     });
     
-    // Clean up on unmount
-    return () => {
-      console.log("Disconnecting WebSocket...");
-      socket.disconnect();
-    };
-  }, []);
-  console.log("filteredEvents",filteredEvents)
+   // Listen for task creations
+  socket.on("taskCreated", (newTask) => {
+    console.log("new",newTask);
+    setFilteredEvents((prevEvents) => [newTask, ...prevEvents]);
+  });
+// Listen for task deletions
+socket.on("taskDeleted", (taskId) => {
+  setFilteredEvents((prevEvents) => prevEvents.filter(event => event._id !== taskId));
+  console.log(`Task with ID ${taskId} deleted`);
+});
+  // Clean up on unmount
+  return () => {
+    socket.off("taskUpdated");
+    socket.off("taskCreated");
+    socket.off("taskDeleted");
+    socket.disconnect();
+  };
+}, []);
 
-  useEffect(() => {
+   useEffect(() => {
     if (currentView === 'allTasks') {
       dispatch(fetchTasks());
     } else if (currentView === 'userTasks') {
@@ -104,25 +108,29 @@ const calendarEvents = useMemo(() => {
     : [];
 }, [tasks]); // Recompute only when tasks changes
 
-
-// Update filtered events when calendarEvents changes
-// useEffect(() => {
-//   console.log("Initializing filteredEvents with calendarEvents:", calendarEvents);
-//   setFilteredEvents(calendarEvents);
-//   // setFilteredEvents(calendarEvents);
-// }, [calendarEvents]);
 useEffect(() => {
-  console.log("Initializing filteredEvents with calendarEvents:", calendarEvents);
-  setFilteredEvents(calendarEvents || []); // Ensure it initializes with a valid array
+   setFilteredEvents(calendarEvents || []); // Ensure it initializes with a valid array
 }, [calendarEvents]);
 
 useEffect(() => {
   console.log("Filtered events updated:", filteredEvents);
 }, [filteredEvents]);
 
+  // const handleEventCreate = (newEvent) => {
+  //   dispatch(createTask(newEvent));
+  // };
   const handleEventCreate = (newEvent) => {
-    dispatch(createTask(newEvent));
+    dispatch(createTask(newEvent))
+      .then((createdTask) => {
+        console.log("Task successfully created on backend, emitting WebSocket event...");
+        // Emit the newly created task to the server
+        socket.emit("createTask", createdTask);
+      })
+      .catch((err) => {
+        console.error("Task creation failed:", err);
+      });
   };
+  
   const handleDateRangeSelect = (startDate, endDate) => {
     if (!startDate || !endDate) {
       // Reset to all events when no date range is selected
@@ -143,6 +151,10 @@ useEffect(() => {
   };
   const handleEventUpdate = (updatedEvent) => {
     if (updatedEvent._id) {
+      if (updatedEvent.status) {
+        updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
+      }
+  
       dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }))
         .then(() => {
           console.log("Task successfully updated on backend, emitting WebSocket event...");
@@ -152,11 +164,22 @@ useEffect(() => {
         .catch((err) => {
           console.error("Task update failed:", err);
         });
+        
     } else {
       console.error("Update failed: Event ID is undefined.");
     }
   };
-  
+ // Handle task deletion
+ const handleDelete = async (id) => {
+  if (window.confirm('Are you sure you want to delete this task?')) {
+    try {
+      await dispatch(deleteTask(id)).unwrap();
+      toast.success('Task deleted successfully!');
+    } catch (error) {
+      toast.error(`Failed to delete task: ${error.message}`);
+    }
+  }
+};
   const openCreateForm = (event = null) => {
     setIsCreateFormVisible(true);
     setIsEditFormVisible(false);
@@ -229,6 +252,7 @@ useEffect(() => {
       selectedEvent={selectedEvent}
       role={user.access_level} 
       handleFormSubmit={handleFormSubmit} // Pass handleFormSubmit to the modal
+      handleDelete={handleDelete} 
     />
   )}
     </div>

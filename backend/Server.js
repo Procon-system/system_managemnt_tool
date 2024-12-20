@@ -98,7 +98,23 @@ io.on("connection", (socket) => {
     io.emit("taskUpdated", data);
     console.log("Task update broadcasted to all clients:", data);
   });
-  
+   // Handle task creation
+   socket.on("createTask", (data) => {
+    console.log("Task creation received:", data);
+
+    // Emit to all connected clients
+    io.emit("taskCreated", data);
+    console.log("Task creation broadcasted to all clients:", data);
+  });
+   // Handle task deletion
+   socket.on("deleteTask", (taskId) => {
+    console.log(`Task with ID ${taskId} deleted`);
+
+    // Emit the taskDeleted event to all clients
+    io.emit("taskDeleted", taskId);  // Notify all clients about the task deletion
+    console.log(`Task deletion broadcasted to all clients: ${taskId}`);
+  });
+
   socket.on("disconnect", () => {
     console.log(`User disconnected: ${socket.id}`);
   });

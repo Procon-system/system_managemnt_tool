@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef ,useState} from 'react';
+import React, { useEffect, useRef ,useState,useMemo} from 'react';
 import Calendar from '@event-calendar/core';
 import DayGrid from '@event-calendar/day-grid';
 import Interaction from '@event-calendar/interaction';
@@ -11,48 +11,38 @@ import '@event-calendar/core/index.css';
 import { v4 as uuidv4 } from 'uuid';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-// import moment from 'moment';
 
-  const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openForm, openCreateForm , calendarStartDate, calendarEndDate}) => {
+  const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openForm, openCreateForm}) => {
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
-  // const [currentDate, setCurrentDate] = useState(moment().format("YYYY-MM-DD"));
   const user =useSelector((state) => state.auth);
-  // Function to handle date changes
-  // const handleDateChange = (info) => {
-  //   console.log("Complete info object:", info);
-  //   if (info && info.startStr) {
-  //     const newDate = moment(info.startStr).format("YYYY-MM-DD");
-  //     console.log("New date:", newDate);
-  //     // Only update if the date has actually changed
-  //     if (currentDate !== newDate) {
-  //       setCurrentDate(currentDate);
-  //       // Delay the second update
-  // setTimeout(() => {
-  //   setCurrentDate(newDate); // Update state after delay
-  //   console.log("Updated currentDate:", newDate);
-  // }, 1000000); // 2000 milliseconds = 2 seconds
+  const currentDateRef = useRef(new Date()); // Initialize with a default value
 
-  //       console.log("currentdate",newDate)
-  //       console.log("currentdate",currentDate)
-  //     }
-  //   } else {
-  //     console.warn("Invalid info object received:", info);
-  //   }
-  // };
- 
-  const mappedEvents = events.map(event => ({
+const handleDateChange = (args) => {
+  try {
+    currentDateRef.current = args.start; // Update the ref with the new start date
+  } catch (err) {
+    console.error('Error in handleDateChange:', err);
+  }
+};
+ const mappedEvents = events.map(event => ({
     _id: event._id,
-    start: event.start || event.start_time,
-    end: event.end || event.end_time,
-    title: event.title,
-    color: event.color,
+    start:  event.start_time || event.start || new Date(),
+    end:  event.end_time || event.end || new Date(),
+    title: event.title || 'Untitled Event',
+    color: event.color || '#cccccc', // Default color
     allDay: event.allDay,
     resourceIds: [
-      ...(event.assigned_resources?.assigned_to || []).map(user => user?._id || 'undefined'),
-      ...(event.assigned_resources?.tools || []).map(tool => tool?._id || ''),
-      ...(event.assigned_resources?.materials || []).map(material => material?._id || ''),
+      ...(event.assigned_resources?.assigned_to || [])
+        .filter(user => user?._id) // Filter out invalid resources
+        .map(user => user._id),
+      ...(event.assigned_resources?.tools || [])
+        .filter(tool => tool?._id)
+        .map(tool => tool._id),
+      ...(event.assigned_resources?.materials || [])
+        .filter(material => material?._id)
+        .map(material => material._id),
     ],
     extendedProps: {
       _id: event._id,
@@ -66,60 +56,78 @@ import { toast } from 'react-toastify';
       },
     },
   }));
-  const groupedAssignedResources = [
-  {
-    id: 'assignedUsers',
-    title: 'Assigned Users',
-    children: events.flatMap(event =>
-      (event.assigned_resources?.assigned_to || []).map(user => ({
-        id: user?._id || 'undefined',
-        title: `${user?.first_name || 'Unknown'} ${user?.last_name || 'Unknown'}`,
-        parent: 'assignedUsers',
-      }))
-    ),
-  },
-  {
-    id: 'tools',
-    title: 'Tools',
-    children: events.flatMap(event =>
-      (event.assigned_resources?.tools || []).map(tool => ({
-        id: tool?._id || '',
-        title: tool?.tool_name || 'Unknown Tool',
-        parent: 'tools',
-      }))
-    ),
-  },
-  {
-    id: 'materials',
-    title: 'Materials',
-    children: events.flatMap(event =>
-      (event.assigned_resources?.materials || []).map(material => ({
-        id: material?._id || '',
-        title: material?.material_name || 'Unknown Material',
-        parent: 'materials',
-      }))
-    ),
-  },
-  ];
-  // Combine parent categories and children into a single array
-  const assigned_resources = [
-  ...groupedAssignedResources,
-  ];
+  const groupedAssignedResources = useMemo(() => [
+    {
+      id: 'assignedUsers',
+      title: 'Assigned Users',
+      children: (events || []).flatMap(event =>
+        (event.assigned_resources?.assigned_to || [])
+          .filter(user => user?._id)
+          .map(user => ({
+            id: user._id,
+            title: `${user.first_name || 'Unknown'} ${user.last_name || 'Unknown'}`,
+            parent: 'assignedUsers',
+          }))
+      ),
+    },
+    {
+      id: 'tools',
+      title: 'Tools',
+      children: (events || []).flatMap(event =>
+        (event.assigned_resources?.tools || [])
+          .filter(tool => tool?._id)
+          .map(tool => ({
+            id: tool._id,
+            title: tool.tool_name || 'Unknown Tool',
+            parent: 'tools',
+          }))
+      ),
+    },
+    {
+      id: 'materials',
+      title: 'Materials',
+      children: (events || []).flatMap(event =>
+        (event.assigned_resources?.materials || [])
+          .filter(material => material?._id)
+          .map(material => ({
+            id: material._id,
+            title: material.material_name || 'Unknown Material',
+            parent: 'materials',
+          }))
+      ),
+    },
+  ], [events]);
+  console.log("events",events);
+  // Memoize assigned_resources to prevent unnecessary re-renders
+  const assigned_resources = useMemo(() => [...groupedAssignedResources], [groupedAssignedResources]);
+
   const adjustTimeForBackend = (time, timezoneOffset) => {
     const date = new Date(time);
     date.setHours(date.getHours() + timezoneOffset);
     return date.toISOString();
   };   
+  // const handleViewChange = (view) => {
+  //   setChangedView(view);
+  //   if (calendarRef.current) {
+  //     calendarRef.current.setOption('view', view);
+  //     if (view === 'year') {
+  //       const { start, end } = getYearRange();
+  //       calendarRef.current.setOption({visibleRange:{ start, end }},);
+  //     }
+  //   }
+  // };
   const handleViewChange = (view) => {
     setChangedView(view);
     if (calendarRef.current) {
       calendarRef.current.setOption('view', view);
+      
       if (view === 'year') {
         const { start, end } = getYearRange();
-        calendarRef.current.setOption({visibleRange:{ start, end }},);
+        calendarRef.current.setOption('visibleRange', { start, end });
       }
     }
   };
+  
   const getYearRange = () => {
     const currentYear = new Date().getFullYear();
     const startOfYear = new Date(currentYear, 0, 1); // Jan 1
@@ -133,18 +141,27 @@ import { toast } from 'react-toastify';
     return { start: startOfYear, end: endOfYear };
   };
   useEffect(() => {
+    if (calendarRef.current) {
+    }
+  }, [mappedEvents]);
+  
+  useEffect(() => {
     if (!calendarContainer.current) return;
     // Destroy existing calendar to prevent multiple instances
     if (calendarRef.current) {
       calendarRef.current.destroy();
     }
-    // if (!calendarRef.current) {
+    if (!mappedEvents || !groupedAssignedResources) {
+      console.warn('Mapped events or grouped resources are not ready yet.');
+      return;
+    }
+   console.log("calendarRef.current",calendarRef.current);
     calendarRef.current = new Calendar({
       target: calendarContainer.current,
       props: {
         plugins: [DayGrid, TimeGrid, List, ResourceTimeGrid, ResourceTimeline, Interaction],
         options: {
-          // initialDate: currentDate,
+          date: currentDateRef.current,
           view: changedView,
           selectable: true,
           editable: true,
@@ -157,7 +174,14 @@ import { toast } from 'react-toastify';
             center: 'title',
             end: 'year,month,week,day,list,resource,timeline',
           },
-          // datesSet: handleDateChange, // Attach handler
+          datesSet: (args) => {
+        try {
+          console.log('Dates Set Triggered:', args);
+          handleDateChange(args); // Ensure handler is valid
+        } catch (err) {
+          console.error('Error in datesSet handler:', err);
+        }
+      },
           views: {
             listYear: {
               type: 'list',
@@ -268,24 +292,13 @@ import { toast } from 'react-toastify';
  
             openForm(updatedEvent);
           },
-          eventResize: async (info) => {
+          eventResize: async(info) => {
             if (user.access_level < 3) {
               toast.error('You do not have permission to create events.');
               return;
             }
             const { event } = info;
-            // const mongoId = event.extendedProps._id;
-            // const timezoneOffset = 3;
-            // const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
-            // const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
-            // const updatedEvent = {
-            //   _id: mongoId,
-            //   start_time: adjustedStartTime,
-            //   end_time: adjustedEndTime,
-            // };
-            // await onEventUpdate(updatedEvent);
-            // calendarRef.current.refetchEvents(); // Refresh events
-            try {
+              try {
               const mongoId = event.extendedProps._id; // Ensure this exists
               const timezoneOffset = 3;
               const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
@@ -295,18 +308,17 @@ import { toast } from 'react-toastify';
                 _id: mongoId,
                 start_time: adjustedStartTime,
                 end_time: adjustedEndTime,
-                // Add other fields if necessary, e.g., title, color, etc.
+                title: event.title, // Include other fields if necessary
+                color: event.backgroundColor, // Example: Ensure color persists
               };
-          
-              await onEventUpdate(updatedEvent); // Call the provided update handler
-          
-              calendarRef.current.refetchEvents(); // Optionally refetch events after update
-            } catch (error) {
+             await onEventUpdate(updatedEvent); // Call the provided update handler
+             
+              } catch (error) {
               console.error('Error updating event:', error);
               info.revert(); // Revert changes if update fails
             }
           },
-          eventDrop: (info) => {
+          eventDrop: async (info) => {
             if (user.access_level < 3) {
               toast.error('You do not have permission to create events.');
               return;
@@ -315,7 +327,7 @@ import { toast } from 'react-toastify';
             const timezoneOffset = 3;
             const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
             const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
-
+        
             if (jsEvent.altKey) {
               const generatedId = uuidv4();
               const duplicatedEvent = {
@@ -326,28 +338,36 @@ import { toast } from 'react-toastify';
                 color_code: event.backgroundColor,
                 title: event.title,
               };
-              onEventCreate(duplicatedEvent);
+              await onEventCreate(duplicatedEvent);
             } else {
-              const mongoId = event.extendedProps._id;
+              const mongoId = event.extendedProps._id; // Ensure this exists
               const updatedEvent = {
                 _id: mongoId,
                 start_time: adjustedStartTime,
                 end_time: adjustedEndTime,
+                color: event.backgroundColor,
+                title: event.title,
               };
-              onEventUpdate(updatedEvent);
-            }
+              await onEventUpdate(updatedEvent);
+              }
           },
         },
       },
     });
-    // Cleanup on Unmount
-    return () => {
-      if (calendarRef.current) {
-        calendarRef.current.destroy();
-        calendarRef.current = null;
-      }
-    };
-  }, [events, assigned_resources, changedView]);
+    // calendarRef.current.refetchEvents(); 
+
+    // // Cleanup on Unmount
+    // return () => {
+    //   if (calendarRef.current) {
+    //     console.log("calendarRef.current",calendarRef.current)
+    //     calendarRef.current.destroy();
+    //     calendarRef.current = null;
+    //   }
+    // };
+     // Update calendar view after currentDate change
+    }, [,events, assigned_resources, changedView]);
+ 
+ 
    return (
     <>
       {/* Calendar Container */}

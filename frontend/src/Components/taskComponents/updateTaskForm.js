@@ -3,27 +3,17 @@ import { useState, useEffect } from 'react';
 import { FaClock, FaStickyNote, FaCheckCircle } from 'react-icons/fa';
 import { getUsersByIds } from '../../features/userSlice';  // Import your API call for getting user by ID
 import { useDispatch} from 'react-redux';
-import { deleteTask } from '../../features/taskSlice';
-import { toast } from 'react-toastify';
+
 const EventDetailsModal = ({
   isVisible,
   closeModal,
   selectedEvent,
   role,
+  handleDelete,
   handleFormSubmit,
 }) => {
   const dispatch = useDispatch();
   const [assignedUsers, setAssignedUsers] = useState([]); // State to store full user details
-  const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      try {
-        await dispatch(deleteTask(selectedEvent._id)).unwrap();
-        toast.success('Task deleted successfully!');
-      } catch (error) {
-        toast.error(`Failed to delete task: ${error}`);
-      }
-    }
-  };
   useEffect(() => {
     // Fetch user details when the modal is visible and selectedEvent is set
     const fetchAssignedUsers = async () => {
@@ -94,7 +84,7 @@ const EventDetailsModal = ({
             <button
                type="submit"
                className="bg-red-700 md:ml-[100px] text-white px-4 py-1 rounded-md hover:bg-red-600 transition"
-               onClick={handleDelete}
+               onClick={() => handleDelete(selectedEvent._id)}
              >
                Delete
              </button>

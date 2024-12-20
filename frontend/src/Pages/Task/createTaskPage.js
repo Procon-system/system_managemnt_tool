@@ -1,11 +1,11 @@
 import React from 'react';
-import { useDispatch,useSelector } from 'react-redux';
+import { useDispatch} from 'react-redux';
 import { createTask } from '../../features/taskSlice';
 import TaskForm from '../../Components/taskComponents/taskForm';
 import { toast } from 'react-toastify';
 const TaskPage = ({ onClose, event ,isOffset = false}) => {
   const dispatch = useDispatch();
-  const { loading, error } = useSelector((state) => state.tasks);
+  // const { loading, error } = useSelector((state) => state.tasks);
 console.log("event acc",event);
   const initialTaskData = {
     title: event?.title || "",
