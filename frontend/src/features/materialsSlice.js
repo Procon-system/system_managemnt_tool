@@ -1,11 +1,19 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import materialService from '../Services/materialsService';
+import checkTokenExpiration from "../Helper/checkTokenExpire";
+import { toast } from 'react-toastify';
+import { logout } from "../features/authSlice"; // Import logout action
 
 // Async Thunks for CRUD operations
 export const createMaterial = createAsyncThunk(
   'materials/createMaterial',
   async (materialData, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
     try {
       return await materialService.createMaterial(materialData, token);
     } catch (error) {
@@ -18,6 +26,11 @@ export const fetchMaterials = createAsyncThunk(
   'materials/fetchMaterials',
   async (_, { getState,rejectWithValue }) => {
     const token = getState().auth.token;
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
     try {
       return await materialService.fetchMaterials(token);
     } catch (error) {
@@ -30,6 +43,11 @@ export const updateMaterial = createAsyncThunk(
   'materials/updateMaterial',
   async ({ materialId, updatedData }, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
     try {
       return await materialService.updateMaterial(materialId, updatedData,token);
     } catch (error) {
@@ -42,6 +60,11 @@ export const deleteMaterial = createAsyncThunk(
   'materials/deleteMaterial',
   async (materialId, { getState,rejectWithValue }) => {
     const token = getState().auth.token;
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
     try {
       return await materialService.deleteMaterial(materialId,token);
     } catch (error) {

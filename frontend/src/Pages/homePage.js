@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect ,useMemo} from 'react';
+import React, { useState, useRef, useEffect ,useMemo} from 'react';
 import EventCalendarWrapper from '../Helper/EventCalendarWrapper';
 import { io } from "socket.io-client";
 import { useDispatch, useSelector } from 'react-redux';
@@ -29,39 +29,94 @@ const HomePage = () => {
   const [calendarStartDate, setCalendarStartDate] = useState(null); // This will control the calendar's displayed start date
   const [calendarEndDate, setCalendarEndDate] = useState(null); // This will control the calendar's displayed end date
   const { user } = useSelector((state) => state.auth);
-  // Connect to WebSocket on mount and handle incoming updates
+  const eventsRef = useRef([]);
+  const updateEventState = (updatedEvent = null, deletedEventId = null) => {
+    if (deletedEventId) {
+      // Handle deletion
+      setFilteredEvents((prevEvents) => {
+      
+        const currentEvents = prevEvents && prevEvents.length > 0 ? prevEvents : (tasks || []);
+
+                      if (currentEvents.length === 0) {
+                console.warn("No events available to delete.");
+                return currentEvents; // Return unchanged
+              }
+              const updatedEvents = currentEvents.filter(event => event._id !== deletedEventId);
+              eventsRef.current = updatedEvents; // Sync with ref
+              return updatedEvents;
+          });
+      return; // Exit early after deletion
+    }
+    if (!updatedEvent || !updatedEvent._id || !updatedEvent.title) {
+      console.error('Invalid event structure:', updatedEvent);
+      return; // Skip invalid events
+    }
+    setFilteredEvents((prevEvents) => {
+      console.log("prevEvents",prevEvents);
+      if (prevEvents.length === 0) {
+        console.warn("prevEvents is empty. Ensure events are being initialized properly.");
+        prevEvents=tasks;
+      }
+      // Create a map for efficient updates
+      console.log("prevEvents",prevEvents);
+      const eventMap = new Map(
+        prevEvents.map((event) => [event._id, event])
+      );
+      console.log("eventMap", eventMap);
+      // Update or add the event
+      eventMap.set(updatedEvent._id, {
+        ...eventMap.get(updatedEvent._id),
+        ...updatedEvent,
+      });
+  
+      // Convert map back to an array and validate
+      const updatedEvents = Array.from(eventMap.values()).filter((event) => {
+        const isValid =
+          event._id &&
+          event.title &&
+          (event.start_time || event.start) &&
+          (event.end_time || event.end);
+  
+        if (!isValid) {
+          console.warn('Removing invalid event:', event);
+        }
+        return isValid;
+      });
+      // Sync the ref with the updated events
+      eventsRef.current = updatedEvents;
+  
+      return updatedEvents; // Update state with valid events
+    });
+  };
+ 
+  
   useEffect(() => {
     // Confirm socket connection
       socket.on("connect", () => {
-      console.log("WebSocket connected:", socket.id);
+        console.log("Connected to WebSocket server:", socket.id);
     });
-  
-    // Listen for updates
-    socket.on("taskUpdated", (updatedTask) => {
-        setFilteredEvents((prevEvents) => {
-        const validEvents = prevEvents.filter(event => event._id);
-        const eventExists = validEvents.some(event => event._id === updatedTask._id);
-        console.log("updatedTask",updatedTask)
-        if (eventExists) {
-          return validEvents.map(event =>
-            event._id === updatedTask._id ? { ...event, ...updatedTask } : event
-          );
-         
-        } else {
-          return [updatedTask, ...validEvents];
-        }
-      });
+
+  socket.on("taskUpdated", (updatedTask) => {
+    updateEventState(updatedTask);
     });
     
    // Listen for task creations
-  socket.on("taskCreated", (newTask) => {
-    console.log("new",newTask);
-    setFilteredEvents((prevEvents) => [newTask, ...prevEvents]);
+   socket.on("taskCreated", (broadcastData) => {
+    const newTask = broadcastData?.payload?.taskData;
+
+  if (!newTask) {
+    console.error("Invalid task creation broadcast data:", broadcastData);
+    return; // Skip invalid broadcasts
+  }
+  if (!filteredEvents.some(event => event._id === newTask._id)) {
+    updateEventState(newTask);
+  }
+  
   });
 // Listen for task deletions
 socket.on("taskDeleted", (taskId) => {
-  setFilteredEvents((prevEvents) => prevEvents.filter(event => event._id !== taskId));
-  console.log(`Task with ID ${taskId} deleted`);
+   updateEventState(null, taskId); // Update state for deletion
+
 });
   // Clean up on unmount
   return () => {
@@ -107,30 +162,26 @@ const calendarEvents = useMemo(() => {
       }))
     : [];
 }, [tasks]); // Recompute only when tasks changes
-
 useEffect(() => {
-   setFilteredEvents(calendarEvents || []); // Ensure it initializes with a valid array
-}, [calendarEvents]);
+  if (filteredEvents.length === 0) {
+    setFilteredEvents(calendarEvents || []);
+  }
+}, [filteredEvents,calendarEvents]);
 
-useEffect(() => {
-  console.log("Filtered events updated:", filteredEvents);
-}, [filteredEvents]);
 
-  // const handleEventCreate = (newEvent) => {
-  //   dispatch(createTask(newEvent));
-  // };
   const handleEventCreate = (newEvent) => {
     dispatch(createTask(newEvent))
-      .then((createdTask) => {
-        console.log("Task successfully created on backend, emitting WebSocket event...");
-        // Emit the newly created task to the server
-        socket.emit("createTask", createdTask);
-      })
-      .catch((err) => {
-        console.error("Task creation failed:", err);
-      });
-  };
+    .then((createdTask) => {
+      console.log("Task successfully created on backend, emitting WebSocket event:", createdTask);
+      
   
+      // Emit the newly created task
+      socket.emit("createTask", createdTask);
+    })
+    .catch((err) => {
+      console.error("Task creation failed:", err);
+    });
+  };
   const handleDateRangeSelect = (startDate, endDate) => {
     if (!startDate || !endDate) {
       // Reset to all events when no date range is selected
@@ -157,7 +208,6 @@ useEffect(() => {
   
       dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }))
         .then(() => {
-          console.log("Task successfully updated on backend, emitting WebSocket event...");
           // Emit the updated task to the server
           socket.emit("updateTask", updatedEvent);
         })
@@ -169,17 +219,35 @@ useEffect(() => {
       console.error("Update failed: Event ID is undefined.");
     }
   };
- // Handle task deletion
- const handleDelete = async (id) => {
-  if (window.confirm('Are you sure you want to delete this task?')) {
-    try {
-      await dispatch(deleteTask(id)).unwrap();
-      toast.success('Task deleted successfully!');
-    } catch (error) {
-      toast.error(`Failed to delete task: ${error.message}`);
-    }
+const handleDelete = (id) => {
+  console.log("Deleting task with ID:", id);
+  console.log("Current filteredEvents before delete:", filteredEvents);
+
+  try {
+    // Optimistically update filteredEvents
+    setFilteredEvents((prevEvents) =>
+      prevEvents.filter((event) => event._id !== id)
+    );
+
+    // Dispatch delete action and emit WebSocket event
+    dispatch(deleteTask(id)).then(() => {
+      socket.emit("deleteTask", id);
+    });
+
+    closeModal();
+    toast.success("Task deleted successfully!");
+  } catch (error) {
+    toast.error(`Failed to delete task: ${error.message}`);
   }
+
+  console.log("Current filteredEvents after delete:", filteredEvents);
 };
+
+
+useEffect(() => {
+  console.log("Filtered events initialized:", filteredEvents);
+}, [filteredEvents]);
+
   const openCreateForm = (event = null) => {
     setIsCreateFormVisible(true);
     setIsEditFormVisible(false);
@@ -203,10 +271,13 @@ useEffect(() => {
     handleEventUpdate(updatedEvent);
     closeModal();
   };
-
+  const calendarEvent = useMemo(() => {
+    return filteredEvents; 
+  }, [filteredEvents]); 
+  
   if (status === 'loading') return <div>Loading...</div>;
   if (status === 'failed') return <div>Error: {error}</div>;
-
+ 
   return (
     <div className=' mt-7 lg:ml-72 mb-8'>
       <DateRangeFilter 
@@ -215,13 +286,13 @@ useEffect(() => {
      />
 
       <EventCalendarWrapper
-        // events={calendarEvents}
-        events={filteredEvents}
+        events={calendarEvent }
         calendarStartDate={calendarStartDate} // Pass the updated start date
         calendarEndDate={calendarEndDate} // Pass the updated end date
         onEventCreate={handleEventCreate}
         onEventUpdate={handleEventUpdate}
         openForm={openEditForm}
+        updateEventState={updateEventState}
         openCreateForm={openCreateForm}
       />
       {isCreateFormVisible && (
@@ -238,7 +309,7 @@ useEffect(() => {
       >
         ✕
       </button>
-      <TaskPage event={selectedEvent} onClose={closeModal} isOffset={true} />
+      <TaskPage onEventCreate={handleEventCreate} event={selectedEvent} onClose={closeModal} isOffset={true} />
     </div>
   </div>
 )}

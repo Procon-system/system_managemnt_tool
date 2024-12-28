@@ -36,8 +36,10 @@ const createTask = async (req, res) => {
     taskData.created_by = req.user.id;
 
     // Assign default or computed color code based on status
-    taskData.color_code = getColorForStatus(taskData.status || "pending");
+    // if (!taskData.color_code){
+      taskData.color_code = getColorForStatus(taskData.status || "pending");
 
+    // }
     // Include only required fields for CouchDB
     const sanitizedTaskData = {
       _id: taskData._id,
@@ -69,7 +71,7 @@ const createTask = async (req, res) => {
     }
     // Pass the sanitized task data and file to the service (file may be null)
     const result = await taskService.createTask(sanitizedTaskData, req.file);
-
+    console.log("created task",result);
     res.status(201).json(result);
   } catch (error) {
     console.error("Error creating task:", error);
@@ -131,7 +133,7 @@ const getDoneTasksForUser = async (req, res) => {
 const getAllTasks = async (req, res) => {
   try {
     const tasks = await taskService.getAllTasks();
-    
+    console.log(tasks);
     res.status(200).json(tasks);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch tasks', details: error.message });
@@ -225,7 +227,6 @@ const updateTask = async (req, res) => {
       });
     } else {
       // Handle JSON update (no file upload)
-      console.log("updateData without image:", updateData);
       await taskService.updateTask(uuid, updateData, res);
     }
   } catch (error) {

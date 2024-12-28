@@ -82,7 +82,7 @@ const EventDetailsModal = ({
             </h3>
             {role >= 3 && (
             <button
-               type="submit"
+               type="button"
                className="bg-red-700 md:ml-[100px] text-white px-4 py-1 rounded-md hover:bg-red-600 transition"
                onClick={() => handleDelete(selectedEvent._id)}
              >

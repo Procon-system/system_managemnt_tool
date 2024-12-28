@@ -8,11 +8,10 @@ import ResourceTimeGrid from '@event-calendar/resource-time-grid';
 import TimeGrid from '@event-calendar/time-grid';
 import ResourceTimeline from '@event-calendar/resource-timeline';
 import '@event-calendar/core/index.css';
-import { v4 as uuidv4 } from 'uuid';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 
-  const EventCalendarWrapper = ({ events = [],onEventUpdate, onEventCreate, openForm, openCreateForm}) => {
+  const EventCalendarWrapper = ({ events = [],onEventUpdate, updateEventState,setFilteredEvents,  onEventCreate, openForm, openCreateForm}) => {
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
@@ -31,7 +30,7 @@ const handleDateChange = (args) => {
     start:  event.start_time || event.start || new Date(),
     end:  event.end_time || event.end || new Date(),
     title: event.title || 'Untitled Event',
-    color: event.color || '#cccccc', // Default color
+    color: event.color ||event.color_code|| '#cccccc', // Default color
     allDay: event.allDay,
     resourceIds: [
       ...(event.assigned_resources?.assigned_to || [])
@@ -97,7 +96,6 @@ const handleDateChange = (args) => {
       ),
     },
   ], [events]);
-  console.log("events",events);
   // Memoize assigned_resources to prevent unnecessary re-renders
   const assigned_resources = useMemo(() => [...groupedAssignedResources], [groupedAssignedResources]);
 
@@ -106,45 +104,29 @@ const handleDateChange = (args) => {
     date.setHours(date.getHours() + timezoneOffset);
     return date.toISOString();
   };   
-  // const handleViewChange = (view) => {
-  //   setChangedView(view);
-  //   if (calendarRef.current) {
-  //     calendarRef.current.setOption('view', view);
-  //     if (view === 'year') {
-  //       const { start, end } = getYearRange();
-  //       calendarRef.current.setOption({visibleRange:{ start, end }},);
-  //     }
-  //   }
-  // };
+
   const handleViewChange = (view) => {
     setChangedView(view);
-    if (calendarRef.current) {
-      calendarRef.current.setOption('view', view);
-      
-      if (view === 'year') {
-        const { start, end } = getYearRange();
-        calendarRef.current.setOption('visibleRange', { start, end });
-      }
-    }
+    
   };
   
-  const getYearRange = () => {
-    const currentYear = new Date().getFullYear();
-    const startOfYear = new Date(currentYear, 0, 1); // Jan 1
-    const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59); // Dec 31
-  
-    // Validate the dates
-    if (isNaN(startOfYear.getTime()) || isNaN(endOfYear.getTime())) {
-      console.error('Invalid date range!');
-    }
-  
-    return { start: startOfYear, end: endOfYear };
-  };
+ 
   useEffect(() => {
     if (calendarRef.current) {
     }
   }, [mappedEvents]);
+  const preserveCalendarView = () => {
+        const calendarApi = calendarRef.current?.getView();
+        console.log("calendarApi",calendarApi)
+        return calendarApi ? { date: calendarApi.currentStart, view: calendarApi.type } : null;
+  };
   
+  const restoreCalendarView = (viewState) => {
+    const calendarApi = calendarRef.current?.getView();
+    if (calendarApi && viewState) {
+      calendarRef.current.setOption('date', viewState.date);
+    }
+     };
   useEffect(() => {
     if (!calendarContainer.current) return;
     // Destroy existing calendar to prevent multiple instances
@@ -155,8 +137,7 @@ const handleDateChange = (args) => {
       console.warn('Mapped events or grouped resources are not ready yet.');
       return;
     }
-   console.log("calendarRef.current",calendarRef.current);
-    calendarRef.current = new Calendar({
+      calendarRef.current = new Calendar({
       target: calendarContainer.current,
       props: {
         plugins: [DayGrid, TimeGrid, List, ResourceTimeGrid, ResourceTimeline, Interaction],
@@ -176,8 +157,8 @@ const handleDateChange = (args) => {
           },
           datesSet: (args) => {
         try {
-          console.log('Dates Set Triggered:', args);
-          handleDateChange(args); // Ensure handler is valid
+           handleDateChange(args); // Ensure handler is valid
+        
         } catch (err) {
           console.error('Error in datesSet handler:', err);
         }
@@ -230,19 +211,18 @@ const handleDateChange = (args) => {
             const timezoneOffset = 3; // Adjust this value based on the expected timezone
             const adjustedStartTime = adjustTimeForBackend(start, timezoneOffset);
             const adjustedEndTime = adjustTimeForBackend(end, timezoneOffset);
-            const generatedId = uuidv4();
+            // const generatedId = uuidv4();
             const newEvent = {
-              _id: generatedId,
+              // _id: generatedId,
               start_time: adjustedStartTime,
               end_time: adjustedEndTime,
-              color_code: 'green',
+              // color_code: 'green',
               title: 'new task',
               resource,
             };
             openCreateForm(newEvent);
           },
           dateClick: (info) => {
-            console.log("user",user);
             if (user.access_level < 3) {
               toast.error('You do not have permission to create events.');
               return;
@@ -250,9 +230,9 @@ const handleDateChange = (args) => {
             const timezoneOffset = 3; 
             const adjustedStartTime = adjustTimeForBackend(info.date, timezoneOffset);
             const newEvent = {
-              _id: uuidv4(),
+              // _id: uuidv4(),
               start_time: adjustedStartTime,
-              color_code: 'green',
+              // color_code: 'green',
               title: 'new task',
             };
             openCreateForm(newEvent); // Open form with pre-filled start time
@@ -265,7 +245,6 @@ const handleDateChange = (args) => {
              // Extract event details
   const { event } = info;
   const { extendedProps } = event;
-  // Ensure `_id` is extracted properly, either from extendedProps or the event itself
   const mongoId = extendedProps?._id || event.id;
   // Construct updatedEvent with image and notes
   const updatedEvent = {
@@ -277,47 +256,46 @@ const handleDateChange = (args) => {
     image: extendedProps?.image || null, // Add image if available
     notes: extendedProps?.notes || 'No notes available', // Add notes if available
     status: extendedProps?.status || null,
-    // assigned_to: (extendedProps?.assigned_resources?.assigned_to || []).map((userId) => userId.toString()),};
-  //   assigned_to: Array.isArray(extendedProps?.assigned_resources?.assigned_to)
-  //   ? extendedProps.assigned_resources.assigned_to.map((userId) =>
-  //       userId ? userId.toString() : "Unknown User"
-  //     )
-  //   : [],
-  // materials: Array.isArray(extendedProps?.materials) ? extendedProps.materials : [],
-  // tools: Array.isArray(extendedProps?.tools) ? extendedProps.tools : [],
-  // resourceIds: Array.isArray(event.resourceIds)
-  //   ? event.resourceIds.filter((id) => id && id !== "undefined") // Exclude invalid entries
-  //   : [],
 };
  
             openForm(updatedEvent);
           },
-          eventResize: async(info) => {
-            if (user.access_level < 3) {
-              toast.error('You do not have permission to create events.');
-              return;
-            }
-            const { event } = info;
-              try {
-              const mongoId = event.extendedProps._id; // Ensure this exists
-              const timezoneOffset = 3;
-              const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
-              const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
-          
-              const updatedEvent = {
-                _id: mongoId,
-                start_time: adjustedStartTime,
-                end_time: adjustedEndTime,
-                title: event.title, // Include other fields if necessary
-                color: event.backgroundColor, // Example: Ensure color persists
-              };
-             await onEventUpdate(updatedEvent); // Call the provided update handler
-             
-              } catch (error) {
-              console.error('Error updating event:', error);
-              info.revert(); // Revert changes if update fails
-            }
-          },
+  eventResize: async (info) => {
+    if (user.access_level < 3) {
+      toast.error('You do not have permission to update events.');
+      return;
+    }
+  
+    const { event } = info;
+    const mongoId = event.extendedProps._id;
+  
+    if (!mongoId) {
+      toast.error('Event ID missing. Cannot update.');
+      info.revert();
+      return;
+    }
+  
+    const timezoneOffset = 3;
+    const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
+    const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
+  
+    const updatedEvent = {
+      _id: mongoId,
+      start_time: adjustedStartTime,
+      end_time: adjustedEndTime,
+      title: event.title,
+      color: event.backgroundColor,
+    };
+    try {
+      await onEventUpdate(updatedEvent);
+      toast.success('Event updated successfully!');
+    } catch (error) {
+      console.error('Error updating event:', error);
+      info.revert();
+      toast.error('Failed to update event. Changes reverted.');
+    } 
+  },
+  
           eventDrop: async (info) => {
             if (user.access_level < 3) {
               toast.error('You do not have permission to create events.');
@@ -327,18 +305,29 @@ const handleDateChange = (args) => {
             const timezoneOffset = 3;
             const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
             const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
-        
-            if (jsEvent.altKey) {
-              const generatedId = uuidv4();
+              if (jsEvent.altKey) {
               const duplicatedEvent = {
                 ...jsEvent,
-                _id: generatedId,
                 start_time: adjustedStartTime,
                 end_time: adjustedEndTime,
                 color_code: event.backgroundColor,
                 title: event.title,
+                status: event.extendedProps.status
               };
-              await onEventCreate(duplicatedEvent);
+                // Use calendarRef to add the event directly to the calendar
+    if (calendarRef.current) {
+      calendarRef.current.addEvent(duplicatedEvent);
+    }
+    const viewState = preserveCalendarView();
+    console.log("viewState: ",preserveCalendarView())
+    if(await onEventCreate(duplicatedEvent)){
+    // Restore the view after updates
+    restoreCalendarView(preserveCalendarView());
+    console.log("viewState22: " , restoreCalendarView(preserveCalendarView()));
+  
+
+  }
+              
             } else {
               const mongoId = event.extendedProps._id; // Ensure this exists
               const updatedEvent = {
@@ -354,18 +343,8 @@ const handleDateChange = (args) => {
         },
       },
     });
-    // calendarRef.current.refetchEvents(); 
-
-    // // Cleanup on Unmount
-    // return () => {
-    //   if (calendarRef.current) {
-    //     console.log("calendarRef.current",calendarRef.current)
-    //     calendarRef.current.destroy();
-    //     calendarRef.current = null;
-    //   }
-    // };
      // Update calendar view after currentDate change
-    }, [,events, assigned_resources, changedView]);
+    }, [events, assigned_resources, changedView]);
  
  
    return (

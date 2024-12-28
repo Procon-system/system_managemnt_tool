@@ -42,17 +42,17 @@ const loginController = async (req, res) => {
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) throw new Error('Invalid credentials.');
-
-    const tokenExpiry = rememberMe ? '30d' : '1h';
+    const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000; // Cookie maxAge matches rememberMe
+    const tokenExpiry = rememberMe ? 30 * 24 * 60 * 60 * 1000 : '1h'; // Token expiration matches rememberMe
     const token = await generateToken({ id: user._id, access_level: user.access_level }, tokenExpiry);
 
     res.cookie('jwt', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
+      maxAge: cookieMaxAge,
     });
-
+    console.log("token, user ",token, user )
     res.status(200).json({ success: true, token, user });
   } catch (error) {
     res.status(400).json({ error: error.message });

@@ -1,5 +1,8 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { getAllUsers, updateUserProfile, deleteUserAccount } from "../Services/userService";
+import checkTokenExpiration from "../Helper/checkTokenExpire";
+import { toast } from 'react-toastify';
+import { logout } from "../features/authSlice"; // Import logout action
 
 // Thunks for async operations
 export const getUsers = createAsyncThunk("users/getUserAll", async (_, {getState, rejectWithValue }) => {
@@ -14,6 +17,11 @@ export const getUsersByIds = createAsyncThunk(
   "users/getUsersByIds", 
   async ({ userIds }, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
     try {
       return await getUsersByIds(userIds, token); // Call the new service function
     } catch (error) {
@@ -23,7 +31,12 @@ export const getUsersByIds = createAsyncThunk(
 );
 export const updateUser = createAsyncThunk("users/update", async ({ id, updateData}, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
-  try { console.log("nnnn",updateData)
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
+  try { 
     return await updateUserProfile(id, updateData, token);
   } catch (error) {
     return rejectWithValue(error.message);
@@ -32,7 +45,11 @@ export const updateUser = createAsyncThunk("users/update", async ({ id, updateDa
 
 export const deleteUser = createAsyncThunk("users/delete", async ({ id }, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
-    console.log("id",id)
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
   try {
     return await deleteUserAccount(id, token);
   } catch (error) {

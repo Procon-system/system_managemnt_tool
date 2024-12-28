@@ -37,12 +37,11 @@ const createTask = async (taskData, file) => {
       await db.insert({ ...taskData, _rev: attachmentResponse.rev });
     }
 
-    return { message: "Task created successfully", taskId: taskData._id };
+    return { message: "Task created successfully", taskData };
   } catch (error) {
     throw new Error(`Failed to create task: ${error.message}`);
   }
 };
-
 const getAllTasks = async () => {
   try {
     // Step 1: Fetch all tasks
@@ -103,7 +102,6 @@ const getAllTasks = async () => {
     throw new Error(`Failed to fetch tasks: ${error.message}`);
   }
 };
-
 // Helper function to fetch related documents based on the type and ids
 const fetchDocuments = async (ids, type) => {
   try {
@@ -170,17 +168,15 @@ const updateTask = async (id, updateData, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
     if (updateData.status === "done" && existingTask.materials) {
-          console.log("Incrementing materials for task:", existingTask.materials);
           await incrementMaterialCount(existingTask.materials); // Increment the material count
         }
     // Merge the updates with the existing task
     const updatedTask = {
       ...existingTask,
       ...updateData,
+      _id: existingTask._id, // Ensure _id is preserved
       updated_at: new Date().toISOString(),
     };
-     console.log("updateData",updateData);
-     console.log("updateTask",updatedTask)
     // Save the updated task
     const response = await db.insert(updatedTask);
 

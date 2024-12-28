@@ -1,11 +1,19 @@
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import toolService from '../Services/toolsService';
+import checkTokenExpiration from "../Helper/checkTokenExpire";
+import { toast } from 'react-toastify';
+import { logout } from "../features/authSlice"; // Import logout action
 
 export const createTool = createAsyncThunk(
   'tools/createTool',
   async (toolData, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
     try {
       return await toolService.createTool(toolData, token);
     } catch (error) {
@@ -18,6 +26,11 @@ export const fetchTools = createAsyncThunk(
   'tools/fetchTools',
   async (_, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
     try {
       return await toolService.fetchTools( token );
     } catch (error) {
@@ -30,6 +43,11 @@ export const updateTool = createAsyncThunk(
   'tools/updateTool',
   async ({ toolId, updatedData }, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
     try {
       return await toolService.updateTool(toolId, updatedData, token );
     } catch (error) {
@@ -42,6 +60,11 @@ export const deleteTool = createAsyncThunk(
   'tools/deleteTool',
   async (toolId, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
+    if (checkTokenExpiration(token)) {
+      window.Storage.dispatch(logout()); 
+      toast.error("Your session has expired. Please log in again.");
+      return null;
+    }
     try {
       return await toolService.deleteTool(toolId, token );
     } catch (error) {

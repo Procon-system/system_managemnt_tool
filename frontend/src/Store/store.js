@@ -35,6 +35,8 @@ const persistedReducer = persistReducer(persistConfig, rootReducer);
 const store = configureStore({
   reducer: persistedReducer,
 });
+window.Storage = store; // Expose store globally for setTimeout access
 
 export const persistor = persistStore(store);
+
 export default store;

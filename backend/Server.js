@@ -61,7 +61,7 @@ const server = http.createServer(app); // Create HTTP server
 const io = new Server(server, {
   cors: {
     origin: "*", // Allow all origins
-    methods: ["GET", "POST"], // Allow specific methods
+    methods: ["GET", "POST","DELETE","PUT"], // Allow specific methods
   },
 });
 
@@ -89,7 +89,10 @@ app.use('/api/users', userRoutes);
 // WebSocket setup
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
-
+ // Log all events received
+ socket.onAny((event, ...args) => {
+  console.log(`Event received: ${event}`, args);
+});
   // Handle custom events
   socket.on("updateTask", (data) => {
     console.log("Task update received:", data);

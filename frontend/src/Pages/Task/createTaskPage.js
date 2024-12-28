@@ -1,12 +1,9 @@
 import React from 'react';
-import { useDispatch} from 'react-redux';
-import { createTask } from '../../features/taskSlice';
 import TaskForm from '../../Components/taskComponents/taskForm';
 import { toast } from 'react-toastify';
-const TaskPage = ({ onClose, event ,isOffset = false}) => {
-  const dispatch = useDispatch();
+const TaskPage = ({ onClose, onEventCreate,event ,isOffset = false}) => {
+ 
   // const { loading, error } = useSelector((state) => state.tasks);
-console.log("event acc",event);
   const initialTaskData = {
     title: event?.title || "",
     start_time: event?.start_time || "",
@@ -15,21 +12,18 @@ console.log("event acc",event);
   };
   const handleTaskSubmit = async (taskData) => {
     try {
-      const resultAction = await dispatch(createTask(taskData)).unwrap();
-      
-      if (resultAction) {
-        if (onClose) {
-          onClose(); // Call onClose only if it exists
-        }
-        toast.success("Task created successfully!");
-      }    
-    } catch (error) {
-      // Display detailed error message
-      console.log("errrrrr",error);
-    const errorMessage =
-    error || error?.message || "An unknown error occurred while creating the task.";
-  toast.error(`Error: ${errorMessage}`);
+      if (onEventCreate) {
+        await onEventCreate(taskData); // Ensure it's awaited if necessary
+      }
 
+      if (onClose) {
+        onClose();
+      }
+      toast.success("Task created successfully!");
+    } catch (error) {
+      const errorMessage =
+        error?.message || "An unknown error occurred while creating the task.";
+      toast.error(`Error: ${errorMessage}`);
     }
   };
 

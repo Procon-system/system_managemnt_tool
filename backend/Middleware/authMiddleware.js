@@ -28,7 +28,10 @@ const authenticateUser = async (req, res, next) => {
       req.user = decoded; // Attach user info from token to request object
       next(); // Proceed to the next middleware
     } catch (error) {
-      console.log("Token Verification Error:", error.message);
+      console.error("Token Verification Error:", error.message);
+      if (error.name === "TokenExpiredError") {
+        return res.status(401).json({ error: "Token expired. Please log in again." });
+      }
       return res.status(401).json({ error: "Invalid token" });
     }
 };
