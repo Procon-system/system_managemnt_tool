@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchMaterials, createMaterial, deleteMaterial, updateMaterial } from '../../features/materialsSlice';
 import MaterialForm from '../../Components/materialComponents/materialForm';
 import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
+import io from 'socket.io-client';
 
 const CreateMaterialPage = () => {
   const dispatch = useDispatch();
@@ -11,8 +12,39 @@ const CreateMaterialPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState(null);
 
+  const socket = io("http://localhost:5000"); // Replace with your server URL
+
   useEffect(() => {
     dispatch(fetchMaterials());
+
+    socket.on("connect", () => {
+      console.log("Connected to WebSocket server:", socket.id);
+    });
+
+    socket.on('materialCreated', (newMaterial) => {
+      dispatch({ type: 'materials/createMaterial/fulfilled', payload: newMaterial });
+    });
+
+    socket.on('materialUpdated', ({ materialId, updatedData }) => {
+      const updatedMaterial = { _id: materialId, ...updatedData };
+      console.log('Material updated:', updatedMaterial);
+      dispatch({
+        type: 'materials/updateMaterial/fulfilled',
+        payload: updatedMaterial,
+      });
+    });
+    
+
+    socket.on('materialDeleted', (deletedMaterialId) => {
+      dispatch({ type: 'materials/deleteMaterial/fulfilled', payload: { id: deletedMaterialId } });
+    });
+
+    return () => {
+      socket.off('materialCreated');
+      socket.off('materialUpdated');
+      socket.off('materialDeleted');
+      socket.disconnect();
+    };
   }, [dispatch]);
 
   const handleAddClick = () => {
@@ -26,15 +58,18 @@ const CreateMaterialPage = () => {
   };
 
   const handleDeleteClick = async (materialId) => {
-    await dispatch(deleteMaterial(materialId));
+    await dispatch(deleteMaterial(materialId)).unwrap();
+    socket.emit('deleteMaterial', materialId); // Emit the delete event to the server
   };
 
   const handleFormSubmit = async (materialData) => {
     try {
       if (editingMaterial) {
         await dispatch(updateMaterial({ materialId: editingMaterial._id, updatedData: { ...materialData } })).unwrap();
+        socket.emit('updateMaterial', { materialId: editingMaterial._id, updatedData: materialData });
       } else {
-        await dispatch(createMaterial(materialData)).unwrap();
+        const createdMaterial = await dispatch(createMaterial(materialData)).unwrap();
+        socket.emit('createMaterial', createdMaterial); // Emit the create event to the server
       }
       setShowForm(false);
     } catch (error) {
@@ -59,7 +94,7 @@ const CreateMaterialPage = () => {
         {materials.length > 0 ? (
           materials.map((material) => (
             <div
-              key={material.id}
+              key={material._id}
               className="p-4 border rounded shadow flex flex-col md:flex-row justify-between items-start md:items-center space-y-2 md:space-y-0"
             >
               <div className="flex-grow">
@@ -104,3 +139,4 @@ const CreateMaterialPage = () => {
 };
 
 export default CreateMaterialPage;
+

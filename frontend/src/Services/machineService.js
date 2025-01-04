@@ -5,6 +5,7 @@ const API_URL = 'http://localhost:5000/api/machine';
 const machineService = {
   // Create a new machine
   createMachine: async (machineData, token) => {
+    console.log("machineData",machineData)
     const response = await axios.post(
       `${API_URL}/create-machines`, 
       machineData,
@@ -52,6 +53,7 @@ const machineService = {
         },
       }
     );
+    console.log("response",response)
     return response.data;
   },
 };

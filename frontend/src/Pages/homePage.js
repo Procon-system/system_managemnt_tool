@@ -30,66 +30,50 @@ const HomePage = () => {
   const [calendarEndDate, setCalendarEndDate] = useState(null); // This will control the calendar's displayed end date
   const { user } = useSelector((state) => state.auth);
   const eventsRef = useRef([]);
-  const updateEventState = (updatedEvent = null, deletedEventId = null) => {
-    if (deletedEventId) {
-      // Handle deletion
-      setFilteredEvents((prevEvents) => {
-      
-        const currentEvents = prevEvents && prevEvents.length > 0 ? prevEvents : (tasks || []);
-
-                      if (currentEvents.length === 0) {
-                console.warn("No events available to delete.");
-                return currentEvents; // Return unchanged
-              }
-              const updatedEvents = currentEvents.filter(event => event._id !== deletedEventId);
-              eventsRef.current = updatedEvents; // Sync with ref
-              return updatedEvents;
-          });
-      return; // Exit early after deletion
-    }
-    if (!updatedEvent || !updatedEvent._id || !updatedEvent.title) {
-      console.error('Invalid event structure:', updatedEvent);
-      return; // Skip invalid events
-    }
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
+   const updateEventState = (updatedEvent = null, deletedEventId = null) => {
     setFilteredEvents((prevEvents) => {
-      console.log("prevEvents",prevEvents);
-      if (prevEvents.length === 0) {
-        console.warn("prevEvents is empty. Ensure events are being initialized properly.");
-        prevEvents=tasks;
+      let currentEvents = prevEvents || tasks || [];
+      
+      // Handle deletion
+      if (deletedEventId) {
+        console.log("Deleting task with ID:", deletedEventId);
+        handleTaskDeletion(deletedEventId);
+        const updatedEvents = currentEvents.filter(
+          (event) => event._id !== deletedEventId
+        );
+        eventsRef.current = updatedEvents; // Sync with ref
+        return updatedEvents; // Update state
       }
-      // Create a map for efficient updates
-      console.log("prevEvents",prevEvents);
-      const eventMap = new Map(
-        prevEvents.map((event) => [event._id, event])
-      );
-      console.log("eventMap", eventMap);
-      // Update or add the event
-      eventMap.set(updatedEvent._id, {
-        ...eventMap.get(updatedEvent._id),
-        ...updatedEvent,
-      });
-  
-      // Convert map back to an array and validate
-      const updatedEvents = Array.from(eventMap.values()).filter((event) => {
-        const isValid =
-          event._id &&
-          event.title &&
-          (event.start_time || event.start) &&
-          (event.end_time || event.end);
-  
-        if (!isValid) {
-          console.warn('Removing invalid event:', event);
-        }
-        return isValid;
-      });
-      // Sync the ref with the updated events
-      eventsRef.current = updatedEvents;
-  
-      return updatedEvents; // Update state with valid events
+      
+      // Handle update or addition
+      if (updatedEvent && updatedEvent._id && updatedEvent.title) {
+        const eventMap = new Map(
+          currentEvents.map((event) => [event._id, event])
+        );
+        eventMap.set(updatedEvent._id, {
+          ...eventMap.get(updatedEvent._id),
+          ...updatedEvent,
+        });
+        const updatedEvents = Array.from(eventMap.values()).filter(
+          (event) =>
+            !deletedTaskIds.has(event._id) && // Exclude deleted tasks
+            event._id &&
+            event.title &&
+            (event.start_time || event.start) &&
+            (event.end_time || event.end)
+        );
+        eventsRef.current = updatedEvents; // Sync with ref
+        return updatedEvents;
+      }
+      return currentEvents;
     });
   };
- 
   
+  const handleTaskDeletion = (deletedTaskId) => {
+    setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
+  };
   useEffect(() => {
     // Confirm socket connection
       socket.on("connect", () => {
@@ -102,8 +86,8 @@ const HomePage = () => {
     
    // Listen for task creations
    socket.on("taskCreated", (broadcastData) => {
-    const newTask = broadcastData?.payload?.taskData;
-
+    const newTask = broadcastData?.payload;
+     console.log("broadcastTask",broadcastData.payload)
   if (!newTask) {
     console.error("Invalid task creation broadcast data:", broadcastData);
     return; // Skip invalid broadcasts
@@ -113,10 +97,15 @@ const HomePage = () => {
   }
   
   });
-// Listen for task deletions
 socket.on("taskDeleted", (taskId) => {
-   updateEventState(null, taskId); // Update state for deletion
+  console.log("Task deletion received:", taskId);
 
+  if (!taskId) {
+    console.error("Invalid task ID received for deletion.");
+    return;
+  }
+
+  updateEventState(null, taskId); // Update state for deletion
 });
   // Clean up on unmount
   return () => {
@@ -127,61 +116,108 @@ socket.on("taskDeleted", (taskId) => {
   };
 }, []);
 
-   useEffect(() => {
-    if (currentView === 'allTasks') {
-      dispatch(fetchTasks());
-    } else if (currentView === 'userTasks') {
-      dispatch(getTasksByAssignedUser(user._id));
-    } else if (currentView === 'userDoneTasks') {
-      dispatch(getTasksDoneByAssignedUser(user._id));
-    } else if (currentView === 'allDoneTasks') {
-      dispatch(getAllDoneTasks());
-    }
-  }, [currentView, dispatch, user]);
+
 const calendarEvents = useMemo(() => {
   return Array.isArray(tasks)
-    ? tasks.map((task) => ({
-        _id: task._id,
-        title: task.title || 'No Title',
-        start: task.start_time,
-        end: task.end_time,
-        color: task.color_code,
-        image: task.image,
-        notes: task.notes || 'No Notes',
-        status: task.status || null,
-        assigned_resources: {
-          assigned_to: task.assigned_to || [],
-          tools: task.tools || [],
-          materials: task.materials || [],
-        },
-        resourceIds: [
-          ...(task.assigned_to || []),
-          ...(task.tools || []),
-          ...(task.materials || []),
-        ],
-      }))
+    ? tasks
+        .filter((task) => !deletedTaskIds.has(task._id)) // Exclude deleted tasks
+        .map((task) => ({
+          _id: task._id,
+          title: task.title || 'No Title',
+          start: task.start_time,
+          end: task.end_time,
+          color: task.color_code,
+          image: task.image,
+          notes: task.notes || 'No Notes',
+          status: task.status || null,
+          assigned_resources: {
+            assigned_to: task.assigned_to || [],
+            tools: task.tools || [],
+            materials: task.materials || [],
+          },
+          resourceIds: [
+            ...(task.assigned_to || []),
+            ...(task.tools || []),
+            ...(task.materials || []),
+          ],
+        }))
     : [];
-}, [tasks]); // Recompute only when tasks changes
+}, [tasks, deletedTaskIds]); // Recompute when tasks or deletedTaskIds change
+
 useEffect(() => {
-  if (filteredEvents.length === 0) {
-    setFilteredEvents(calendarEvents || []);
+  if (!isInitialized && calendarEvents.length > 0) {
+    console.log("Initializing filtered events...");
+    setFilteredEvents(calendarEvents);
+    setIsInitialized(true);
   }
-}, [filteredEvents,calendarEvents]);
+}, [calendarEvents, isInitialized]);
 
 
-  const handleEventCreate = (newEvent) => {
-    dispatch(createTask(newEvent))
-    .then((createdTask) => {
-      console.log("Task successfully created on backend, emitting WebSocket event:", createdTask);
-      
-  
-      // Emit the newly created task
-      socket.emit("createTask", createdTask);
-    })
-    .catch((err) => {
-      console.error("Task creation failed:", err);
-    });
+// First useEffect for fetching tasks
+useEffect(() => {
+  if (currentView === 'allTasks') {
+    console.log("Fetching all tasks...");
+    dispatch(fetchTasks()); // Fetch all tasks
+  } else if (currentView === 'userTasks') {
+    console.log("Fetching tasks assigned to the user...");
+    dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user
+  } else if (currentView === 'userDoneTasks') {
+    console.log("Fetching tasks done by the user...");
+    dispatch(getTasksDoneByAssignedUser(user._id)); // Fetch tasks done by the user
+  } else if (currentView === 'allDoneTasks') {
+    console.log("Fetching all done tasks...");
+    dispatch(getAllDoneTasks()); // Fetch all done tasks
+  }
+}, [currentView, dispatch]);
+
+useEffect(() => {
+  if (calendarEvents.length > 0) {
+    const validEvents = calendarEvents.filter(
+      (event) => !deletedTaskIds.has(event._id)
+    );
+    if (currentView === 'allTasks') {
+      setFilteredEvents(validEvents);
+    } else if (currentView === 'userTasks') {
+      setFilteredEvents(
+        validEvents.filter((event) =>
+          event.assigned_resources.assigned_to.includes(user._id)
+        )
+      );
+    } else if (currentView === 'userDoneTasks') {
+      setFilteredEvents(
+        validEvents.filter(
+          (event) =>
+            event.status === 'done' &&
+            event.assigned_resources.assigned_to.includes(user._id)
+        )
+      );
+    } else if (currentView === 'allDoneTasks') {
+      setFilteredEvents(
+        validEvents.filter((event) => event.status === 'done')
+      );
+    }
+  }
+}, [calendarEvents, currentView, deletedTaskIds, user._id]);
+
+  const handleEventCreate = async (newEvent) => {
+    try {
+    const resultAction = await dispatch(createTask(newEvent));
+     if (createTask.fulfilled.match(resultAction)) {
+     
+      socket.emit("createTask", resultAction);
+      toast.success("Task created successfully!");
+    } else if (createTask.rejected.match(resultAction)) {
+      // Handle error
+      const errorMessage =
+        resultAction.payload || "Failed to create task. Please try again.";
+      toast.error(errorMessage);
+    }
+  } catch (error) {
+    // Handle unexpected errors
+    toast.error("An unexpected error occurred. Please try again.");
+  }
   };
+  
   const handleDateRangeSelect = (startDate, endDate) => {
     if (!startDate || !endDate) {
       // Reset to all events when no date range is selected
@@ -210,39 +246,42 @@ useEffect(() => {
         .then(() => {
           // Emit the updated task to the server
           socket.emit("updateTask", updatedEvent);
+          toast.success("Task updated successfully!")
         })
         .catch((err) => {
+          toast.error("Failed to update task. Please try again.")
           console.error("Task update failed:", err);
         });
         
     } else {
+      toast.error("Update failed: Event ID is undefined.");
       console.error("Update failed: Event ID is undefined.");
     }
   };
-const handleDelete = (id) => {
-  console.log("Deleting task with ID:", id);
-  console.log("Current filteredEvents before delete:", filteredEvents);
-
+const handleDelete = async (id) => {
   try {
-    // Optimistically update filteredEvents
-    setFilteredEvents((prevEvents) =>
-      prevEvents.filter((event) => event._id !== id)
-    );
+    // Dispatch delete action and wait for it to succeed
+    await dispatch(deleteTask(id));
 
-    // Dispatch delete action and emit WebSocket event
-    dispatch(deleteTask(id)).then(() => {
-      socket.emit("deleteTask", id);
-    });
+    // Emit WebSocket event after successful deletion
+    socket.emit("deleteTask", id);
 
+    // Update filtered events only after successful deletion
+    // setFilteredEvents((prevEvents) =>
+    //   prevEvents.filter((event) => event._id !== id)
+    // );
+
+    // Close the modal and show success toast
     closeModal();
     toast.success("Task deleted successfully!");
   } catch (error) {
+    // Show error toast if deletion fails
     toast.error(`Failed to delete task: ${error.message}`);
   }
 
+  // Log current filteredEvents for debugging
   console.log("Current filteredEvents after delete:", filteredEvents);
 };
-
 
 useEffect(() => {
   console.log("Filtered events initialized:", filteredEvents);

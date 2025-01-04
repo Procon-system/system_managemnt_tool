@@ -1,27 +1,8 @@
 // src/services/taskService.js
 import axios from 'axios';
-// import checkTokenExpiration from "../Helper/checkTokenExpire";
-// import { toast } from 'react-toastify';
-// // import store from '../Store/store'
-// import { logout } from "../features/authSlice"; // Import logout action
-
 const API_URL = 'http://localhost:5000/api/tasks';
-// const authHeader = () => {
-//   const state = store.getState();
-//   const token = state.auth.token;
-
-//   if (checkTokenExpiration(token)) {
-//     store.dispatch(logout());
-//     toast.error("Your session has expired. Please log in again.");
-//     return null;
-//   }
-
-//   return { Authorization: `Bearer ${token}` };
-// };
-
 const taskService = {
   createTask: async (taskData, token) => {
-    console.log("tasks",taskData);
     try {
       const isFormData = taskData instanceof FormData;
   
@@ -37,10 +18,11 @@ const taskService = {
         isFormData ? taskData : { taskData },
         config
       );
-  return response.data;
+      console.log("response",response.data.taskData)
+  return response.data.taskData;
     } catch (error) {
       console.error('Error creating task:', error.response?.data || error.message);
-      throw error.response?.data || new Error('Error creating task');
+      throw error || new Error('Error creating task');
     }
   },
   // Fetch all tasks
@@ -54,9 +36,7 @@ const taskService = {
     }
   },
   updateTask: async (taskId, updatedData, token) => {
-  //   const headers = authHeader();
-  // if (!headers) return; // Stop request if token is expired
-
+ 
     try {
       const response = await axios.put(
         `${API_URL}/update-tasks/${taskId}`,
@@ -68,7 +48,6 @@ const taskService = {
           },
         }
       );
-      console.log("resposne",response.data.task);
       return response.data.task; // Return the updated task data
     } catch (error) {
       console.error('Error updating task:', error.response?.data || error.message);
@@ -79,9 +58,6 @@ const taskService = {
   
   // Delete a task by ID
   deleteTask: async (taskId, token) => {
-  //   const headers = authHeader();
-  // if (!headers) return; // Stop request if token is expired
-
     try {
       console.log("taskId, token",taskId, token);
       const response = await axios.delete(
@@ -92,7 +68,7 @@ const taskService = {
           },
         }
       );
-      console.log("response delete",response.data);
+      console.log("response del", response);
       return response.data;
     } catch (error) {
       console.error('Error deleting task:', error.response?.data || error.message);

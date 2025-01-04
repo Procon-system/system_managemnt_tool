@@ -1,49 +1,98 @@
-
 const MachineModel = require('../Models/MachineSchema'); 
 const {db} = require('../config/couchdb'); // Import CouchDB instance
 const createMachine = async (machineData) => {
   try {
     const newMachine = {
-      ...MachineModel,
-      _id: `machine:${Date.now()}`, // Generate unique ID
+      type: 'machine', // Add document type
       machine_name: machineData.machine_name,
       machine_type: machineData.machine_type,
-      facility_id: machineData.facility_id, // Reference to Facility ID
+      facility: machineData.facility,
+      _id: `machine:${Date.now()}`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-
-    const response = await db.insert(newMachine);
-    return response;
+     const response = await db.insert(newMachine);
+    if (!response || !response.ok) {
+      throw new Error('Failed to save created material to the database');
+    }
+    console.log("response",response)
+    return newMachine;
   } catch (error) {
     throw new Error(`Error creating machine: ${error.message}`);
   }
 };
-const getAllMachines = async () => {
-  try {
-    const response = await db.find({
-      selector: { type: 'machine' }, // Fetch only machine documents
-    });
-// Fetch facility data for each machine
-const machinesWithFacilities = await Promise.all(
-  response.docs.map(async (machine) => {
-    const facility = await db.get(machine.facility_id).catch(() => null); // Fetch facility or null
-    return {
-      ...machine,
-      facility, // Include full facility data
-    };
-  })
-);
+// const getAllMachines = async () => {
+//   try {
+//     const response = await db.find({
+//       selector: { type: 'machine' }, // Fetch only machine documents
+//     });
+// // Fetch facility data for each machine
+// const machinesWithFacilities = await Promise.all(
+//   response.docs.map(async (machine) => {
+//     const facility = await db.get(machine.facility_id).catch(() => null); // Fetch facility or null
+//     return {
+//       ...machine,
+//       facility, // Include full facility data
+//     };
+//   })
+// );
 
 // Remove facility_id from each machine
-machinesWithFacilities.forEach((machine) => {
-  delete machine.facility_id;
-});
-return machinesWithFacilities;
+// machinesWithFacilities.forEach((machine) => {
+//   delete machine.facility_id;
+// });
+// return machinesWithFacilities;
+//   } catch (error) {
+//     throw new Error(`Error retrieving machines: ${error.message}`);
+//   }
+// };
+const getAllMachines = async () => {
+  try {
+    // Step 1: Fetch all machine documents
+    const result = await db.find({
+      selector: { type: 'machine' }, // Only fetch machine documents
+    });
+
+    const machines = result.docs;
+
+    // Step 2: Extract unique facility IDs
+    const facilityIds = new Set();
+    machines.forEach(machine => {
+      if (machine.facility) {
+        facilityIds.add(machine.facility);
+      }
+    });
+ 
+    // Step 3: Fetch related facilities
+    const facilities = await fetchDocuments([...facilityIds], 'facility');
+
+    // Step 4: Map facilities by ID for quick lookup
+    const facilityMap = facilities.reduce((map, facility) => {
+      map[facility._id] = {
+        location: facility.location,
+        ...facility // Include additional fields if needed
+      };
+      return map;
+    }, {});
+
+    // Step 5: Populate machines with facility details
+    const populatedMachines = machines.map(machine => ({
+      _id: machine._id,
+      machine_name: machine.machine_name,
+      machine_type: machine.machine_type,
+      facility: facilityMap[machine.facility] || {
+        name: "Unknown Facility",
+        location: "Not Available",
+      }, // Include facility details or default values if not found
+    }));
+
+    return populatedMachines; // Step 6: Return the structured data
   } catch (error) {
-    throw new Error(`Error retrieving machines: ${error.message}`);
+    throw new Error(`Failed to fetch machines: ${error.message}`);
   }
 };
+
+
 const getMachineById = async (id) => {
   try {
     // Fetch the machine document
@@ -87,7 +136,12 @@ const updateMachine = async (id, updateData) => {
     };
 
     const response = await db.insert(updatedMachine);
-    return response;
+    if (!response || !response.ok) {
+      throw new Error('Failed to save updated material to the database');
+    }
+
+    // Step 5: Return the fully updated machine object
+    return updatedMachine; 
   } catch (error) {
     throw new Error(`Error updating machine: ${error.message}`);
   }
@@ -104,6 +158,19 @@ const deleteMachine = async (id) => {
     return response;
   } catch (error) {
     throw new Error(`Error deleting machine: ${error.message}`);
+  }
+};
+const fetchDocuments = async (ids, type) => {
+  try {
+    const result = await db.find({
+      selector: {
+        _id: { $in: ids },
+        type,
+      },
+    });
+    return result.docs;
+  } catch (error) {
+    throw new Error(`Failed to fetch ${type} documents: ${error.message}`);
   }
 };
 

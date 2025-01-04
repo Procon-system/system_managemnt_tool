@@ -11,6 +11,12 @@ const { saveAttachment } = require('../Services/imageService');  // importing th
 const getColorForStatus =require('../utils/getColorForStatus');
 const { v4: uuidv4 } = require('uuid'); // UUID for unique IDs
 const {decrementMaterialCount} = require('../utils/decIncLogic');
+let io; // Variable to hold the Socket.IO instance
+
+// Setter to allow server.js to pass the io instance
+const setTaskSocketIoInstance = (ioInstance) => {
+  io = ioInstance;
+};
 const createTask = async (req, res) => {
   try {
     // Extract task data from the request body
@@ -255,15 +261,16 @@ const deleteAttachment = async (uuid, fileName) => {
 };
 const deleteTask = async (req, res) => {
   try {
-    const deletedTask = await taskService.deleteTask(req.params.id);
-    if (!deletedTask) {
+    const result = await taskService.deleteTask(req.params.id); // Get the deleted task result
+    if (!result) {
       return res.status(404).json({ error: 'Task not found' });
     }
-    res.status(200).json({ message: 'Task deleted successfully' });
+    res.status(200).json(result); // Return both ID and message
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete task', details: error.message });
   }
 };
+
 // Create a task from a machine object
 const createTaskFromMachine = async (req, res) => {
   try {
@@ -285,4 +292,5 @@ module.exports = {
   getAllDoneTasks,
   getDoneTasksForUser,
   createTaskFromMachine,
+  setTaskSocketIoInstance 
 };

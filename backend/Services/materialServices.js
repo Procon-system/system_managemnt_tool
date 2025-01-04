@@ -15,7 +15,11 @@ const createMaterial = async (materialData) => {
     };
 
     const response = await db.insert(newMaterial);
-    return response;
+    if (!response || !response.ok) {
+      throw new Error('Failed to save created material to the database');
+    }
+
+    return newMaterial;
   } catch (error) {
     throw new Error(`Failed to create material: ${error.message}`);
   }
@@ -26,6 +30,20 @@ const getAllMaterials = async () => {
   try {
     const response = await db.find({
       selector: { type: 'material' }, // Fetch only material documents
+    });
+
+    return response.docs;
+  } catch (error) {
+    throw new Error(`Failed to fetch materials: ${error.message}`);
+  }
+};
+const getAllAvailableMaterials = async () => {
+  try {
+    const response = await db.find({
+      selector: {
+        type: 'material', // Filter by type
+        amount_available: { $gt: 0 }, // Only include materials with amount_available > 0
+      },
     });
 
     return response.docs;
@@ -50,24 +68,41 @@ const getMaterialById = async (id) => {
 // Update a material by ID
 const updateMaterial = async (id, updateData) => {
   try {
+    // Step 1: Fetch the existing material from the database
     const material = await db.get(id);
-
+    
+    // Step 2: Check if the document is a material (additional validation)
     if (material.type !== 'material') {
       throw new Error('Document is not a material');
     }
 
+    // Step 3: Merge the original material data with the updated fields
     const updatedMaterial = {
       ...material,
-      ...updateData,
-      updated_at: new Date().toISOString(),
+      ...updateData,    // Spread the updated data over the existing material
+      updated_at: new Date().toISOString(), // Include the update timestamp
     };
 
+    // Step 4: Try inserting the updated material back into the database
     const response = await db.insert(updatedMaterial);
-    return response;
+    
+    // If the insertion fails, handle it by throwing an error
+    if (!response || !response.ok) {
+      throw new Error('Failed to save updated material to the database');
+    }
+
+    // Step 5: Return the fully updated material object
+    return updatedMaterial; 
+
   } catch (error) {
+    // Step 6: Log the error (you may want to send logs to a monitoring service)
+    console.error('Error updating material:', error.message);
+
+    // Throw an error with a clear message for the client
     throw new Error(`Failed to update material: ${error.message}`);
   }
 };
+
 
 // Delete a material by ID
 const deleteMaterial = async (id) => {
@@ -91,4 +126,5 @@ module.exports = {
   getMaterialById,
   updateMaterial,
   deleteMaterial,
+  getAllAvailableMaterials,
 };

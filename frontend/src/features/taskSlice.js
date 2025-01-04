@@ -154,7 +154,12 @@ const taskSlice = createSlice({
       })
       .addCase(createTask.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.tasks.push(action.payload); // Append the new task
+  console.log('State before adding task:', state.tasks);
+  console.log('Create Task Payload:', action.payload);
+
+  state.tasks = [...state.tasks, action.payload];
+  console.log('State after adding task:', state.tasks);
+
       })
       .addCase(createTask.rejected, (state, action) => {
         state.status = 'failed';
@@ -186,12 +191,10 @@ const taskSlice = createSlice({
           state.tasks.push(updatedTask); // Add new task if it doesn't exist
         }
       })
-      
-      
-      
       .addCase(deleteTask.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.tasks = state.tasks.filter(task => task.id !== action.payload.id);
+        state.tasks = state.tasks.filter(task => task._id !== action.payload._id); // Use the correct identifier
+
       })
        // For getting tasks by assigned user
        .addCase(getTasksByAssignedUser.pending, (state) => {

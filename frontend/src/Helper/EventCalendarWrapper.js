@@ -204,7 +204,7 @@ const handleDateChange = (args) => {
           },
           select: (info) => {
             if (user.access_level < 3) {
-              toast.error('You do not have permission to create events.');
+              toast.error('You do not have permission to create events.try logging in again');
               return;
             }
             const { start, end, resource } = info;
@@ -224,7 +224,7 @@ const handleDateChange = (args) => {
           },
           dateClick: (info) => {
             if (user.access_level < 3) {
-              toast.error('You do not have permission to create events.');
+              toast.error('You do not have permission to create events. try logging in again');
               return;
             }
             const timezoneOffset = 3; 
@@ -288,7 +288,7 @@ const handleDateChange = (args) => {
     };
     try {
       await onEventUpdate(updatedEvent);
-      toast.success('Event updated successfully!');
+      // toast.success('Event updated successfully!');
     } catch (error) {
       console.error('Error updating event:', error);
       info.revert();
@@ -337,7 +337,15 @@ const handleDateChange = (args) => {
                 color: event.backgroundColor,
                 title: event.title,
               };
-              await onEventUpdate(updatedEvent);
+              // await onEventUpdate(updatedEvent);
+              try {
+                await onEventUpdate(updatedEvent);
+                // toast.success('Event updated successfully!');
+              } catch (error) {
+                console.error('Error updating event:', error);
+                info.revert();
+                toast.error('Failed to update event. Changes reverted.');
+              } 
               }
           },
         },

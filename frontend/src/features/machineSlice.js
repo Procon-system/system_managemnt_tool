@@ -67,6 +67,7 @@ export const deleteMachine = createAsyncThunk(
     }
     try {
       return await machineService.deleteMachine(machineId,token);
+
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error deleting machine');
     }
@@ -77,13 +78,23 @@ export const deleteMachine = createAsyncThunk(
 const machineSlice = createSlice({
   name: 'machines',
   initialState: { machines: [], status: 'idle', error: null },
-  reducers: {},
+  reducers: {
+    addMachineFromSocket: (state, action) => {
+      const newMachine = action.payload.newMachine;
+      const existingIndex = state.machines.findIndex(machine => machine._id === newMachine._id);
+      if (existingIndex !== -1) {
+        state.machines[existingIndex] = newMachine;
+      } else {
+        state.machines.push(newMachine);
+      }
+    }
+  },
   extraReducers: (builder) => {
     builder
       .addCase(createMachine.pending, (state) => { state.status = 'loading'; })
       .addCase(createMachine.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.machines.push(action.payload);
+        // state.machines= [...state.machines, action.payload];
       })
       .addCase(createMachine.rejected, (state, action) => {
         state.status = 'failed';
@@ -94,16 +105,28 @@ const machineSlice = createSlice({
         state.status = 'succeeded';
         state.machines = action.payload;
       })
+      // .addCase(updateMachine.fulfilled, (state, action) => {
+      //   const updatedMachine = action.payload;
+      //   const index = state.machines.findIndex(machine => machine.id === updatedMachine.id);
+      //   if (index !== -1) {
+      //     state.machines[index] = { ...state.machines[index], ...updatedMachine };
+      //   }
+      // })
       .addCase(updateMachine.fulfilled, (state, action) => {
-        const index = state.machines.findIndex(machine => machine.id === action.payload.id);
+        const updatedMachine = action.payload;
+        const index = state.machines.findIndex(machine => machine._id === updatedMachine._id);
         if (index !== -1) {
-          state.machines[index] = action.payload;
+          // Update the existing machine instead of adding a new one
+          state.machines[index] = updatedMachine;
         }
       })
-      .addCase(deleteMachine.fulfilled, (state, action) => {
-        state.machines = state.machines.filter(machine => machine.id !== action.payload.id);
-      });
+     .addCase(deleteMachine.fulfilled, (state, action) => {
+    // Ensure you use `_id` or the correct key that matches your machine object
+    state.machines = state.machines.filter(machine => machine._id !== action.payload.id);
+});
+
   },
 });
+export const { addMachineFromSocket } = machineSlice.actions;
 
 export default machineSlice.reducer;

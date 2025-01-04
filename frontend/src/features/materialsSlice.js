@@ -78,12 +78,15 @@ const materialSlice = createSlice({
   name: 'materials',
   initialState: { materials: [], status: 'idle', error: null },
   reducers: {},
+  
   extraReducers: (builder) => {
     builder
       .addCase(createMaterial.pending, (state) => { state.status = 'loading'; })
       .addCase(createMaterial.fulfilled, (state, action) => {
+        console.log("Payload received:", action.payload);
         state.status = 'succeeded';
-        state.materials.push(action.payload);
+        // Append the new material without resetting state
+        state.materials = [...state.materials, action.payload];
       })
       .addCase(createMaterial.rejected, (state, action) => {
         state.status = 'failed';
@@ -95,15 +98,19 @@ const materialSlice = createSlice({
         state.materials = action.payload;
       })
       .addCase(updateMaterial.fulfilled, (state, action) => {
-        const index = state.materials.findIndex(material => material.id === action.payload.id);
-        if (index !== -1) {
-          state.materials[index] = action.payload;
+        const updatedMaterial = action.payload;
+        const index = state.materials.findIndex((material) => material._id === updatedMaterial._id);
+         if (index !== -1) {
+          // Only update the specific material, don't replace the entire array
+          state.materials[index] = { ...state.materials[index], ...updatedMaterial };
         }
       })
       .addCase(deleteMaterial.fulfilled, (state, action) => {
-        state.materials = state.materials.filter(material => material.id !== action.payload.id);
+        // Remove the deleted material without resetting state
+        state.materials = state.materials.filter(material => material._id !== action.payload.id);
       });
   },
 });
+export const { setMaterials } = materialSlice.actions;
 
 export default materialSlice.reducer;

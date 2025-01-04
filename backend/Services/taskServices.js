@@ -190,18 +190,17 @@ const updateTask = async (id, updateData, res) => {
     res.status(500).json({ error: 'Failed to update task', details: error.message });
   }
 };
-/**
- * Delete a task by ID.
- */
+
 const deleteTask = async (id) => {
   try {
-    const task = await db.get(id); // Fetch task to get `_rev`
-    const response = await db.destroy(id, task._rev);
-    return response;
+    const task = await db.get(id); // Fetch the task to get `_rev`
+    await db.destroy(id, task._rev); // Delete the task
+    return { id, message: 'Task deleted successfully' }; // Return ID and message
   } catch (error) {
     throw new Error(`Failed to delete task: ${error.message}`);
   }
 };
+
 
 /**
  * Fetch tasks assigned to a specific user.

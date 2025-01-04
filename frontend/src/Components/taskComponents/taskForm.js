@@ -85,13 +85,11 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
     
       if (formData.image) {
         const formDataPayload = new FormData();
-        console.log("image before appending:", formData.image);
-    
+          
         // Only append image for debugging
         formDataPayload.append("image", formData.image, formData.image.name);
     
         // Check FormData contents
-        console.log("Submitting with image:",formDataPayload);
         for (let [key, value] of formDataPayload.entries()) {
           console.log(`${key}:`, value);
         }
@@ -99,7 +97,6 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
         // Submit FormData
         onSubmit(formDataPayload);
       } else {
-        console.log("Submitting without image:", taskData);
         onSubmit(taskData);
       }
     };
@@ -171,10 +168,16 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       name="materials"
       value={formData.materials}
       onChange={handleChange}
-      options={materials.map(material => ({
-        label: material.material_name,
-        value: material._id,
-      }))}
+      options={
+        materials.filter(material => material.amount_available > 0).length > 0 
+          ? materials
+              .filter(material => material.amount_available > 0)
+              .map(material => ({
+                label: material.material_name,
+                value: material._id,
+              }))
+          : [{ label: 'No available materials', value: '', isDisabled: true }]
+      }
       isMulti
       required
     />
