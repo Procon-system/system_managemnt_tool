@@ -1,4 +1,3 @@
-
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import toolService from '../Services/toolsService';
 import checkTokenExpiration from "../Helper/checkTokenExpire";
@@ -73,16 +72,36 @@ export const deleteTool = createAsyncThunk(
   }
 );
 
-const toolSlice = createSlice({
+const toolsSlice = createSlice({
   name: 'tools',
-  initialState: { tools: [], status: 'idle', error: null },
-  reducers: {},
+  initialState: {
+    tools: [],
+    status: 'idle',
+    error: null,
+  },
+  reducers: {
+    // Add these reducers for socket events
+    addToolFromSocket: (state, action) => {
+      if (!state.tools.find(tool => tool._id === action.payload._id)) {
+        state.tools.push(action.payload);
+      }
+    },
+    updateToolFromSocket: (state, action) => {
+      const index = state.tools.findIndex(tool => tool._id === action.payload._id);
+      if (index !== -1) {
+        state.tools[index] = action.payload;
+      }
+    },
+    removeToolFromSocket: (state, action) => {
+      state.tools = state.tools.filter(tool => tool._id !== action.payload);
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(createTool.pending, (state) => { state.status = 'loading'; })
       .addCase(createTool.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.tools.push(action.payload);
+        // Don't update state here - let socket handle it
       })
       .addCase(createTool.rejected, (state, action) => {
         state.status = 'failed';
@@ -94,14 +113,19 @@ const toolSlice = createSlice({
       })
       .addCase(updateTool.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        const index = state.tools.findIndex(tool => tool._id === action.payload._id);
-        if (index !== -1) state.tools[index] = action.payload;
+        // Don't update state here - let socket handle it
       })
       .addCase(deleteTool.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.tools = state.tools.filter(tool => tool._id !== action.payload._id);
+        // Don't update state here - let socket handle it
       });
   },
 });
 
-export default toolSlice.reducer;
+export const { 
+  addToolFromSocket, 
+  updateToolFromSocket, 
+  removeToolFromSocket 
+} = toolsSlice.actions;
+
+export default toolsSlice.reducer;

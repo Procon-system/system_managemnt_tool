@@ -13,12 +13,12 @@ const createMaterial = async (req, res) => {
     res.status(201).json(newMaterial);
      // Emit the materialCreated event
      if (io) {
-      // console.log("About to emit materialCreated event:", newMaterial);
+      console.log("About to emit materialCreated event:", newMaterial);
       io.emit('materialCreated',  {
         // materialId: newMaterial._id,
         newMaterial: newMaterial
       }); // Notify all connected clients
-      // console.log('Material created and event emitted:', newMaterial);
+      console.log('Material created and event emitted:', newMaterial);
    
       // console.log("Event material Created emitted:", newMaterial);
     } else {

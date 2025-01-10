@@ -10,13 +10,13 @@ import { fetchMachines } from '../../features/machineSlice'; // Redux action to 
 import { getUsers } from '../../features/userSlice';
 const TaskForm = ({ onSubmit,initialData = {} }) => {
     const dispatch = useDispatch();
-    const tools = useSelector((state) => state.tools.tools); 
-    const materials = useSelector((state) => state.materials.materials); 
-    const facilities = useSelector((state) => state.facilities.facilities); 
-    const machines = useSelector((state) => state.machines.machines); 
-    const users =useSelector((state) => state.users.users);
+    const tools = useSelector((state) => state.tools.tools) || []; 
+    const materials = useSelector((state) => state.materials.materials) || []; 
+    const facilities = useSelector((state) => state.facilities.facilities) || []; 
+    const machines = useSelector((state) => state.machines.machines) || []; 
+    const users =useSelector((state) => state.users.users) || [];
     const formatDateForInput = (date) => {
-        return date.toISOString().slice(0, 16); // Format as 'YYYY-MM-DDTHH:MM'
+        return date ? date.toISOString().slice(0, 16) : ''; // Add null check
       };
       const [formData, setFormData] = useState({
         title:'',
@@ -45,7 +45,7 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
         setFormData((prevData) => ({
             ...prevData,
             ...initialData,
-            title: initialData.title ? initialData.title : prevData.title,
+            title: initialData.title || prevData.title,
             start_time: initialData.start_time ? formatDateForInput(new Date(initialData.start_time)) : prevData.start_time,
             end_time: initialData.end_time ? formatDateForInput(new Date(initialData.end_time)) : prevData.end_time,
         }));
@@ -74,30 +74,52 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       //   }
       // };
 
-    const handleSubmit = (e) => {
-      e.preventDefault();
-    
-      const taskData = {
-        ...formData,
-        tools: formData.tools || [],
-        materials: formData.materials || [],
-      };
-    
-      if (formData.image) {
-        const formDataPayload = new FormData();
+    const handleSubmit = async (e) => {
+      e.preventDefault(); // Prevent default form submission
+      e.stopPropagation(); // Stop event propagation
+      
+      try {
+        const taskData = {
+          ...formData,
+          tools: formData.tools || [],
+          materials: formData.materials || [],
+        };
+      
+        if (formData.image) {
+          const formDataPayload = new FormData();
+          formDataPayload.append("image", formData.image, formData.image.name);
           
-        // Only append image for debugging
-        formDataPayload.append("image", formData.image, formData.image.name);
-    
-        // Check FormData contents
-        for (let [key, value] of formDataPayload.entries()) {
-          console.log(`${key}:`, value);
+          // Check FormData contents
+          for (let [key, value] of formDataPayload.entries()) {
+            console.log(`${key}:`, value);
+          }
+          
+          await onSubmit(formDataPayload);
+        } else {
+          await onSubmit(taskData);
         }
         
-        // Submit FormData
-        onSubmit(formDataPayload);
-      } else {
-        onSubmit(taskData);
+        // Reset form only after successful submission
+        setFormData({
+          title: '',
+          facility: '',
+          machine: '',
+          service_location: '',
+          task_period: '',
+          repeat_frequency: '',
+          status: 'pending',
+          notes: '',
+          start_time: formatDateForInput(new Date()),
+          end_time: '',
+          alarm_enabled: false,
+          assigned_to: [],
+          created_by: '',
+          tools: [],
+          materials: [],
+        });
+        
+      } catch (error) {
+        console.error('Error submitting form:', error);
       }
     };
     
@@ -112,10 +134,10 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
         name="assigned_to"
         value={formData.assigned_to}
         onChange={handleChange}
-        options={users.map(user => ({
+        options={Array.isArray(users) ? users.map(user => ({
           label: `${user.first_name} ${user.last_name} (${user.email})`,
           value: user._id,
-        }))}
+        })) : []}
         isMulti
         required
       />
@@ -129,10 +151,10 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       name="facility"
       value={formData.facility}
       onChange={handleChange}
-      options={facilities.map((facility) => ({
+      options={Array.isArray(facilities) ? facilities.map((facility) => ({
         label: facility.facility_name,
         value: facility._id,
-      }))}
+      })) : []}
       required
     />
     <SelectInput
@@ -140,10 +162,10 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       name="machine"
       value={formData.machine}
       onChange={handleChange}
-      options={machines.map((machine) => ({
+      options={Array.isArray(machines) ? machines.map((machine) => ({
         label: machine.machine_name,
         value: machine._id,
-      }))}
+      })) : []}
       required
     />
     <SelectInput
@@ -151,10 +173,10 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       name="tools"
       value={formData.tools}
       onChange={handleChange}
-      options={tools.map(tool => ({
+      options={Array.isArray(tools) ? tools.map(tool => ({
         label: tool.tool_name,
         value: tool._id,
-      }))}
+      })) : []}
       isMulti
       required
     />
@@ -168,16 +190,14 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       name="materials"
       value={formData.materials}
       onChange={handleChange}
-      options={
-        materials.filter(material => material.amount_available > 0).length > 0 
-          ? materials
-              .filter(material => material.amount_available > 0)
-              .map(material => ({
-                label: material.material_name,
-                value: material._id,
-              }))
-          : [{ label: 'No available materials', value: '', isDisabled: true }]
-      }
+      options={Array.isArray(materials) && materials.filter(material => material.amount_available > 0).length > 0 
+        ? materials
+            .filter(material => material.amount_available > 0)
+            .map(material => ({
+              label: material.material_name,
+              value: material._id,
+            }))
+        : [{ label: 'No available materials', value: '', isDisabled: true }]}
       isMulti
       required
     />
@@ -215,7 +235,10 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
           className="mt-1"
         />
       </div> */}
-  <button type="submit" className="w-full px-4 py-2 mt-4 text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+  <button type="submit" className="w-full px-4 py-2 mt-4 text-white bg-blue-600 rounded-lg hover:bg-blue-700" onClick={(e) => {
+    e.preventDefault();
+    handleSubmit(e);
+  }}>
     Create Task
   </button>
 </form>

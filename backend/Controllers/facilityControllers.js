@@ -1,12 +1,29 @@
 const facilityService = require('../Services/facilityServices');
 
+let io; // Variable to hold the Socket.IO instance
+
+// Setter to allow server.js to pass the io instance
+const setFacilitySocketIoInstance = (ioInstance) => {
+  io = ioInstance;
+};
+
 // Create a Facility
 const createFacility = async (req, res) => {
   try {
     const newFacility = await facilityService.createFacility(req.body);
     res.status(201).json(newFacility);
+    // Emit the facilityCreated event
+    if (io) {
+      console.log("About to emit facilityCreated event:", newFacility);
+      io.emit('facilityCreated', {
+        newFacility: newFacility
+      });
+      console.log('Facility created and event emitted:', newFacility);
+    } else {
+      console.error("Socket.IO instance is not set in facilityController");
+    }
   } catch (error) {
-    res.status(400).json({ error: 'Failed to create new facility', details: error.message });
+    res.status(400).json({ error: 'Failed to create facility', details: error.message });
   }
 };
 
@@ -41,6 +58,14 @@ const updateFacility = async (req, res) => {
       return res.status(404).json({ error: 'Facility not found' });
     }
     res.status(200).json(updatedFacility);
+    // Emit the facilityUpdated event
+    if (io) {
+      io.emit('facilityUpdated', {
+        facilityId: updatedFacility._id,
+        updatedData: updatedFacility
+      });
+      console.log('Facility updated and event emitted:', updatedFacility);
+    }
   } catch (error) {
     res.status(500).json({ error: 'Failed to update facility', details: error.message });
   }
@@ -54,6 +79,11 @@ const deleteFacility = async (req, res) => {
       return res.status(404).json({ error: 'Facility not found' });
     }
     res.status(200).json({ message: 'Facility deleted successfully' });
+    // Emit the facilityDeleted event
+    if (io) {
+      io.emit('facilityDeleted', req.params.id);
+      console.log('Facility deleted and event emitted:', req.params.id);
+    }
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete facility', details: error.message });
   }
@@ -65,4 +95,5 @@ module.exports = {
   getFacilityById,
   updateFacility,
   deleteFacility,
+  setFacilitySocketIoInstance
 };

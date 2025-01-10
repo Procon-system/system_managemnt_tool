@@ -14,6 +14,7 @@ const materialService = {
         },
       }
     );
+    console.log("response",response)
     return response.data;
   },
 

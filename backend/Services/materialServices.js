@@ -18,7 +18,7 @@ const createMaterial = async (materialData) => {
     if (!response || !response.ok) {
       throw new Error('Failed to save created material to the database');
     }
-
+    console.log("response",response)
     return newMaterial;
   } catch (error) {
     throw new Error(`Failed to create material: ${error.message}`);

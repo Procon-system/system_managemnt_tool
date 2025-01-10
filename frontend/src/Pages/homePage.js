@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect ,useMemo} from 'react';
 import EventCalendarWrapper from '../Helper/EventCalendarWrapper';
 import { io } from "socket.io-client";
@@ -10,7 +9,8 @@ import {
   getTasksByAssignedUser,
   getAllDoneTasks, 
   deleteTask,
-  getTasksDoneByAssignedUser  
+  getTasksDoneByAssignedUser ,
+  addTaskFromSocket 
 } from '../features/taskSlice';
 import { toast } from 'react-toastify';
 import TaskPage from './Task/createTaskPage';
@@ -65,8 +65,10 @@ const HomePage = () => {
             (event.end_time || event.end)
         );
         eventsRef.current = updatedEvents; // Sync with ref
+       
         return updatedEvents;
       }
+      console.log("currentEvents",currentEvents)
       return currentEvents;
     });
   };
@@ -86,14 +88,16 @@ const HomePage = () => {
     
    // Listen for task creations
    socket.on("taskCreated", (broadcastData) => {
-    const newTask = broadcastData?.payload;
-     console.log("broadcastTask",broadcastData.payload)
+    const newTask = broadcastData;
+     console.log("broadcastTask",broadcastData)
+     dispatch(addTaskFromSocket(newTask));
   if (!newTask) {
     console.error("Invalid task creation broadcast data:", broadcastData);
     return; // Skip invalid broadcasts
   }
   if (!filteredEvents.some(event => event._id === newTask._id)) {
-    updateEventState(newTask);
+    console.log("newTask",newTask)
+    updateEventState(newTask.newTask);
   }
   
   });
@@ -180,7 +184,7 @@ useEffect(() => {
     } else if (currentView === 'userTasks') {
       setFilteredEvents(
         validEvents.filter((event) =>
-          event.assigned_resources.assigned_to.includes(user._id)
+          event.assigned_resources.assigned_to.includes(user?._id)
         )
       );
     } else if (currentView === 'userDoneTasks') {
@@ -188,7 +192,7 @@ useEffect(() => {
         validEvents.filter(
           (event) =>
             event.status === 'done' &&
-            event.assigned_resources.assigned_to.includes(user._id)
+            event.assigned_resources.assigned_to.includes(user?._id)
         )
       );
     } else if (currentView === 'allDoneTasks') {
@@ -197,14 +201,14 @@ useEffect(() => {
       );
     }
   }
-}, [calendarEvents, currentView, deletedTaskIds, user._id]);
+}, [calendarEvents, currentView, deletedTaskIds, user?._id]);
 
   const handleEventCreate = async (newEvent) => {
     try {
     const resultAction = await dispatch(createTask(newEvent));
      if (createTask.fulfilled.match(resultAction)) {
      
-      socket.emit("createTask", resultAction);
+      // socket.emit("createTask", resultAction);
       toast.success("Task created successfully!");
     } else if (createTask.rejected.match(resultAction)) {
       // Handle error

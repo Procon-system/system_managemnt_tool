@@ -77,16 +77,25 @@ export const deleteMaterial = createAsyncThunk(
 const materialSlice = createSlice({
   name: 'materials',
   initialState: { materials: [], status: 'idle', error: null },
-  reducers: {},
-  
+  reducers: {
+    // Add a new reducer for socket events
+    addMaterialFromSocket: (state, action) => {
+      const newMaterial = action.payload.newMaterial;
+      const existingIndex = state.materials.findIndex(material => material._id === newMaterial._id);
+      if (existingIndex !== -1) {
+        state.materials[existingIndex] = newMaterial;
+      } else {
+        state.materials.push(newMaterial);
+      }
+    }
+  },
   extraReducers: (builder) => {
     builder
-      .addCase(createMaterial.pending, (state) => { state.status = 'loading'; })
+      .addCase(createMaterial.pending, (state) => { 
+        state.status = 'loading'; 
+      })
       .addCase(createMaterial.fulfilled, (state, action) => {
-        console.log("Payload received:", action.payload);
         state.status = 'succeeded';
-        // Append the new material without resetting state
-        state.materials = [...state.materials, action.payload];
       })
       .addCase(createMaterial.rejected, (state, action) => {
         state.status = 'failed';
@@ -111,6 +120,8 @@ const materialSlice = createSlice({
       });
   },
 });
-export const { setMaterials } = materialSlice.actions;
+
+// Export the new action
+export const { addMaterialFromSocket } = materialSlice.actions;
 
 export default materialSlice.reducer;

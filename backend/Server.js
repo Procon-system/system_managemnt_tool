@@ -16,6 +16,8 @@ const config = require('./config/config');
 const { setSocketIoInstance } = require('./Controllers/materialControllers');
 const {setTaskSocketIoInstance }= require('./Controllers/taskControllers');
 const {setMachineSocketIoInstance} = require('./Controllers/machineControllers')
+const { setToolSocketIoInstance } = require('./Controllers/toolsControllers');
+const { setFacilitySocketIoInstance } = require('./Controllers/facilityControllers');
 require('dotenv').config(); // Load environment variables
 
 const app = express();
@@ -30,6 +32,8 @@ const io = new Server(server, {
 setSocketIoInstance(io);  // Pass the io instance to the materials controller
 setTaskSocketIoInstance (io);
 setMachineSocketIoInstance(io);
+setToolSocketIoInstance(io);
+setFacilitySocketIoInstance(io);
 // Middleware setup
 app.use(bodyParser.json());
 app.use(express.json());
@@ -67,14 +71,14 @@ io.on("connection", (socket) => {
     console.log("Task update broadcasted to all clients:", data);
   });
   
-   // Handle task creation
-   socket.on("createTask", (data) => {
-    console.log("Task creation received:", data);
+  //  // Handle task creation
+  //  socket.on("createTask", (data) => {
+  //   console.log("Task creation received:", data);
 
-    // Emit to all connected clients
-    io.emit("taskCreated", data);
-    console.log("Task creation broadcasted to all clients:", data);
-  });
+  //   // Emit to all connected clients
+  //   io.emit("taskCreated", data);
+  //   console.log("Task creation broadcasted to all clients:", data);
+  // });
    // Handle task deletion
    socket.on("deleteTask", (taskId) => {
     console.log(`Task with ID ${taskId} deleted`);

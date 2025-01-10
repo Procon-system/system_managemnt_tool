@@ -14,7 +14,12 @@ const createFacility = async (facilityData) => {
        updated_at: new Date().toISOString(),
      };
      const response = await db.insert(newFacility);
-     return response;
+     if (!response || !response.ok) {
+      throw new Error('Failed to save updated tool to the database');
+    }
+    
+    return newFacility;
+     
    } catch (error) {
      throw new Error(`Error creating facility: ${error.message}`);
    }
@@ -51,7 +56,11 @@ const updateFacilityById = async (id, facilityData) => {
       updated_at: new Date().toISOString(),
     };
     const response = await db.insert(updatedFacility);
-    return response;
+    if (!response || !response.ok) {
+      throw new Error('Failed to save updated tool to the database');
+    }
+    
+    return updatedFacility;
   } catch (error) {
     throw new Error(`Error updating facility: ${error.message}`);
   }

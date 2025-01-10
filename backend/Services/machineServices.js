@@ -21,31 +21,7 @@ const createMachine = async (machineData) => {
     throw new Error(`Error creating machine: ${error.message}`);
   }
 };
-// const getAllMachines = async () => {
-//   try {
-//     const response = await db.find({
-//       selector: { type: 'machine' }, // Fetch only machine documents
-//     });
-// // Fetch facility data for each machine
-// const machinesWithFacilities = await Promise.all(
-//   response.docs.map(async (machine) => {
-//     const facility = await db.get(machine.facility_id).catch(() => null); // Fetch facility or null
-//     return {
-//       ...machine,
-//       facility, // Include full facility data
-//     };
-//   })
-// );
 
-// Remove facility_id from each machine
-// machinesWithFacilities.forEach((machine) => {
-//   delete machine.facility_id;
-// });
-// return machinesWithFacilities;
-//   } catch (error) {
-//     throw new Error(`Error retrieving machines: ${error.message}`);
-//   }
-// };
 const getAllMachines = async () => {
   try {
     // Step 1: Fetch all machine documents

@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchMachines, createMachine, updateMachine, deleteMachine } from '../../features/machineSlice';
+import { 
+  fetchMachines, 
+  createMachine, 
+  updateMachine, 
+  deleteMachine,
+  addMachineFromSocket 
+} from '../../features/machineSlice';
 import MachineForm from '../../Components/machineComponents/machineForm';
-// ... existing imports ...
-import { addMachineFromSocket } from '../../features/machineSlice';
-import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
 import io from 'socket.io-client';
+import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
+import SearchBar from '../../Components/common/SearchBar';
+import Pagination from '../../Components/common/Pagination';
+import useSearchAndPagination from '../../hooks/useSearchAndPagination';
+import { toast } from 'react-toastify';
+
 const CreateMachinePage = () => {
   const dispatch = useDispatch();
   const machines = useSelector((state) => state.machines.machines || []);
@@ -13,48 +22,45 @@ const CreateMachinePage = () => {
   const [editingMachine, setEditingMachine] = useState(null);
   const socket = io("http://localhost:5000"); // Replace with your server URL
  
+  // Initialize search and pagination
+  const {
+    searchTerm,
+    currentPage,
+    currentItems: currentMachines,
+    totalPages,
+    handleSearchChange,
+    handlePageChange,
+    totalItems
+  } = useSearchAndPagination(machines, 7, ['machine_name', 'machine_type']);
 
   useEffect(() => {
     dispatch(fetchMachines());
-    socket.on("connect", () => {
-      console.log("Connected to WebSocket server:", socket.id);
-    });
-    //   socket.on('machineCreated', (newMachine) => {
-    //   dispatch({ type: 'machines/createMachine/fulfilled', payload: newMachine });
-    // });
+
     socket.on('machineCreated', (data) => {
-      // Use the new action instead of dispatching fulfilled action
       dispatch(addMachineFromSocket(data));
+      toast.success('New machine added');
     });
 
-
-    // socket.on('machineUpdated', ({ machineId, updatedData }) => {
-    //   const updatedMachine = { _id: machineId, ...updatedData };
-    //   console.log('Machine updated:', updatedMachine);
-    //   dispatch({
-    //     type: 'machines/updateMachine/fulfilled',
-    //     payload: updatedMachine,
-    //   });
-    // });
     socket.on('machineUpdated', ({ machineId, updatedData }) => {
-      // Instead of directly dispatching to Redux, use the action creator
       dispatch({
         type: 'machines/updateMachine/fulfilled',
         payload: { _id: machineId, ...updatedData }
       });
+      toast.success('Machine updated');
     });
-    
 
     socket.on('machineDeleted', (deletedMachineId) => {
-      console.log('Deleted machine:', deletedMachineId);
-      dispatch({ type: 'machines/deleteMachine/fulfilled', payload: { id: deletedMachineId } });
+      dispatch({ 
+        type: 'machines/deleteMachine/fulfilled', 
+        payload: { id: deletedMachineId } 
+      });
+      toast.success('Machine deleted');
     });
 
     return () => {
       socket.off('machineCreated');
       socket.off('machineUpdated');
       socket.off('machineDeleted');
-      socket.disconnect();
     };
   }, [dispatch]);
 
@@ -69,90 +75,130 @@ const CreateMachinePage = () => {
   };
 
   const handleDeleteClick = async (machineId) => {
-    await dispatch(deleteMachine(machineId));
-    socket.emit('deleteMachine', machineId); // Emit the delete event to the server
+    try {
+      await dispatch(deleteMachine(machineId)).unwrap();
+      socket.emit('deleteMachine', machineId);
+    } catch (error) {
+      toast.error(`Failed to delete machine: ${error.message}`);
+    }
   };
 
   const handleFormSubmit = async (machineData) => {
     try {
       if (editingMachine) {
-        const result =await dispatch(updateMachine({ machineId: editingMachine._id, updatedData: machineData })).unwrap();
-        // socket.emit('updateMachine', { machineId: editingMachine._id, updatedData: machineData });
-         // Only emit socket event if update was successful
-         if (result) {
+        const result = await dispatch(updateMachine({ 
+          machineId: editingMachine._id, 
+          updatedData: machineData 
+        })).unwrap();
+        
+        if (result) {
           socket.emit('updateMachine', { 
             machineId: editingMachine._id, 
             updatedData: machineData 
           });
         }
       } else {
-       
-        const createdMachine = await dispatch(createMachine(machineData));
-        socket.emit('createMachine', createdMachine); // Emit the create event to the server
+        const createdMachine = await dispatch(createMachine(machineData)).unwrap();
+        socket.emit('createMachine', createdMachine);
       }
       setShowForm(false);
+      setEditingMachine(null);
     } catch (error) {
-      console.error("Failed to submit form:", error);
+      toast.error(`Failed to submit form: ${error.message}`);
     }
   };
- 
+
   return (
-    <div className="container mx-auto md:mx-96 lg:ml-72 p-4">
-      {/* Header with Add Button */}
-      <div className="flex md:flex-row justify-between items-center mb-4 space-y-2 md:space-y-0">
-        <h2 className="text-xl p-1 rounded-md bg-blue-100 font-bold">Machines</h2>
+    <div className="container mx-auto md:mx-2 lg:ml-72 p-4">
+      {/* Header with Search and Add Button */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-4 space-y-2 md:space-y-0">
+        <h2 className="text-xl sm:text-2xl border p-1 rounded-md bg-blue-100 font-bold">Machines</h2>
+        
+        <SearchBar 
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
+          placeholder="Search machines..."
+        />
+
         <button
           onClick={handleAddClick}
-          className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 flex items-center space-x-2"
+          className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition flex items-center space-x-2"
         >
-          <FaPlus className="w-4 h-4" />
-          <span>Add Machine</span>
+          <FaPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="text-sm sm:text-base">Add Machine</span>
         </button>
       </div>
-  
+
       {/* Machine List */}
       <div className="space-y-4">
-      {machines.length > 0 ? (
-          machines.map((machine) => (
-            <div
-              key={machine._id} // Use just the ID as the key
-              className="p-4 border rounded shadow flex flex-col md:flex-row justify-between items-start md:items-center"
-            >
-              <div className="flex-grow">
-                <h3 className="text-lg font-semibold">{machine.machine_name}</h3>
-                <p className="text-gray-600">Type: {machine.machine_type}</p>
+        {Array.isArray(currentMachines) && currentMachines.length > 0 ? (
+          currentMachines.map((machine) => (
+            machine && machine._id ? (
+              <div
+                key={machine._id}
+                className="p-4 border rounded shadow flex flex-col md:flex-row justify-between items-start md:items-center"
+              >
+                <div className="flex-grow">
+                  <h3 className="text-lg font-semibold">{machine.machine_name}</h3>
+                  <p className="text-gray-600">Type: {machine.machine_type}</p>
+                </div>
+                <div className="flex space-x-3 mt-2 md:mt-0"> 
+                  <button 
+                    onClick={() => handleEditClick(machine)} 
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    <FaEdit className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteClick(machine._id)} 
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <FaTrash className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-              <div className="flex space-x-3"> 
-                <button onClick={() => handleEditClick(machine)} className="text-blue-500 hover:text-blue-700">
-                  <FaEdit />
-                </button>
-                <button onClick={() => handleDeleteClick(machine._id)} className="text-red-500 hover:text-red-700">
-                  <FaTrash />
-                </button>
-              </div>
-            </div>
+            ) : null
           ))
         ) : (
           <p className="text-gray-600">No machines available</p>
         )}
       </div>
-  
-      {/* Machine Form for Adding/Editing */}
+
+      {/* Pagination */}
+      <Pagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        itemsPerPage={7}
+        totalItems={totalItems}
+      />
+
+      {/* Machine Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
-            {/* MachineForm Component */}
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl font-bold"
+              onClick={() => {
+                setShowForm(false);
+                setEditingMachine(null);
+              }}
+            >
+              ×
+            </button>
             <MachineForm
               onSubmit={handleFormSubmit}
               machine={editingMachine}
-              onClose={() => setShowForm(false)}
+              onClose={() => {
+                setShowForm(false);
+                setEditingMachine(null);
+              }}
             />
           </div>
         </div>
       )}
     </div>
   );
-
 };
 
 export default CreateMachinePage;

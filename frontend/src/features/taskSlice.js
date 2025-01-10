@@ -146,6 +146,13 @@ const taskSlice = createSlice({
     setTaskView: (state, action) => {
       state.currentView = action.payload; // Update the view (e.g., 'allTasks' or 'userTasks')
     },
+    addTaskFromSocket: (state, action) => {
+      console.log("addTaskFromSocket",action.payload)   
+      const newTask = action.payload;
+      if (!state.tasks.find(task => task._id === newTask._id)) {
+        state.tasks.push(newTask);
+      }
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -154,12 +161,6 @@ const taskSlice = createSlice({
       })
       .addCase(createTask.fulfilled, (state, action) => {
         state.status = 'succeeded';
-  console.log('State before adding task:', state.tasks);
-  console.log('Create Task Payload:', action.payload);
-
-  state.tasks = [...state.tasks, action.payload];
-  console.log('State after adding task:', state.tasks);
-
       })
       .addCase(createTask.rejected, (state, action) => {
         state.status = 'failed';
@@ -233,6 +234,6 @@ const taskSlice = createSlice({
       
   },
 });
-export const { setTaskView } = taskSlice.actions;
+export const { setTaskView,addTaskFromSocket } = taskSlice.actions;
 
 export default taskSlice.reducer;

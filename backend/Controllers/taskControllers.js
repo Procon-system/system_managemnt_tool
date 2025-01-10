@@ -78,6 +78,15 @@ const createTask = async (req, res) => {
     // Pass the sanitized task data and file to the service (file may be null)
     const result = await taskService.createTask(sanitizedTaskData, req.file);
     console.log("created task",result);
+     // Emit socket event for task creation
+     if (io) {
+      io.emit('taskCreated', {
+        newTask: result.taskData
+      });
+      console.log('Task created and event emitted:', result.taskData);
+    } else {
+      console.error("Socket.IO instance is not set in taskController");
+    }
     res.status(201).json(result);
   } catch (error) {
     console.error("Error creating task:", error);

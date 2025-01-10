@@ -77,33 +77,53 @@ export const deleteFacility = createAsyncThunk(
 const facilitySlice = createSlice({
   name: 'facilities',
   initialState: { facilities: [], status: 'idle', error: null },
-  reducers: {},
+  reducers: {
+    facilityCreated: (state, action) => {
+      if (action.payload.newFacility) {
+        state.facilities.push(action.payload.newFacility);
+      }
+    },
+    facilityUpdated: (state, action) => {
+      const { updatedData } = action.payload;
+      const index = state.facilities.findIndex(facility => facility._id === updatedData._id);
+      if (index !== -1) {
+        state.facilities[index] = updatedData;
+      }
+    },
+    facilityDeleted: (state, action) => {
+      const deletedId = action.payload;
+      state.facilities = state.facilities.filter(facility => facility._id !== deletedId);
+    }
+  },
   extraReducers: (builder) => {
     builder
-      .addCase(createFacility.pending, (state) => { state.status = 'loading'; })
+      .addCase(createFacility.pending, (state) => {
+        state.status = 'loading';
+      })
       .addCase(createFacility.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.facilities.push(action.payload);
       })
       .addCase(createFacility.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       })
-      .addCase(fetchFacilities.pending, (state) => { state.status = 'loading'; })
+      .addCase(fetchFacilities.pending, (state) => {
+        state.status = 'loading';
+      })
       .addCase(fetchFacilities.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.facilities = action.payload;
       })
+      .addCase(fetchFacilities.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
       .addCase(updateFacility.fulfilled, (state, action) => {
-        const index = state.facilities.findIndex(facility => facility.id === action.payload.id);
-        if (index !== -1) {
-          state.facilities[index] = action.payload;
-        }
       })
       .addCase(deleteFacility.fulfilled, (state, action) => {
-        state.facilities = state.facilities.filter(facility => facility.id !== action.payload.id);
       });
   },
 });
 
+export const { facilityCreated, facilityUpdated, facilityDeleted } = facilitySlice.actions;
 export default facilitySlice.reducer;

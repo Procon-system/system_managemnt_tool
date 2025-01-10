@@ -18,7 +18,12 @@ const createTool = async (toolData) => {
     };
 
     const response = await db.insert(newTool);
-    return response;
+    if (!response || !response.ok) {
+      throw new Error('Failed to save created material to the database');
+    }
+    console.log("response",response)
+    return newTool;
+    // return response;
   } catch (error) {
     throw new Error(`Error creating tool: ${error.message}`);
   }
@@ -56,8 +61,11 @@ const updateTool = async (id, updateData) => {
       updated_at: new Date().toISOString(),
     };
     const response = await db.insert(updatedTool);
-    console.log('Tool updated:', response);
-    return response;
+        if (!response || !response.ok) {
+      throw new Error('Failed to save updated tool to the database');
+    }
+    
+    return updatedTool;
   } catch (error) {
     console.error('Error updating tool:', error.message);
     throw error;
