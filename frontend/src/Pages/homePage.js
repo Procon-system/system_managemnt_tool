@@ -46,7 +46,7 @@ const HomePage = () => {
         eventsRef.current = updatedEvents; // Sync with ref
         return updatedEvents; // Update state
       }
-      
+       console.log("updated",updatedEvent)
       // Handle update or addition
       if (updatedEvent && updatedEvent._id && updatedEvent.title) {
         const eventMap = new Map(
@@ -65,7 +65,7 @@ const HomePage = () => {
             (event.end_time || event.end)
         );
         eventsRef.current = updatedEvents; // Sync with ref
-       
+       console.log("evevnts ref", eventsRef.current)
         return updatedEvents;
       }
       console.log("currentEvents",currentEvents)
@@ -87,19 +87,32 @@ const HomePage = () => {
     });
     
    // Listen for task creations
-   socket.on("taskCreated", (broadcastData) => {
-    const newTask = broadcastData;
-     console.log("broadcastTask",broadcastData)
-     dispatch(addTaskFromSocket(newTask));
-  if (!newTask) {
-    console.error("Invalid task creation broadcast data:", broadcastData);
-    return; // Skip invalid broadcasts
-  }
-  if (!filteredEvents.some(event => event._id === newTask._id)) {
-    console.log("newTask",newTask)
-    updateEventState(newTask.newTask);
-  }
+  //  socket.on("taskCreated", (broadcastData) => {
+  //   const newTask = broadcastData;
+  //    console.log("broadcastTask",broadcastData)
+  //    dispatch(addTaskFromSocket(newTask));
+  // if (!newTask) {
+  //   console.error("Invalid task creation broadcast data:", broadcastData);
+  //   return; // Skip invalid broadcasts
+  // }
+  // if (!filteredEvents.some(event => event._id === newTask._id)) {
+  //   console.log("newTask",newTask)
+  //   updateEventState(newTask.newTask);
+  // }
   
+  // });
+  socket.on("taskCreated", (broadcastData) => {
+    const newTask = broadcastData?.newTask;
+    console.log("brodcastData",broadcastData , "neww",newTask)
+    if (!newTask) {
+      console.error("Invalid task creation broadcast data:", broadcastData);
+      return; // Skip invalid broadcasts
+    }
+  
+    // Ensure the task is not duplicated
+    if (!filteredEvents.some(event => event._id === newTask._id)) {
+      updateEventState(newTask);
+    }
   });
 socket.on("taskDeleted", (taskId) => {
   console.log("Task deletion received:", taskId);
@@ -156,7 +169,6 @@ useEffect(() => {
   }
 }, [calendarEvents, isInitialized]);
 
-
 // First useEffect for fetching tasks
 useEffect(() => {
   if (currentView === 'allTasks') {
@@ -203,25 +215,34 @@ useEffect(() => {
   }
 }, [calendarEvents, currentView, deletedTaskIds, user?._id]);
 
-  const handleEventCreate = async (newEvent) => {
-    try {
-    const resultAction = await dispatch(createTask(newEvent));
-     if (createTask.fulfilled.match(resultAction)) {
+  // const handleEventCreate = async (newEvent) => {
+  //   try {
+  //   const resultAction = await dispatch(createTask(newEvent));
+  //    if (createTask.fulfilled.match(resultAction)) {
      
-      // socket.emit("createTask", resultAction);
-      toast.success("Task created successfully!");
-    } else if (createTask.rejected.match(resultAction)) {
-      // Handle error
-      const errorMessage =
-        resultAction.payload || "Failed to create task. Please try again.";
-      toast.error(errorMessage);
-    }
-  } catch (error) {
-    // Handle unexpected errors
-    toast.error("An unexpected error occurred. Please try again.");
-  }
+  //     // socket.emit("createTask", resultAction);
+  //     toast.success("Task created successfully!");
+  //   } else if (createTask.rejected.match(resultAction)) {
+  //     // Handle error
+  //     const errorMessage =
+  //       resultAction.payload || "Failed to create task. Please try again.";
+  //     toast.error(errorMessage);
+  //   }
+  // } catch (error) {
+  //   // Handle unexpected errors
+  //   toast.error("An unexpected error occurred. Please try again.");
+  // }
+  // };
+  const handleEventCreate = (newEvent) => {
+    dispatch(createTask(newEvent))
+      .then((createdTask) => {
+        console.log("Task successfully created on backend, emitting WebSocket event...");
+        socket.emit("createTask", createdTask);
+      })
+      .catch((err) => {
+        console.error("Task creation failed:", err);
+      });
   };
-  
   const handleDateRangeSelect = (startDate, endDate) => {
     if (!startDate || !endDate) {
       // Reset to all events when no date range is selected
