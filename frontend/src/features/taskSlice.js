@@ -1,4 +1,3 @@
-
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import taskService from '../Services/taskService';
 import checkTokenExpiration from "../Helper/checkTokenExpire";
@@ -134,6 +133,30 @@ export const deleteTask = createAsyncThunk(
   }
 );
 
+export const bulkUpdateTasks = createAsyncThunk(
+  'tasks/bulkUpdateTasks',
+  async (tasksData, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      if (checkTokenExpiration(token)) {
+        window.Storage.dispatch(logout()); 
+        toast.error("Your session has expired. Please log in again.");
+        return null;
+      }
+      const results = await taskService.bulkUpdateTasks(tasksData, token);
+      console.log("results",results)
+      // Filter successful updates
+      const successfulUpdates = results.filter(result => result.status === 'success')
+                                     .map(result => result.updatedTask);
+      
+      return successfulUpdates;
+    } catch (error) {
+      console.log("error",error)
+      return rejectWithValue(error.response?.data || 'Error updating tasks');
+    }
+  }
+);
+
 const taskSlice = createSlice({
   name: 'tasks',
   initialState: {
@@ -152,7 +175,7 @@ const taskSlice = createSlice({
       if (!state.tasks.find(task => task._id === newTask._id)) {
         state.tasks.push(newTask);
       }
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -235,6 +258,32 @@ const taskSlice = createSlice({
       .addCase(getAllDoneTasks.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      .addCase(bulkUpdateTasks.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(bulkUpdateTasks.fulfilled, (state, action) => {
+        const results = action.payload;
+        if (Array.isArray(results)) {
+          results.forEach(result => {
+            if (result.status === 'success' && result.updatedTask) {
+              const index = state.tasks.findIndex(task => task._id === result.updatedTask._id);
+              if (index !== -1) {
+                state.tasks[index] = {
+                  ...state.tasks[index],
+                  ...result.updatedTask,
+                  start: result.updatedTask.start_time,
+                  end: result.updatedTask.end_time
+                };
+              }
+            }
+          });
+        }
+      })
+      .addCase(bulkUpdateTasks.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload || 'Failed to update tasks';
       });
       
   },

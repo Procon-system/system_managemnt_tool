@@ -10,7 +10,7 @@ import {
   getAllDoneTasks, 
   deleteTask,
   getTasksDoneByAssignedUser ,
-  addTaskFromSocket 
+  bulkUpdateTasks
 } from '../features/taskSlice';
 import { toast } from 'react-toastify';
 import TaskPage from './Task/createTaskPage';
@@ -32,7 +32,9 @@ const HomePage = () => {
   const eventsRef = useRef([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
+  const [isUpdating, setIsUpdating] = useState(false);
    const updateEventState = (updatedEvent = null, deletedEventId = null) => {
+    console.log("updatedEvent",updatedEvent)
     setFilteredEvents((prevEvents) => {
       let currentEvents = prevEvents || tasks || [];
       
@@ -86,21 +88,6 @@ const HomePage = () => {
     updateEventState(updatedTask);
     });
     
-   // Listen for task creations
-  //  socket.on("taskCreated", (broadcastData) => {
-  //   const newTask = broadcastData;
-  //    console.log("broadcastTask",broadcastData)
-  //    dispatch(addTaskFromSocket(newTask));
-  // if (!newTask) {
-  //   console.error("Invalid task creation broadcast data:", broadcastData);
-  //   return; // Skip invalid broadcasts
-  // }
-  // if (!filteredEvents.some(event => event._id === newTask._id)) {
-  //   console.log("newTask",newTask)
-  //   updateEventState(newTask.newTask);
-  // }
-  
-  // });
   socket.on("taskCreated", (broadcastData) => {
     const newTask = broadcastData?.newTask;
     console.log("brodcastData",broadcastData , "neww",newTask)
@@ -114,6 +101,67 @@ const HomePage = () => {
       updateEventState(newTask);
     }
   });
+  // Add the bulk update socket handler
+  socket.on("tasksUpdated", ({ updatedTasks }) => {
+    if (!Array.isArray(updatedTasks)) return;
+    console.log("updatedTasks", updatedTasks);
+  
+    try {
+      // Backup the current state before making any changes
+      const currentEvents = [...filteredEvents];  // Define currentEvents here
+  
+      // Batch update all events at once
+      setFilteredEvents(prevEvents => {
+        const eventMap = new Map(prevEvents.map(event => [event._id, event]));
+  
+        updatedTasks.forEach(task => {
+          const taskData = task.updatedTask || task;
+  
+          // Properly format the task data
+          const formattedTask = {
+            _id: taskData._id,  // Ensure _id is used for uniqueness
+            title: taskData.title,
+            start: taskData.start_time || taskData.start,
+            end: taskData.end_time || taskData.end,
+            color: taskData.color || taskData.color_code, // Fallback to color_code if color is not present
+            status: taskData.status,
+            notes: taskData.notes,
+            assigned_resources: {
+              assigned_to: taskData.assigned_to || [],
+              tools: taskData.tools || [],
+              materials: taskData.materials || [],
+            },
+          };
+  
+          // Check if the task already exists in the map, then update or add it
+          if (eventMap.has(formattedTask._id)) {
+            eventMap.set(formattedTask._id, {
+              ...eventMap.get(formattedTask._id),
+              ...formattedTask,  // Merge the old and new task properties
+            });
+          } else {
+            eventMap.set(formattedTask._id, formattedTask); // Add new task if not found
+          }
+        });
+  
+        // Convert the map back to an array and return
+        const updatedEvents = Array.from(eventMap.values());
+  
+        // Ensure valid events before updating the state
+        return updatedEvents.length > 0 ? updatedEvents : prevEvents; // Return prevEvents if updatedEvents is empty
+      });
+  
+    } catch (error) {
+      console.error("Error processing task updates:", error);
+  
+      // If an error occurs, restore the previous state
+      setFilteredEvents(filteredEvents); // Restore the filteredEvents state
+  
+      toast.error("Failed to update tasks. Please try again.");
+    }
+  });
+  
+  
 socket.on("taskDeleted", (taskId) => {
   console.log("Task deletion received:", taskId);
 
@@ -129,6 +177,7 @@ socket.on("taskDeleted", (taskId) => {
     socket.off("taskUpdated");
     socket.off("taskCreated");
     socket.off("taskDeleted");
+    socket.off("tasksUpdated");
     socket.disconnect();
   };
 }, []);
@@ -215,29 +264,79 @@ useEffect(() => {
   }
 }, [calendarEvents, currentView, deletedTaskIds, user?._id]);
 
-  // const handleEventCreate = async (newEvent) => {
-  //   try {
-  //   const resultAction = await dispatch(createTask(newEvent));
-  //    if (createTask.fulfilled.match(resultAction)) {
-     
-  //     // socket.emit("createTask", resultAction);
-  //     toast.success("Task created successfully!");
-  //   } else if (createTask.rejected.match(resultAction)) {
-  //     // Handle error
-  //     const errorMessage =
-  //       resultAction.payload || "Failed to create task. Please try again.";
-  //     toast.error(errorMessage);
-  //   }
-  // } catch (error) {
-  //   // Handle unexpected errors
-  //   toast.error("An unexpected error occurred. Please try again.");
-  // }
-  // };
+const handleMultipleEventUpdate = (updatedEvents) => {
+  if (!Array.isArray(updatedEvents) || updatedEvents.length === 0) {
+    toast.error("No valid events to update.");
+    return;
+  }
+
+  // Store current state as backup
+  const backupEvents = [...filteredEvents];
+
+  // Process each updated event
+  updatedEvents.forEach((updatedEvent) => {
+    if (updatedEvent._id) {
+      if (updatedEvent.status) {
+        updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
+      }
+
+      // Dispatch the update for each event
+      dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }))
+        .catch((err) => {
+          toast.error("Failed to update task. Please try again.");
+          console.error("Task update failed:", err);
+        });
+    }
+  });
+
+  // Emit all updated tasks at once to the server using the socket instance
+  if (socket) {
+    socket.emit("updateMultipleTasks", updatedEvents);
+    console.log("Emitted multiple task updates to the server.");
+  } else {
+    console.error("Socket instance is not available.");
+    toast.error("Unable to emit updates. Socket connection not found.");
+  }
+
+  // Once all updates are dispatched, update the local state with the new tasks
+  setFilteredEvents((prevEvents) => {
+    let currentEvents = prevEvents || tasks || [];
+
+    // Create a map of the current events by task ID
+    const eventMap = new Map(currentEvents.map((event) => [event._id, event]));
+
+    // Iterate over the updated events and update them in the event map
+    updatedEvents.forEach((updatedEvent) => {
+      if (updatedEvent._id && updatedEvent.title) {
+        eventMap.set(updatedEvent._id, {
+          ...eventMap.get(updatedEvent._id),
+          ...updatedEvent,
+        });
+      }
+    });
+
+    // Filter out any deleted tasks (if you have a deletedTaskIds set)
+    const updatedFilteredEvents = Array.from(eventMap.values()).filter(
+      (event) =>
+        !deletedTaskIds.has(event._id) && // Exclude deleted tasks
+        event._id && event.title && (event.start_time || event.start) && (event.end_time || event.end)
+    );
+
+    eventsRef.current = updatedFilteredEvents; // Sync with ref
+    console.log("Updated events in eventsRef", eventsRef.current);
+    return updatedFilteredEvents; // Update state with the new filtered events
+  });
+
+  toast.success("Tasks updated successfully!");
+};
+
+
+
   const handleEventCreate = (newEvent) => {
     dispatch(createTask(newEvent))
       .then((createdTask) => {
-        console.log("Task successfully created on backend, emitting WebSocket event...");
         socket.emit("createTask", createdTask);
+        toast.success("Task updated successfully!");
       })
       .catch((err) => {
         console.error("Task creation failed:", err);
@@ -357,6 +456,7 @@ useEffect(() => {
         onEventUpdate={handleEventUpdate}
         openForm={openEditForm}
         updateEventState={updateEventState}
+        onMultipleEventUpdate={handleMultipleEventUpdate}
         openCreateForm={openCreateForm}
       />
       {isCreateFormVisible && (

@@ -1,5 +1,4 @@
-
-import React, { useEffect, useRef ,useState,useMemo} from 'react';
+import React, { useEffect, useRef ,useState,useMemo,useCallback} from 'react';
 import Calendar from '@event-calendar/core';
 import DayGrid from '@event-calendar/day-grid';
 import Interaction from '@event-calendar/interaction';
@@ -8,29 +7,81 @@ import ResourceTimeGrid from '@event-calendar/resource-time-grid';
 import TimeGrid from '@event-calendar/time-grid';
 import ResourceTimeline from '@event-calendar/resource-timeline';
 import '@event-calendar/core/index.css';
-import { useSelector } from 'react-redux';
+import { useSelector} from 'react-redux';
 import { toast } from 'react-toastify';
+import promptForStartAndEndTime from './promptHelper';
+import { handleMonthBulkUpdate, handleWeekBulkUpdate, handleSingleEventUpdate } from './eventDropHandler';
+import {
+   handleEventDuplication, 
+  handleEventResize } from './calendarHandlers';
 
-  const EventCalendarWrapper = ({ events = [],onEventUpdate, updateEventState,setFilteredEvents,  onEventCreate, openForm, openCreateForm}) => {
+const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdate, updateEventState, setFilteredEvents, onEventCreate, openForm, openCreateForm }) => {
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
-  const user =useSelector((state) => state.auth);
+  const user = useSelector((state) => state.auth);
   const currentDateRef = useRef(new Date()); // Initialize with a default value
-
-const handleDateChange = (args) => {
-  try {
-    currentDateRef.current = args.start; // Update the ref with the new start date
-  } catch (err) {
-    console.error('Error in handleDateChange:', err);
-  }
-};
- const mappedEvents = events.map(event => ({
+  const [selectedEvents, setSelectedEvents] = useState(new Set());
+  const selectedEventsRef = useRef(new Set()); // Add this ref to persist selection
+  const dragStartPositionsRef = useRef(new Map());
+  const [calendarDate, setCalendarDate] = useState(new Date());  // Default to today's date
+  const handleDateChange = (args) => {
+    console.log("args.start:", args.start.toISOString());
+    console.log("calendarDate (before update):", calendarDate.toISOString());
+  
+    try {
+      const currentView = args.view.type;
+      console.log("currentView:", currentView);
+  
+      let normalizedArgsStart;
+      let normalizedCalendarDate;
+  
+      // if (currentView === "dayGridMonth") {
+      //   console.log("args",args)
+      //   const argsYear = args.start.getFullYear();
+      //   const argsMonth = args.start.getMonth() +1;
+      //   const calendarYear = calendarDate.getFullYear();
+      //   const calendarMonth = calendarDate.getMonth();
+      //   console.log("argsmonth",argsMonth);
+      //   console.log("calendarMonth",calendarMonth)
+      //   if (argsYear !== calendarYear || argsMonth !== calendarMonth) {
+      //     // Create a new Date object with the correct year and month from args.start
+      //     const updatedDate = new Date(argsYear, argsMonth, 1); 
+      //     console.log("Updating calendarDate to:", updatedDate.toISOString());
+      //     setCalendarDate(updatedDate);
+      //   } else {
+      //     console.log("No update needed, dates match.");
+      //   }
+      if (currentView === "dayGridMonth") {
+        const viewStartYear = args.view.currentStart.getFullYear();
+        const viewStartMonth = args.view.currentStart.getMonth();
+        const updatedDate = new Date(viewStartYear, viewStartMonth, 1); 
+        console.log("Updating calendarDate to:", updatedDate.toISOString());
+        setCalendarDate(updatedDate);
+      } 
+       else {
+        // For week and day views, normalize to the start of the day
+        normalizedArgsStart = new Date(args.start).setHours(0, 0, 0, 0);
+        normalizedCalendarDate = new Date(calendarDate).setHours(0, 0, 0, 0);
+      }
+  
+      if (normalizedCalendarDate !== normalizedArgsStart) {
+        console.log("Updating calendarDate to:", new Date(normalizedArgsStart).toISOString());
+        setCalendarDate(new Date(normalizedArgsStart));
+        currentDateRef.current = new Date(normalizedArgsStart);
+      }
+  
+      console.log("calendarDate (after update):", calendarDate.toISOString());
+    } catch (err) {
+      console.error("Error in handleDateChange:", err);
+    }
+  };
+  const mappedEvents = events.map(event => ({
     _id: event._id,
-    start:  event.start_time || event.start || new Date(),
-    end:  event.end_time || event.end || new Date(),
+    start: event.start_time || event.start || new Date(),
+    end: event.end_time || event.end || new Date(),
     title: event.title || 'Untitled Event',
-    color: event.color ||event.color_code|| '#cccccc', // Default color
+    color: event.color || event.color_code || '#cccccc', // Default color
     allDay: event.allDay,
     resourceIds: [
       ...(event.assigned_resources?.assigned_to || [])
@@ -55,78 +106,207 @@ const handleDateChange = (args) => {
       },
     },
   }));
-  const groupedAssignedResources = useMemo(() => [
-    {
-      id: 'assignedUsers',
-      title: 'Assigned Users',
-      children: (events || []).flatMap(event =>
-        (event.assigned_resources?.assigned_to || [])
-          .filter(user => user?._id)
-          .map(user => ({
-            id: user._id,
-            title: `${user.first_name || 'Unknown'} ${user.last_name || 'Unknown'}`,
-            parent: 'assignedUsers',
-          }))
-      ),
-    },
-    {
-      id: 'tools',
-      title: 'Tools',
-      children: (events || []).flatMap(event =>
-        (event.assigned_resources?.tools || [])
-          .filter(tool => tool?._id)
-          .map(tool => ({
-            id: tool._id,
-            title: tool.tool_name || 'Unknown Tool',
-            parent: 'tools',
-          }))
-      ),
-    },
-    {
-      id: 'materials',
-      title: 'Materials',
-      children: (events || []).flatMap(event =>
-        (event.assigned_resources?.materials || [])
-          .filter(material => material?._id)
-          .map(material => ({
-            id: material._id,
-            title: material.material_name || 'Unknown Material',
-            parent: 'materials',
-          }))
-      ),
-    },
-  ], [events]);
+  const groupedAssignedResources = useMemo(() => {
+    // Create Sets to track unique IDs
+    const uniqueUserIds = new Set();
+    const uniqueToolIds = new Set();
+    const uniqueMaterialIds = new Set();
+
+    // Helper function to add unique resources
+    const addUniqueResources = (resources, idSet) => {
+      const uniqueResources = [];
+      resources.forEach(resource => {
+        if (resource?._id && !idSet.has(resource._id)) {
+          idSet.add(resource._id);
+          uniqueResources.push(resource);
+        }
+      });
+      return uniqueResources;
+    };
+
+    // Get all unique resources across all events
+    const uniqueUsers = [];
+    const uniqueTools = [];
+    const uniqueMaterials = [];
+
+    events.forEach(event => {
+      if (event.assigned_resources) {
+        // Add unique users
+        const users = addUniqueResources(
+          event.assigned_resources.assigned_to || [],
+          uniqueUserIds
+        );
+        uniqueUsers.push(...users);
+
+        // Add unique tools
+        const tools = addUniqueResources(
+          event.assigned_resources.tools || [],
+          uniqueToolIds
+        );
+        uniqueTools.push(...tools);
+
+        // Add unique materials
+        const materials = addUniqueResources(
+          event.assigned_resources.materials || [],
+          uniqueMaterialIds
+        );
+        uniqueMaterials.push(...materials);
+      }
+    });
+
+    return [
+      {
+        id: 'assignedUsers',
+        title: 'Assigned Users',
+        children: uniqueUsers.map(user => ({
+          id: user._id,
+          title: `${user.first_name || 'Unknown'} ${user.last_name || 'Unknown'}`,
+          parent: 'assignedUsers',
+        })),
+      },
+      {
+        id: 'tools',
+        title: 'Tools',
+        children: uniqueTools.map(tool => ({
+          id: tool._id,
+          title: tool.tool_name || 'Unknown Tool',
+          parent: 'tools',
+        })),
+      },
+      {
+        id: 'materials',
+        title: 'Materials',
+        children: uniqueMaterials.map(material => ({
+          id: material._id,
+          title: material.material_name || 'Unknown Material',
+          parent: 'materials',
+        })),
+      },
+    ];
+  }, [events]);
   // Memoize assigned_resources to prevent unnecessary re-renders
   const assigned_resources = useMemo(() => [...groupedAssignedResources], [groupedAssignedResources]);
-
   const adjustTimeForBackend = (time, timezoneOffset) => {
-    const date = new Date(time);
-    date.setHours(date.getHours() + timezoneOffset);
-    return date.toISOString();
-  };   
-
+    try {
+      const date = new Date(time);
+      if (isNaN(date.getTime())) {
+        console.error('Invalid date input:', time);
+        return null;
+      }
+      // Add the timezone offset
+      const adjustedDate = new Date(date.getTime() + (timezoneOffset * 60 * 60 * 1000));
+      return adjustedDate.toISOString();
+    } catch (error) {
+      console.error('Error adjusting time:', error);
+      return null;
+    }
+  };
+  // Add this function to update event appearance
+  const updateEventAppearance = (eventId, isSelected) => {
+    console.log(`Updating appearance for event ${eventId}, selected: ${isSelected}`);
+    const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
+    if (eventElement) {
+      if (isSelected) {
+        eventElement.style.border = '2px solid #ff4444';
+        eventElement.style.boxShadow = '0 0 4px rgba(255, 68, 68, 0.5)';
+      } else {
+        eventElement.style.border = '';
+        eventElement.style.boxShadow = '';
+      }
+    }
+  };
   const handleViewChange = (view) => {
     setChangedView(view);
-    
   };
-  
- 
+
   useEffect(() => {
     if (calendarRef.current) {
+      console.log("calendarRef.current1",calendarRef.current)
     }
   }, [mappedEvents]);
-  const preserveCalendarView = () => {
-        const calendarApi = calendarRef.current?.getView();
-        console.log("calendarApi",calendarApi)
-        return calendarApi ? { date: calendarApi.currentStart, view: calendarApi.type } : null;
+
+  const preserveCalendarView = useCallback(() => {
+    const calendarApi = calendarRef.current?.getView();
+    if (calendarApi) {
+      return {
+        date: calendarApi.currentStart,
+        view: calendarApi.type,
+      };
+    }
+    return null;
+  }, [calendarRef]); // Ensure calendarRef is included in the dependency array
+  
+  const restoreCalendarView = useCallback((viewState) => {
+    const calendarApi = calendarRef.current;
+
+    if (calendarApi && viewState) {
+      console.log("viewState.date",viewState.date)
+      calendarApi.view.currentStart.setDate(viewState.date);
+      setCalendarDate(viewState.date);
+    }
+    console.log("date",calendarApi.view.currentStart)
+  }, [calendarRef]); // Ensure calendarRef is included in the dependency array
+  
+
+  const handleEventDrop = async (info) => {
+    if (user.access_level < 3) {
+      toast.error('You do not have permission to modify events.');
+      info.revert();
+      return;
+    }
+
+    const { event, jsEvent } = info;
+    const deltaMs = event.start.getTime() - info.oldEvent.start.getTime();
+    const selectedEventIds = Array.from(selectedEventsRef.current);
+    try {
+      if (selectedEventIds.length > 0 && !jsEvent.altKey) {
+        if (info.view.type === "dayGridMonth") {
+          await handleMonthBulkUpdate({
+            info,
+            event,
+            deltaMs,
+            selectedEventIds,
+            events,
+            calendarRef,
+            onMultipleEventUpdate,
+            clearEventSelection,
+            promptForStartAndEndTime
+          });
+        } else {
+          await handleWeekBulkUpdate({
+            info,
+            deltaMs,
+            selectedEventIds,
+            events,
+            onMultipleEventUpdate,
+            clearEventSelection,
+            calendarRef
+          });
+        }
+      } else if (jsEvent.altKey) {
+        await handleEventDuplication({
+          info,
+          onEventCreate,
+          adjustTimeForBackend,
+          preserveCalendarView,
+          restoreCalendarView
+        });
+      } else {
+        await handleSingleEventUpdate({
+          info,
+          onEventUpdate,
+          adjustTimeForBackend,
+          calendarRef
+        });
+      }
+    } catch (error) {
+      console.error('Error in event drop:', error);
+      info.revert();
+      toast.error('Failed to update event(s)');
+    }
+  
   };
   
-  const restoreCalendarView = (viewState) => {
-    const calendarApi = calendarRef.current?.getView();
-    if (calendarApi && viewState) {
-      calendarRef.current.setOption('date', viewState.date);
-    }
-     };
   useEffect(() => {
     if (!calendarContainer.current) return;
     // Destroy existing calendar to prevent multiple instances
@@ -137,38 +317,36 @@ const handleDateChange = (args) => {
       console.warn('Mapped events or grouped resources are not ready yet.');
       return;
     }
-      calendarRef.current = new Calendar({
+    calendarRef.current = new Calendar({
       target: calendarContainer.current,
       props: {
         plugins: [DayGrid, TimeGrid, List, ResourceTimeGrid, ResourceTimeline, Interaction],
         options: {
-          date: currentDateRef.current,
+          // date: currentDateRef.current,
+          date: calendarDate,
           view: changedView,
           selectable: true,
+          selectMirror: true,
+          unselectAuto: false,
           editable: true,
           eventStartEditable: true,
           eventDurationEditable: true,
           events: mappedEvents,
           resources: assigned_resources,
+          selectBackgroundColor: 'rgba(255, 68, 68, 0.2)',
           headerToolbar: {
             start: 'today,prev,next',
             center: 'title',
             end: 'year,month,week,day,list,resource,timeline',
           },
-          datesSet: (args) => {
-        try {
-           handleDateChange(args); // Ensure handler is valid
-        
-        } catch (err) {
-          console.error('Error in datesSet handler:', err);
-        }
-      },
+          datesSet: handleDateChange,
           views: {
             listYear: {
               type: 'list',
               duration: { months: 24 },
               buttonText: 'Year',
             },
+            
           },
           customButtons: {
             month: {
@@ -182,7 +360,6 @@ const handleDateChange = (args) => {
             day: {
               text: 'Day',
               click: () => handleViewChange('timeGridDay'),
-              
             },
             list: {
               text: 'List',
@@ -195,13 +372,16 @@ const handleDateChange = (args) => {
             resource: {
               text: 'Resource',
               click: () => handleViewChange('resourceTimeGridWeek'),
-              
             },
             timeline: {
               text: 'Timeline',
               click: () => handleViewChange('resourceTimelineDay'), // Corrected view name
             },
           },
+          eventClassNames: (arg) => {
+            return selectedEvents.has(arg.event.extendedProps._id) ? 'selected-event' : '';
+          },
+
           select: (info) => {
             if (user.access_level < 3) {
               toast.error('You do not have permission to create events.try logging in again');
@@ -213,7 +393,6 @@ const handleDateChange = (args) => {
             const adjustedEndTime = adjustTimeForBackend(end, timezoneOffset);
             // const generatedId = uuidv4();
             const newEvent = {
-              // _id: generatedId,
               start_time: adjustedStartTime,
               end_time: adjustedEndTime,
               // color_code: 'green',
@@ -222,12 +401,14 @@ const handleDateChange = (args) => {
             };
             openCreateForm(newEvent);
           },
+          eventResize: (info) => handleEventResize(info, user, onEventUpdate, adjustTimeForBackend),
+        
           dateClick: (info) => {
             if (user.access_level < 3) {
               toast.error('You do not have permission to create events. try logging in again');
               return;
             }
-            const timezoneOffset = 3; 
+            const timezoneOffset = 3;
             const adjustedStartTime = adjustTimeForBackend(info.date, timezoneOffset);
             const newEvent = {
               // _id: uuidv4(),
@@ -235,133 +416,200 @@ const handleDateChange = (args) => {
               // color_code: 'green',
               title: 'new task',
             };
-            openCreateForm(newEvent); // Open form with pre-filled start time
+             // Preserve the current view before opening the form
+  const currentViewState = preserveCalendarView();
+
+  openCreateForm(newEvent); // Open form with pre-filled start time
+
+  // Restore the calendar view after form submission (assuming successful)
+  if (currentViewState) {
+    restoreCalendarView(currentViewState);
+  }
+            // openCreateForm(newEvent); // Open form with pre-filled start time
           },
           eventClick: (info) => {
             if (user.access_level < 2) {
-              toast.error('You do not have permission to create events.');
+              toast.error('You do not have permission to modify events.');
               return;
             }
-             // Extract event details
-  const { event } = info;
-  const { extendedProps } = event;
-  const mongoId = extendedProps?._id || event.id;
-  // Construct updatedEvent with image and notes
-  const updatedEvent = {
-    _id: mongoId,
-    title: event.title,
-    start: event.start,
-    end: event.end,
-    color: event.backgroundColor,
-    image: extendedProps?.image || null, // Add image if available
-    notes: extendedProps?.notes || 'No notes available', // Add notes if available
-    status: extendedProps?.status || null,
-};
- 
-            openForm(updatedEvent);
-          },
-  eventResize: async (info) => {
-    if (user.access_level < 3) {
-      toast.error('You do not have permission to update events.');
-      return;
-    }
-  
-    const { event } = info;
-    const mongoId = event.extendedProps._id;
-  
-    if (!mongoId) {
-      toast.error('Event ID missing. Cannot update.');
-      info.revert();
-      return;
-    }
-  
-    const timezoneOffset = 3;
-    const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
-    const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
-  
-    const updatedEvent = {
-      _id: mongoId,
-      start_time: adjustedStartTime,
-      end_time: adjustedEndTime,
-      title: event.title,
-      color: event.backgroundColor,
-    };
-    try {
-      await onEventUpdate(updatedEvent);
-      // toast.success('Event updated successfully!');
-    } catch (error) {
-      console.error('Error updating event:', error);
-      info.revert();
-      toast.error('Failed to update event. Changes reverted.');
-    } 
-  },
-  
-          eventDrop: async (info) => {
-            if (user.access_level < 3) {
-              toast.error('You do not have permission to create events.');
-              return;
-            }
-            const { event, jsEvent } = info;
-            const timezoneOffset = 3;
-            const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
-            const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
-              if (jsEvent.altKey) {
-              const duplicatedEvent = {
-                ...jsEvent,
-                start_time: adjustedStartTime,
-                end_time: adjustedEndTime,
-                color_code: event.backgroundColor,
-                title: event.title,
-                status: event.extendedProps.status
-              };
-                // Use calendarRef to add the event directly to the calendar
-    if (calendarRef.current) {
-      calendarRef.current.addEvent(duplicatedEvent);
-    }
-    const viewState = preserveCalendarView();
-    console.log("viewState: ",preserveCalendarView())
-    if(await onEventCreate(duplicatedEvent)){
-    // Restore the view after updates
-    restoreCalendarView(preserveCalendarView());
-    console.log("viewState22: " , restoreCalendarView(preserveCalendarView()));
-  
 
-  }
+            const eventId = info.event.extendedProps._id;
+            console.log('Event clicked:', eventId);
+        
+            if (info.jsEvent.shiftKey || info.jsEvent.ctrlKey) {
+              info.jsEvent.preventDefault();
+              const newSelected = new Set(selectedEventsRef.current);
               
-            } else {
-              const mongoId = event.extendedProps._id; // Ensure this exists
-              const updatedEvent = {
-                _id: mongoId,
-                start_time: adjustedStartTime,
-                end_time: adjustedEndTime,
-                color: event.backgroundColor,
-                title: event.title,
-              };
-              // await onEventUpdate(updatedEvent);
-              try {
-                await onEventUpdate(updatedEvent);
-                // toast.success('Event updated successfully!');
-              } catch (error) {
-                console.error('Error updating event:', error);
-                info.revert();
-                toast.error('Failed to update event. Changes reverted.');
-              } 
+              if (newSelected.has(eventId)) {
+                newSelected.delete(eventId);
+                updateEventAppearance(eventId, false);
+              } else {
+                newSelected.add(eventId);
+                updateEventAppearance(eventId, true);
               }
+              
+              // Update both state and ref
+              selectedEventsRef.current = newSelected;
+              setSelectedEvents(newSelected);
+              console.log('Selected events:', Array.from(newSelected));
+            } else {
+              // Single select mode
+              if (selectedEvents.size > 0) {
+                clearEventSelection();
+              }
+              const { event } = info;
+              const { extendedProps } = event;
+              
+              const updatedEvent = {
+                _id: eventId,
+                title: event.title,
+                start: event.start,
+                end: event.end,
+                color: event.backgroundColor,
+                image: extendedProps?.image || null,
+                notes: extendedProps?.notes || 'No notes available',
+                status: extendedProps?.status || null,
+              };
+              openForm(updatedEvent);
+            }
           },
+          // Add this to ensure events have unique identifiers
+          eventDidMount: (info) => {
+            const eventElement = info.el;
+            const eventId = info.event.extendedProps._id;
+            eventElement.setAttribute('data-event-id', eventId);
+            
+            // Apply selection styling if event is selected
+            if (selectedEvents.has(eventId)) {
+              updateEventAppearance(eventId, true);
+            }
+          },
+
+          // Handle drag and drop
+          eventDragStart: (info) => {
+            const eventId = info.event.extendedProps._id;
+            const selectedEventIds = Array.from(selectedEventsRef.current);
+            console.log('Drag started:', eventId, 'Selected events:', selectedEventIds);
+
+            // Store initial positions of all selected events
+            dragStartPositionsRef.current.clear();
+            selectedEventIds.forEach(id => {
+                const event = calendarRef.current.getEventById(id);
+                if (event) {
+                    dragStartPositionsRef.current.set(id, {
+                        start: event.start,
+                        end: event.end
+                    });
+                }
+            });
+
+            // If the dragged event isn't in the selection, clear selection
+            if (!selectedEventIds.includes(eventId)) {
+                clearEventSelection();
+            }
+          },
+
+          eventDrag: (info) => {
+            const mainEventId = info.event.extendedProps._id;
+            const deltaMs = info.event.start.getTime() - info.event._instance.range.start.getTime();
+            
+            // Move all selected events together
+            selectedEventsRef.current.forEach(eventId => {
+                if (eventId !== mainEventId) { // Skip the main dragged event
+                    const eventToMove = calendarRef.current.getEventById(eventId);
+                    const startPosition = dragStartPositionsRef.current.get(eventId);
+                    
+                    if (eventToMove && startPosition) {
+                        const newStart = new Date(startPosition.start.getTime() + deltaMs);
+                        const newEnd = new Date(startPosition.end.getTime() + deltaMs);
+                        
+                        try {
+                            calendarRef.current.updateEvent({
+                                id: eventId,
+                                start: newStart,
+                                end: newEnd,
+                                allDay: eventToMove.allDay
+                            });
+                        } catch (error) {
+                            console.error('Error updating event position:', error);
+                        }
+                    }
+                }
+            });
+          },
+
+          
+          eventDrop: handleEventDrop,
+        
         },
       },
     });
-     // Update calendar view after currentDate change
-    }, [events, assigned_resources, changedView]);
- 
- 
-   return (
+    // Add this to your useEffect that handles styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .time-picker-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .time-picker-dialog input[type="time"] {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .time-picker-dialog button {
+            cursor: pointer;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .time-picker-dialog button:hover {
+            opacity: 0.8;
+        }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, [events, assigned_resources, changedView]);
+    // Update clearEventSelection to handle both state and ref
+    const clearEventSelection = useCallback(() => {
+      console.log('Clearing selection');
+      Array.from(selectedEventsRef.current).forEach(eventId => {
+        updateEventAppearance(eventId, false);
+      });
+      selectedEventsRef.current.clear();
+      setSelectedEvents(new Set());
+    }, []);
+  
+    // Add this effect to sync ref with state changes
+    useEffect(() => {
+      selectedEventsRef.current = new Set(selectedEvents);
+    }, [selectedEvents]);
+  
+  useEffect(() => {
+    return () => {
+        dragStartPositionsRef.current.clear();
+    };
+  }, []);
+
+  return (
     <>
       {/* Calendar Container */}
       <div ref={calendarContainer} id="ec" />
     </>
   );
 };
-
 
 export default EventCalendarWrapper;

@@ -125,6 +125,40 @@ const taskService = {
       throw error.response?.data || new Error('Error deleting task');
     }
   },
+  bulkUpdateTasks: async (tasksData, token) => {
+    console.log("tasksData comes",tasksData)  
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+      };
+      
+      // Format the data to match backend expectations
+      const taskUpdates = tasksData.map(task => ({
+        id: task._id,
+        updateData: {
+          start_time: task.start_time,
+          end_time: task.end_time,
+          color: task.color,
+          title: task.title,
+          updated_at: new Date().toISOString()
+        }
+      }));
+
+      const response = await axios.put(
+        `${API_URL}/bulk-update`,
+        { taskUpdates },
+        config
+      );
+      console.log("response",response.data)
+      return response.data.results // Return the updated tasks data
+    } catch (error) {
+      console.log("error service",error)
+      console.error('Error updating tasks:', error.response?.data || error.message);
+      throw error.response?.data || error.message || new Error('Error updating tasks');
+    }
+  },
 };
 
 

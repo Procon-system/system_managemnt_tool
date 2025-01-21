@@ -9,7 +9,9 @@ const {
     createTaskFromMachine,
     getTasksByAssignedUser,
     getAllDoneTasks,
+    bulkUpdateTasks,
     getDoneTasksForUser,
+    deleteBulkTasks,
   } = require('../Controllers/taskControllers');
   const {
     getImage
@@ -27,7 +29,9 @@ router.get('/get-image/:id', getImage);
 router.get('/get-all-tasks', getAllTasks);
 router.get('/get-tasks-id/:id',authenticateUser,isServicePersonal,getTaskById);
 router.put('/update-tasks/:id',authenticateUser,isServicePersonal,upload.single('image'),updateTask);
+router.put('/bulk-update',authenticateUser,isManager,bulkUpdateTasks);
 router.delete('/delete-tasks/:id', authenticateUser,isManager,deleteTask);
+router.delete('/bulk-delete', deleteBulkTasks);
 router.get('/get-tasks/assigned', authenticateUser,isServicePersonal,getTasksByAssignedUser);
 router.get('/get-tasks/done',getAllDoneTasks);
 router.get('/get-tasks/done/user',authenticateUser,isServicePersonal,getDoneTasksForUser);

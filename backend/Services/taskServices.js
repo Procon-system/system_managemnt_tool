@@ -2,6 +2,7 @@
 const { db } = require('../config/couchdb'); // Assuming the connection file is `couchConnection.js`
 const TaskModel = require('../Models/TaskSchema'); // Import the TaskModel schema
 const { saveAttachment } = require('./imageService');
+const getColorForStatus =require('../utils/getColorForStatus');
 const {incrementMaterialCount} = require('../utils/decIncLogic');
 /**
  * Format a task based on the TaskModel schema.
@@ -190,6 +191,48 @@ const updateTask = async (id, updateData, res) => {
     res.status(500).json({ error: 'Failed to update task', details: error.message });
   }
 };
+const bulkUpdateTasks = async (taskUpdates) => {
+  const results = [];
+
+  for (const { id, updateData } of taskUpdates) {
+    try {
+      // Fetch the existing task
+      const existingTask = await db.get(id);
+
+      if (!existingTask) {
+        results.push({ id, status: 'failed', message: 'Task not found' });
+        continue;
+      }
+
+      // Handle status change logic
+      if (updateData.status) {
+        updateData.color_code = getColorForStatus(updateData.status);
+
+        if (updateData.status === 'done' && existingTask.materials) {
+          await incrementMaterialCount(existingTask.materials);
+        }
+      }
+
+      // Merge updates with the existing task
+      const updatedTask = {
+        ...existingTask,
+        ...updateData,
+        _id: existingTask._id,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Save the updated task
+      const response = await db.insert(updatedTask);
+
+      results.push({ id, status: 'success', updatedTask: { ...updatedTask, _rev: response.rev } });
+    } catch (error) {
+      console.error(`Error updating task with ID ${id}:`, error.message);
+      results.push({ id, status: 'failed', message: error.message });
+    }
+  }
+
+  return results;
+};
 
 const deleteTask = async (id) => {
   try {
@@ -198,6 +241,32 @@ const deleteTask = async (id) => {
     return { id, message: 'Task deleted successfully' }; // Return ID and message
   } catch (error) {
     throw new Error(`Failed to delete task: ${error.message}`);
+  }
+};
+const deleteBulkTasks = async (ids) => {
+  try {
+    // Fetch documents to get their current `_rev` values
+    const tasksToDelete = await Promise.all(
+      ids.map(async (id) => {
+        const doc = await db.get(id); // Retrieve document
+        return { ...doc, _deleted: true }; // Mark document for deletion
+      })
+    );
+
+    // Use the `_bulk_docs` method to delete documents
+    const result = await db.bulkDocs(tasksToDelete);
+
+    // Filter results for success and failures
+    const deletedIds = result.filter((r) => r.ok).map((r) => r.id);
+    const errors = result.filter((r) => !r.ok);
+
+    return {
+      message: 'Bulk deletion completed',
+      deleted: deletedIds,
+      errors
+    };
+  } catch (error) {
+    throw new Error(`Failed to delete tasks: ${error.message}`);
   }
 };
 
@@ -456,10 +525,12 @@ module.exports = {
   getAllTasks,
   getTaskById,
   updateTask,
+  bulkUpdateTasks,
   deleteTask,
   getImage,
   fetchAllDoneTasks,
   fetchDoneTasksForUser,
   getTasksByAssignedUser,
   createTaskFromMachine,
+  deleteBulkTasks,
 };

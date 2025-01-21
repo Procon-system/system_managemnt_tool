@@ -249,6 +249,31 @@ const updateTask = async (req, res) => {
     res.status(400).json({ error: 'Failed to update task', details: error.message });
   }
 };
+const bulkUpdateTasks = async (req, res) => {
+  try {
+    const { taskUpdates } = req.body; // Array of updates
+   console.log("req.body",req.body)
+    if (!Array.isArray(taskUpdates) || taskUpdates.length === 0) {
+      return res.status(400).json({ error: 'Invalid or empty taskUpdates array' });
+    }
+
+    const results = await taskService.bulkUpdateTasks(taskUpdates);
+      // Emit socket event for task updates
+      if (io) {
+        io.emit('tasksUpdated', {
+          updatedTasks: results
+        });
+        console.log('Tasks updated and event emitted:', results);
+      }
+    res.status(200).json({
+      message: 'Bulk update completed',
+      results,
+    });
+  } catch (error) {
+    console.error('Error in bulkUpdateTasks controller:', error.message);
+    res.status(500).json({ error: 'Failed to perform bulk update', details: error.message });
+  }
+};
 const deleteAttachment = async (uuid, fileName) => {
   try {
     // Fetch the document containing the attachment
@@ -279,6 +304,21 @@ const deleteTask = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete task', details: error.message });
   }
 };
+const deleteBulkTasks = async (req, res) => {
+  try {
+    const { ids } = req.body; // Extract the array of IDs from the request body
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Invalid request, provide an array of IDs' });
+    }
+
+    const result = await taskService.deleteBulkTasks(ids); // Call the service with the array of IDs
+
+    res.status(200).json(result); // Return the result
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete tasks', details: error.message });
+  }
+};
 
 // Create a task from a machine object
 const createTaskFromMachine = async (req, res) => {
@@ -296,7 +336,9 @@ module.exports = {
   getAllTasks,
   getTaskById,
   updateTask,
+  bulkUpdateTasks,
   deleteTask,
+  deleteBulkTasks,
   getTasksByAssignedUser,
   getAllDoneTasks,
   getDoneTasksForUser,
