@@ -15,7 +15,7 @@ import {
    handleEventDuplication, 
   handleEventResize } from './calendarHandlers';
 
-const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdate, updateEventState, setFilteredEvents, onEventCreate, openForm, openCreateForm }) => {
+const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdate,calendarStartDate,calendarEndDate,updateEventState, setFilteredEvents, onEventCreate, openForm, openCreateForm }) => {
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
@@ -25,38 +25,18 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   const selectedEventsRef = useRef(new Set()); // Add this ref to persist selection
   const dragStartPositionsRef = useRef(new Map());
   const [calendarDate, setCalendarDate] = useState(new Date());  // Default to today's date
+ 
   const handleDateChange = (args) => {
-    console.log("args.start:", args.start.toISOString());
-    console.log("calendarDate (before update):", calendarDate.toISOString());
-  
+    
     try {
       const currentView = args.view.type;
-      console.log("currentView:", currentView);
-  
+      
       let normalizedArgsStart;
       let normalizedCalendarDate;
-  
-      // if (currentView === "dayGridMonth") {
-      //   console.log("args",args)
-      //   const argsYear = args.start.getFullYear();
-      //   const argsMonth = args.start.getMonth() +1;
-      //   const calendarYear = calendarDate.getFullYear();
-      //   const calendarMonth = calendarDate.getMonth();
-      //   console.log("argsmonth",argsMonth);
-      //   console.log("calendarMonth",calendarMonth)
-      //   if (argsYear !== calendarYear || argsMonth !== calendarMonth) {
-      //     // Create a new Date object with the correct year and month from args.start
-      //     const updatedDate = new Date(argsYear, argsMonth, 1); 
-      //     console.log("Updating calendarDate to:", updatedDate.toISOString());
-      //     setCalendarDate(updatedDate);
-      //   } else {
-      //     console.log("No update needed, dates match.");
-      //   }
       if (currentView === "dayGridMonth") {
         const viewStartYear = args.view.currentStart.getFullYear();
         const viewStartMonth = args.view.currentStart.getMonth();
         const updatedDate = new Date(viewStartYear, viewStartMonth, 1); 
-        console.log("Updating calendarDate to:", updatedDate.toISOString());
         setCalendarDate(updatedDate);
       } 
        else {
@@ -66,16 +46,14 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
       }
   
       if (normalizedCalendarDate !== normalizedArgsStart) {
-        console.log("Updating calendarDate to:", new Date(normalizedArgsStart).toISOString());
         setCalendarDate(new Date(normalizedArgsStart));
         currentDateRef.current = new Date(normalizedArgsStart);
       }
   
-      console.log("calendarDate (after update):", calendarDate.toISOString());
     } catch (err) {
       console.error("Error in handleDateChange:", err);
     }
-  };
+  }; console.log("mappped",events)
   const mappedEvents = events.map(event => ({
     _id: event._id,
     start: event.start_time || event.start || new Date(),
@@ -83,22 +61,38 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
     title: event.title || 'Untitled Event',
     color: event.color || event.color_code || '#cccccc', // Default color
     allDay: event.allDay,
-    resourceIds: [
-      ...(event.assigned_resources?.assigned_to || [])
-        .filter(user => user?._id) // Filter out invalid resources
-        .map(user => user._id),
-      ...(event.assigned_resources?.tools || [])
-        .filter(tool => tool?._id)
-        .map(tool => tool._id),
-      ...(event.assigned_resources?.materials || [])
-        .filter(material => material?._id)
-        .map(material => material._id),
+    // resourceIds: [
+    //   ...(event.assigned_resources?.assigned_to || [])
+    //     .filter(user => user?._id) // Filter out invalid resources
+    //     .map(user => user._id),
+    //   ...(event.assigned_resources?.tools || [])
+    //     .filter(tool => tool?._id)
+    //     .map(tool => tool._id),
+    //   ...(event.assigned_resources?.materials || [])
+    //     .filter(material => material?._id)
+    //     .map(material => material._id),
+    // ],
+    resourceIds : [
+      ...(Array.isArray(event.assigned_resources?.assigned_to) 
+        ? event.assigned_resources.assigned_to.filter(user => user?._id).map(user => user._id) 
+        : []),
+      ...(Array.isArray(event.assigned_resources?.tools) 
+        ? event.assigned_resources.tools.filter(tool => tool?._id).map(tool => tool._id) 
+        : []),
+      ...(Array.isArray(event.assigned_resources?.materials) 
+        ? event.assigned_resources.materials.filter(material => material?._id).map(material => material._id) 
+        : []),
     ],
     extendedProps: {
       _id: event._id,
       image: event.image,
       notes: event.notes,
       status: event.status,
+      repeat_frequency:event.repeat_frequency,
+      task_period:event.task_period,
+      machine: event.machine,
+      facility: event.facility,
+      created_by: event.created_by,
       assigned_resources: {
         assigned_to: event.assigned_resources?.assigned_to || [],
         tools: event.assigned_resources?.tools || [],
@@ -115,12 +109,14 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
     // Helper function to add unique resources
     const addUniqueResources = (resources, idSet) => {
       const uniqueResources = [];
+      if (Array.isArray(resources)) {
       resources.forEach(resource => {
         if (resource?._id && !idSet.has(resource._id)) {
           idSet.add(resource._id);
           uniqueResources.push(resource);
         }
       });
+      }
       return uniqueResources;
     };
 
@@ -186,24 +182,49 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   }, [events]);
   // Memoize assigned_resources to prevent unnecessary re-renders
   const assigned_resources = useMemo(() => [...groupedAssignedResources], [groupedAssignedResources]);
+  const getTimezoneFromDate = (date) => {
+    const timezoneOffsetMinutes = new Date(date).getTimezoneOffset(); // In minutes
+    if (isNaN(timezoneOffsetMinutes)) {
+      console.error('Invalid date for timezone calculation:', date);
+      return null;
+    }
+    return -timezoneOffsetMinutes / 60; // Convert to hours
+  };
   const adjustTimeForBackend = (time, timezoneOffset) => {
     try {
+      // Validate time
       const date = new Date(time);
       if (isNaN(date.getTime())) {
         console.error('Invalid date input:', time);
         return null;
       }
-      // Add the timezone offset
-      const adjustedDate = new Date(date.getTime() + (timezoneOffset * 60 * 60 * 1000));
-      return adjustedDate.toISOString();
+  
+      // Validate timezoneOffset
+      if (typeof timezoneOffset !== 'number' || isNaN(timezoneOffset)) {
+        console.error('Invalid timezone offset:', timezoneOffset);
+        return null;
+      }
+  
+      // Calculate UTC time and adjust for timezone
+      const utcTime = date.getTime();
+      const adjustedTime = new Date(utcTime + timezoneOffset * 60 * 60 * 1000);
+  
+      if (isNaN(adjustedTime.getTime())) {
+        console.error('Invalid adjusted time:', adjustedTime);
+        return null;
+      }
+  
+      return adjustedTime.toISOString();
     } catch (error) {
       console.error('Error adjusting time:', error);
       return null;
     }
   };
+  
+  
+  
   // Add this function to update event appearance
   const updateEventAppearance = (eventId, isSelected) => {
-    console.log(`Updating appearance for event ${eventId}, selected: ${isSelected}`);
     const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
     if (eventElement) {
       if (isSelected) {
@@ -221,7 +242,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
 
   useEffect(() => {
     if (calendarRef.current) {
-      console.log("calendarRef.current1",calendarRef.current)
+     
     }
   }, [mappedEvents]);
 
@@ -240,11 +261,11 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
     const calendarApi = calendarRef.current;
 
     if (calendarApi && viewState) {
-      console.log("viewState.date",viewState.date)
+     
       calendarApi.view.currentStart.setDate(viewState.date);
       setCalendarDate(viewState.date);
     }
-    console.log("date",calendarApi.view.currentStart)
+   
   }, [calendarRef]); // Ensure calendarRef is included in the dependency array
   
 
@@ -289,14 +310,17 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
           onEventCreate,
           adjustTimeForBackend,
           preserveCalendarView,
-          restoreCalendarView
+          restoreCalendarView,
+          getTimezoneFromDate
         });
       } else {
         await handleSingleEventUpdate({
           info,
           onEventUpdate,
           adjustTimeForBackend,
-          calendarRef
+          calendarRef,
+          promptForStartAndEndTime,
+          getTimezoneFromDate
         });
       }
     } catch (error) {
@@ -323,7 +347,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
         plugins: [DayGrid, TimeGrid, List, ResourceTimeGrid, ResourceTimeline, Interaction],
         options: {
           // date: currentDateRef.current,
-          date: calendarDate,
+          date: calendarStartDate || calendarDate,
           view: changedView,
           selectable: true,
           selectMirror: true,
@@ -340,14 +364,14 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             end: 'year,month,week,day,list,resource,timeline',
           },
           datesSet: handleDateChange,
-          views: {
-            listYear: {
-              type: 'list',
-              duration: { months: 24 },
-              buttonText: 'Year',
-            },
+          // views: {
+          //   listYear: {
+          //     type: 'list',
+          //     // duration: { months: 36 },
+          //     buttonText: 'Year',
+          //   },
             
-          },
+          // },
           customButtons: {
             month: {
               text: 'Month',
@@ -434,7 +458,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             }
 
             const eventId = info.event.extendedProps._id;
-            console.log('Event clicked:', eventId);
+           
         
             if (info.jsEvent.shiftKey || info.jsEvent.ctrlKey) {
               info.jsEvent.preventDefault();
@@ -451,7 +475,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
               // Update both state and ref
               selectedEventsRef.current = newSelected;
               setSelectedEvents(newSelected);
-              console.log('Selected events:', Array.from(newSelected));
             } else {
               // Single select mode
               if (selectedEvents.size > 0) {
@@ -459,17 +482,43 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
               }
               const { event } = info;
               const { extendedProps } = event;
-              
-              const updatedEvent = {
-                _id: eventId,
-                title: event.title,
-                start: event.start,
-                end: event.end,
-                color: event.backgroundColor,
-                image: extendedProps?.image || null,
-                notes: extendedProps?.notes || 'No notes available',
-                status: extendedProps?.status || null,
-              };
+               console.log("event",extendedProps)
+              // Flatten the assigned resources
+// Flatten the assigned resources with proper checks for undefined or null
+// const assignedTo = (extendedProps?.assigned_resources?.assigned_to || [])
+//   .map(user =>`${user?.first_name || 'Unknown'} ${user?.last_name || 'User'}`)
+//   .join(', ') || 'No Users Assigned'; // Fallback if empty or undefined
+
+// const tools = (extendedProps?.assigned_resources?.tools || [])
+//   .map(tool => tool?.tool_name  || 'Unknown Tool')
+//   .join(', ') || 'No Tools Assigned'; // Fallback if empty or undefined
+
+// const materials = (extendedProps?.assigned_resources?.materials || [])
+//   .map(material => material?.material_name || 'Unknown Material')
+//   .join(', ') || 'No Materials Assigned'; // Fallback if empty or undefined
+
+// Construct the updatedEvent object with a flat structure for assigned resources
+const updatedEvent = {
+_id: eventId,
+title: event.title || 'Untitled Event',
+start: event.start || new Date(),
+end: event.end || new Date(),
+color: event.backgroundColor || '#cccccc',
+image: extendedProps?.image || null,
+notes: extendedProps?.notes || 'No notes available',
+status: extendedProps?.status || null,
+repeat_frequency: extendedProps?.repeat_frequency || null,
+task_period: extendedProps?.task_period || null,
+machine: extendedProps?.machine || null,
+facility: extendedProps?.facility || null,
+created_by: extendedProps?.created_by || null,
+// Flattened assigned resources
+assigned_to: extendedProps?.assigned_resources?.assigned_to || [],
+  tools: extendedProps?.assigned_resources?.tools || [],
+  materials: extendedProps?.assigned_resources?.materials || [],
+
+};
+console.log("upadted",updatedEvent)
               openForm(updatedEvent);
             }
           },
@@ -489,8 +538,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
           eventDragStart: (info) => {
             const eventId = info.event.extendedProps._id;
             const selectedEventIds = Array.from(selectedEventsRef.current);
-            console.log('Drag started:', eventId, 'Selected events:', selectedEventIds);
-
+          
             // Store initial positions of all selected events
             dragStartPositionsRef.current.clear();
             selectedEventIds.forEach(id => {
@@ -585,7 +633,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   }, [events, assigned_resources, changedView]);
     // Update clearEventSelection to handle both state and ref
     const clearEventSelection = useCallback(() => {
-      console.log('Clearing selection');
       Array.from(selectedEventsRef.current).forEach(eventId => {
         updateEventAppearance(eventId, false);
       });

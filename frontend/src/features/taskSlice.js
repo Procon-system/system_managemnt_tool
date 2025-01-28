@@ -182,14 +182,36 @@ const taskSlice = createSlice({
       .addCase(createTask.pending, (state) => {
         state.status = 'loading';
       })
+      // .addCase(createTask.fulfilled, (state, action) => {
+      //   state.status = 'succeeded';
+      //   // if (action.payload && action.payload.newTask) {
+      //   //   state.tasks.push(action.payload.newTask);
+      //   // }
+      //   console.log("action.payload",action.payload)
+      //   state.tasks.push(action.payload);
+      // })
       .addCase(createTask.fulfilled, (state, action) => {
+        console.log("Payload received in fulfilled case:", action.payload);
+      
         state.status = 'succeeded';
-        // if (action.payload && action.payload.newTask) {
-        //   state.tasks.push(action.payload.newTask);
-        // }
-        console.log("action.payload",action.payload)
-        state.tasks.push(action.payload);
+      
+        // Ensure action.payload is an array of messages and taskData
+        const payloadArray = Array.isArray(action.payload) ? action.payload : [action.payload];
+      
+        payloadArray.forEach((payload) => {
+          const task = payload?.taskData; // Extract taskData from each payload item
+          if (task && task._id) { // Ensure the task is valid
+            // Avoid duplicating tasks in the state
+            if (!state.tasks.some((existingTask) => existingTask._id === task._id)) {
+              state.tasks.push(task);
+            }
+          } else {
+            console.error("Invalid task received in payload:", payload);
+          }
+        });
       })
+      
+      
       .addCase(createTask.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;

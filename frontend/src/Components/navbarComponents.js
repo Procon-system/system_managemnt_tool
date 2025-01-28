@@ -23,7 +23,6 @@ const Profile = () => {
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
- console.log("user",user)
   const handleProfileClick = () => {
     if (isLoggedIn) {
       navigate('/profile');

@@ -6,10 +6,14 @@ import { FaBars, FaTimes } from 'react-icons/fa';
 import { setTaskView } from '../features/taskSlice';
 import { FiList, FiCheckCircle, FiArchive,FiClipboard, FiHome, FiCpu, FiTool, FiLayers } from "react-icons/fi";
 import { FaUser} from "react-icons/fa";
+import DatePicker from "react-datepicker";
+import DateRangeFilter from "../Components/taskComponents/datePicker"; // Import the DateRangeFilter component
 
+import "react-datepicker/dist/react-datepicker.css"; // Import the styles
 import { AiOutlineHome } from "react-icons/ai";
-const Sidebar = () => {
+const Sidebar = ({ onDateRangeSelect, onCalendarDateChange }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date()); // For the date picker
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -44,6 +48,10 @@ const Sidebar = () => {
    setIsOpen(false); // Close sidebar
   };
 
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    console.log("Selected Date:", date); // Add any action you want with the selected date
+  };
   return (
     <>
       {/* Toggle Button for Mobile View */}
@@ -56,11 +64,20 @@ const Sidebar = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-gray-50 border-r border-gray-300 shadow-lg transform ${
+        className={`fixed top-0 left-0 h-full w-[265px] bg-gray-50 border-r border-gray-300 shadow-lg transform ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 lg:mt-16 transition-transform duration-300 ease-in-out z-20`}
       >
-        <div className="flex flex-col mt-3 space-y-2 p-4">
+        <div className="flex flex-col space-y-2 py-4 pl-4 pr-1">
+           {/* Date Picker Section */}
+           <div className="mt-3">
+            {/* <h2 className="text-lg font-semibold mb-2 w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition">Select Date Range</h2> */}
+           
+             <DateRangeFilter
+              onDateRangeSelect={onDateRangeSelect} // Trigger callback for date range selection
+              onCalendarDateChange={onCalendarDateChange} // Update the calendar view
+            />
+          </div>
           {/* Common Option: Home */}
           <button
             className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"

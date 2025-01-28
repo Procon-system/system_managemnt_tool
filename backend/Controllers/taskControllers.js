@@ -11,52 +11,137 @@ const { saveAttachment } = require('../Services/imageService');  // importing th
 const getColorForStatus =require('../utils/getColorForStatus');
 const { v4: uuidv4 } = require('uuid'); // UUID for unique IDs
 const {decrementMaterialCount} = require('../utils/decIncLogic');
+const generateRecurringTasksWithinPeriod = require('../Helper/recurringFunction');
+const calculateTaskPeriod = require('../Helper/taskPeriodCalc');
 let io; // Variable to hold the Socket.IO instance
 
 // Setter to allow server.js to pass the io instance
 const setTaskSocketIoInstance = (ioInstance) => {
   io = ioInstance;
 };
+// const createTask = async (req, res) => {
+//   try {
+//     // Extract task data from the request body
+//     const taskData = req.body.taskData || req.body;
+
+//     console.log("Received task data:", taskData);
+
+//     // Validate required fields
+//     if (!taskData || !taskData.start_time || !taskData.end_time) {
+//       return res.status(400).json({ error: "Missing required fields: start_time or end_time" });
+//     }
+
+//     // Convert start_time and end_time to ISO format
+//     taskData.start_time = new Date(taskData.start_time).toISOString();
+//     taskData.end_time = new Date(taskData.end_time).toISOString();
+
+//     // Generate a unique ID for the task if not provided
+//     if (!taskData._id) {
+//       taskData._id = `task:${uuidv4()}`;
+//     }
+
+//     // Set created_by field from authenticated user
+//     taskData.created_by = req.user.id;
+
+//     // Assign default or computed color code based on status
+//     // if (!taskData.color_code){
+//       taskData.color_code = getColorForStatus(taskData.status || "pending");
+
+//     // }
+//     // Include only required fields for CouchDB
+//     const sanitizedTaskData = {
+//       _id: taskData._id,
+//       type: "task",
+//       title: taskData.title || "",
+//       service_location: taskData.service_location || "",
+//       task_period: taskData.task_period || "",
+//       repeat_frequency: taskData.repeat_frequency || "",
+//       status: taskData.status || "pending",
+//       notes: taskData.notes || "",
+//       image: null, // Image will be added if provided
+//       start_time: taskData.start_time,
+//       end_time: taskData.end_time,
+//       color_code: taskData.color_code,
+//       alarm_enabled: taskData.alarm_enabled || false,
+//       assigned_to: taskData.assigned_to || [],
+//       created_by: taskData.created_by,
+//       tools: taskData.tools || [],
+//       materials: taskData.materials || [],
+//       facility: taskData.facility, // Save only the foreign key for facility
+//       machine: taskData.machine, // Save only the foreign key for machine
+//       created_at: new Date().toISOString(),
+//       updated_at: new Date().toISOString(),
+//     };
+//     console.log("sanitizedTaskData.materials",sanitizedTaskData.materials)
+//     // Decrement material quantities
+//     if (sanitizedTaskData.materials && sanitizedTaskData.materials.length > 0) {
+//       await decrementMaterialCount(sanitizedTaskData.materials);
+//     }
+//     // Pass the sanitized task data and file to the service (file may be null)
+//     const result = await taskService.createTask(sanitizedTaskData, req.file);
+//     console.log("created task",result);
+//     // Handle repeat frequency logic
+//     if (taskData.repeat_frequency) {
+//       const additionalTasks = generateRecurringTasks(sanitizedTaskData, taskData.repeat_frequency);
+//       console.log("additionalTasks",additionalTasks)
+//       for (const recurringTask of additionalTasks) {
+//         await taskService.createTask(recurringTask, null);
+//       }
+//     }
+//      // Emit socket event for task creation
+//      if (io) {
+//       io.emit('taskCreated', {
+//         newTask: result.taskData
+//       });
+//       console.log('Task created and event emitted:', result.taskData);
+//     } else {
+//       console.error("Socket.IO instance is not set in taskController");
+//     }
+//     res.status(201).json(result);
+//   } catch (error) {
+//     console.error("Error creating task:", error);
+//     res.status(400).json({ error: "Failed to create task", details: error.message });
+//   }
+// };
 const createTask = async (req, res) => {
   try {
-    // Extract task data from the request body
+    // Step 1: Extract and validate task data
     const taskData = req.body.taskData || req.body;
-
     console.log("Received task data:", taskData);
 
-    // Validate required fields
-    if (!taskData || !taskData.start_time || !taskData.end_time) {
-      return res.status(400).json({ error: "Missing required fields: start_time or end_time" });
+    if (!taskData || !taskData.start_time || !taskData.end_time || !taskData.task_period) {
+      return res.status(400).json({
+        error: "Missing required fields: start_time, end_time, or task_period",
+      });
     }
-
-    // Convert start_time and end_time to ISO format
+// Calculate task_period if given in user-friendly format
+try {
+  taskData.task_period = calculateTaskPeriod(taskData.start_time, taskData.task_period);
+  console.log(" taskData.task_period", taskData.task_period)
+} catch (err) {
+  return res.status(400).json({ error: err.message });
+}
+    // Step 2: Normalize input data
     taskData.start_time = new Date(taskData.start_time).toISOString();
     taskData.end_time = new Date(taskData.end_time).toISOString();
+    const taskPeriodEnd = new Date(taskData.task_period).toISOString();
 
-    // Generate a unique ID for the task if not provided
-    if (!taskData._id) {
-      taskData._id = `task:${uuidv4()}`;
-    }
-
-    // Set created_by field from authenticated user
+    taskData._id = taskData._id || `task:${uuidv4()}`;
     taskData.created_by = req.user.id;
+    taskData.color_code = getColorForStatus(taskData.status || "pending");
+    taskData.repeat_frequency = taskData.repeat_frequency || "none";
 
-    // Assign default or computed color code based on status
-    // if (!taskData.color_code){
-      taskData.color_code = getColorForStatus(taskData.status || "pending");
-
-    // }
-    // Include only required fields for CouchDB
-    const sanitizedTaskData = {
+    // Step 3: Prepare the base task
+    const baseTask = {
       _id: taskData._id,
       type: "task",
       title: taskData.title || "",
       service_location: taskData.service_location || "",
-      task_period: taskData.task_period || "",
-      repeat_frequency: taskData.repeat_frequency || "",
+      task_period: taskPeriodEnd,
+      repeat_frequency: taskData.repeat_frequency,
       status: taskData.status || "pending",
       notes: taskData.notes || "",
-      image: null, // Image will be added if provided
+      image: null,
       start_time: taskData.start_time,
       end_time: taskData.end_time,
       color_code: taskData.color_code,
@@ -65,34 +150,53 @@ const createTask = async (req, res) => {
       created_by: taskData.created_by,
       tools: taskData.tools || [],
       materials: taskData.materials || [],
-      facility: taskData.facility, // Save only the foreign key for facility
-      machine: taskData.machine, // Save only the foreign key for machine
+      facility: taskData.facility,
+      machine: taskData.machine,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    console.log("sanitizedTaskData.materials",sanitizedTaskData.materials)
-    // Decrement material quantities
-    if (sanitizedTaskData.materials && sanitizedTaskData.materials.length > 0) {
-      await decrementMaterialCount(sanitizedTaskData.materials);
+
+    console.log("Base task prepared:", baseTask);
+
+    // Step 4: Decrement material quantities if applicable
+    if (baseTask.materials && baseTask.materials.length > 0) {
+      await decrementMaterialCount(baseTask.materials);
     }
-    // Pass the sanitized task data and file to the service (file may be null)
-    const result = await taskService.createTask(sanitizedTaskData, req.file);
-    console.log("created task",result);
-     // Emit socket event for task creation
-     if (io) {
-      io.emit('taskCreated', {
-        newTask: result.taskData
+
+    // Step 5: Generate tasks (base + recurring)
+    let tasksToCreate = [baseTask];
+
+    if (taskData.repeat_frequency.toLowerCase() !== "none") {
+      const recurringTasks = generateRecurringTasksWithinPeriod(
+        baseTask,
+        taskData.repeat_frequency,
+        taskPeriodEnd
+      );
+      tasksToCreate = [...tasksToCreate, ...recurringTasks];
+    }
+
+    // Step 6: Save all tasks in one go
+    const results = await Promise.all(
+      tasksToCreate.map((task) => taskService.createTask(task, req.file))
+    );
+
+    // Step 7: Emit socket events for all created tasks
+    if (io) {
+      results.forEach((result) => {
+        io.emit("taskCreated", { newTask: result.taskData });
       });
-      console.log('Task created and event emitted:', result.taskData);
+      console.log("Tasks created and events emitted:", results.map((r) => r.taskData));
     } else {
       console.error("Socket.IO instance is not set in taskController");
     }
-    res.status(201).json(result);
+
+    res.status(201).json({ message: "Tasks created successfully", results });
   } catch (error) {
     console.error("Error creating task:", error);
     res.status(400).json({ error: "Failed to create task", details: error.message });
   }
 };
+
 async function formatTaskData(taskData) {
   if (taskData.facility) {
     const facility = await Facility.findOne({ facility_name: taskData.facility });

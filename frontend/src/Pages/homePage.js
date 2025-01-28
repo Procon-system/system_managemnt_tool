@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect ,useMemo} from 'react';
 import EventCalendarWrapper from '../Helper/EventCalendarWrapper';
 import { io } from "socket.io-client";
 import { useDispatch, useSelector } from 'react-redux';
+import Sidebar from '../Components/sidebarComponent';
 import { 
   createTask, 
   updateTask, 
@@ -17,6 +18,7 @@ import TaskPage from './Task/createTaskPage';
 import EventDetailsModal from '../Components/taskComponents/updateTaskForm';
 import DateRangeFilter from '../Components/taskComponents/datePicker';
 import getColorForStatus from '../Helper/getColorForStatus';
+
 const socket = io("http://localhost:5000"); // Replace with your server URL
 
 const HomePage = () => {
@@ -33,14 +35,49 @@ const HomePage = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
   const [isUpdating, setIsUpdating] = useState(false);
-   const updateEventState = (updatedEvent = null, deletedEventId = null) => {
-    console.log("updatedEvent",updatedEvent)
+  //  const updateEventState = (updatedEvent = null, deletedEventId = null) => {
+   
+  //   setFilteredEvents((prevEvents) => {
+  //     let currentEvents = prevEvents || tasks || [];
+      
+  //     // Handle deletion
+  //     if (deletedEventId) {
+  //       handleTaskDeletion(deletedEventId);
+  //       const updatedEvents = currentEvents.filter(
+  //         (event) => event._id !== deletedEventId
+  //       );
+  //       eventsRef.current = updatedEvents; // Sync with ref
+  //       return updatedEvents; // Update state
+  //     }
+  //     // Handle update or addition
+  //     if (updatedEvent && updatedEvent._id && updatedEvent.title) {
+  //       const eventMap = new Map(
+  //         currentEvents.map((event) => [event._id, event])
+  //       );
+  //       eventMap.set(updatedEvent._id, {
+  //         ...eventMap.get(updatedEvent._id),
+  //         ...updatedEvent,
+  //       });
+  //       const updatedEvents = Array.from(eventMap.values()).filter(
+  //         (event) =>
+  //           !deletedTaskIds.has(event._id) && // Exclude deleted tasks
+  //           event._id &&
+  //           event.title &&
+  //           (event.start_time || event.start) &&
+  //           (event.end_time || event.end)
+  //       );
+  //       eventsRef.current = updatedEvents; // Sync with ref
+  //       return updatedEvents;
+  //     }
+  //     return currentEvents;
+  //   });
+  // };
+  const updateEventState = (updatedEvents = [], deletedEventId = null) => {
     setFilteredEvents((prevEvents) => {
       let currentEvents = prevEvents || tasks || [];
-      
+  
       // Handle deletion
       if (deletedEventId) {
-        console.log("Deleting task with ID:", deletedEventId);
         handleTaskDeletion(deletedEventId);
         const updatedEvents = currentEvents.filter(
           (event) => event._id !== deletedEventId
@@ -48,32 +85,37 @@ const HomePage = () => {
         eventsRef.current = updatedEvents; // Sync with ref
         return updatedEvents; // Update state
       }
-       console.log("updated",updatedEvent)
-      // Handle update or addition
-      if (updatedEvent && updatedEvent._id && updatedEvent.title) {
+  
+      // Handle updates or additions
+      if (updatedEvents && updatedEvents.length > 0) {
         const eventMap = new Map(
           currentEvents.map((event) => [event._id, event])
         );
-        eventMap.set(updatedEvent._id, {
-          ...eventMap.get(updatedEvent._id),
-          ...updatedEvent,
+  
+        updatedEvents.forEach((event) => {
+          if (event && event._id) {
+            eventMap.set(event._id, {
+              ...eventMap.get(event._id),
+              ...event,
+            });
+          }
         });
-        const updatedEvents = Array.from(eventMap.values()).filter(
+  
+        const finalEvents = Array.from(eventMap.values()).filter(
           (event) =>
-            !deletedTaskIds.has(event._id) && // Exclude deleted tasks
             event._id &&
             event.title &&
             (event.start_time || event.start) &&
             (event.end_time || event.end)
         );
-        eventsRef.current = updatedEvents; // Sync with ref
-       console.log("evevnts ref", eventsRef.current)
-        return updatedEvents;
+        eventsRef.current = finalEvents; // Sync with ref
+        return finalEvents;
       }
-      console.log("currentEvents",currentEvents)
+  
       return currentEvents;
     });
   };
+  
   
   const handleTaskDeletion = (deletedTaskId) => {
     setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
@@ -87,24 +129,33 @@ const HomePage = () => {
   socket.on("taskUpdated", (updatedTask) => {
     updateEventState(updatedTask);
     });
-    
+
   socket.on("taskCreated", (broadcastData) => {
-    const newTask = broadcastData?.newTask;
-    console.log("brodcastData",broadcastData , "neww",newTask)
-    if (!newTask) {
+    const newTasks = broadcastData?.newTasks 
+      ? broadcastData.newTasks 
+      : broadcastData?.newTask 
+      ? [broadcastData.newTask] 
+      : []; // Normalize to an array
+  
+    if (newTasks.length === 0) {
       console.error("Invalid task creation broadcast data:", broadcastData);
-      return; // Skip invalid broadcasts
+      return;
     }
   
-    // Ensure the task is not duplicated
-    if (!filteredEvents.some(event => event._id === newTask._id)) {
-      updateEventState(newTask);
-    }
+    newTasks.forEach((newTask) => {
+      if (
+        newTask &&
+        newTask._id &&
+        !filteredEvents.some((event) => event._id === newTask._id)
+      ) {
+        updateEventState(newTask);
+      }
+    });
   });
+  
   // Add the bulk update socket handler
   socket.on("tasksUpdated", ({ updatedTasks }) => {
     if (!Array.isArray(updatedTasks)) return;
-    console.log("updatedTasks", updatedTasks);
   
     try {
       // Backup the current state before making any changes
@@ -163,7 +214,6 @@ const HomePage = () => {
   
   
 socket.on("taskDeleted", (taskId) => {
-  console.log("Task deletion received:", taskId);
 
   if (!taskId) {
     console.error("Invalid task ID received for deletion.");
@@ -194,6 +244,11 @@ const calendarEvents = useMemo(() => {
           end: task.end_time,
           color: task.color_code,
           image: task.image,
+          task_period:task.task_period,
+          repeat_frequency:task.repeat_frequency,
+          created_by:task.created_by,
+          machine:task.machine || null,
+          facility:task.facility || null,
           notes: task.notes || 'No Notes',
           status: task.status || null,
           assigned_resources: {
@@ -212,7 +267,7 @@ const calendarEvents = useMemo(() => {
 
 useEffect(() => {
   if (!isInitialized && calendarEvents.length > 0) {
-    console.log("Initializing filtered events...");
+    
     setFilteredEvents(calendarEvents);
     setIsInitialized(true);
   }
@@ -221,16 +276,15 @@ useEffect(() => {
 // First useEffect for fetching tasks
 useEffect(() => {
   if (currentView === 'allTasks') {
-    console.log("Fetching all tasks...");
+   
     dispatch(fetchTasks()); // Fetch all tasks
   } else if (currentView === 'userTasks') {
-    console.log("Fetching tasks assigned to the user...");
+    
     dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user
   } else if (currentView === 'userDoneTasks') {
-    console.log("Fetching tasks done by the user...");
+   
     dispatch(getTasksDoneByAssignedUser(user._id)); // Fetch tasks done by the user
   } else if (currentView === 'allDoneTasks') {
-    console.log("Fetching all done tasks...");
     dispatch(getAllDoneTasks()); // Fetch all done tasks
   }
 }, [currentView, dispatch]);
@@ -292,7 +346,7 @@ const handleMultipleEventUpdate = (updatedEvents) => {
   // Emit all updated tasks at once to the server using the socket instance
   if (socket) {
     socket.emit("updateMultipleTasks", updatedEvents);
-    console.log("Emitted multiple task updates to the server.");
+   
   } else {
     console.error("Socket instance is not available.");
     toast.error("Unable to emit updates. Socket connection not found.");
@@ -323,7 +377,7 @@ const handleMultipleEventUpdate = (updatedEvents) => {
     );
 
     eventsRef.current = updatedFilteredEvents; // Sync with ref
-    console.log("Updated events in eventsRef", eventsRef.current);
+   
     return updatedFilteredEvents; // Update state with the new filtered events
   });
 
@@ -332,16 +386,57 @@ const handleMultipleEventUpdate = (updatedEvents) => {
 
 
 
-  const handleEventCreate = (newEvent) => {
-    dispatch(createTask(newEvent))
-      .then((createdTask) => {
-        socket.emit("createTask", createdTask);
-        toast.success("Task updated successfully!");
-      })
-      .catch((err) => {
-        console.error("Task creation failed:", err);
-      });
+  // const handleEventCreate = (newEvent) => {
+  //   dispatch(createTask(newEvent))
+  //     .then((createdTask) => {
+  //       socket.emit("createTask", createdTask);
+  //       toast.success("Task updated successfully!");
+  //     })
+  //     .catch((err) => {
+  //       console.error("Task creation failed:", err);
+  //     });
+  // };
+  // const handleEventCreate = (newEvent) => {
+  //   dispatch(createTask(newEvent))
+  //     .then((createdTask) => {
+  //       if (Array.isArray(createdTask.payload)) {
+  //         // Multiple tasks were created (recurring events)
+  //         socket.emit("createTask", { newTasks: createdTask.payload });
+  //       } else {
+  //         // Single task was created
+  //         socket.emit("createTask", { newTasks: [createdTask.payload] });
+  //       }
+  //       toast.success("Task created successfully!");
+  //       return { success: true, data: createdTask }; 
+  //     })
+  //     .catch((err) => {
+  //       console.error("Task creation failed:", err);
+  //       return { success: false, error: err.message || "Unknown error" };
+  //     });
+  // };
+  const handleEventCreate = async (newEvent) => {
+    try {
+      const createdTask = await dispatch(createTask(newEvent));
+  
+      if (createdTask.error || !createdTask.payload) {
+        throw new Error(createdTask.error || "Unknown error");
+      }
+  
+      if (Array.isArray(createdTask.payload)) {
+        socket.emit("createTask", { newTasks: createdTask.payload });
+      } else {
+        socket.emit("createTask", { newTasks: [createdTask.payload] });
+      }
+  
+      toast.success("Task created successfully!");
+      return { success: true, data: createdTask.payload };
+    } catch (err) {
+      console.error("Task creation failed:", err);
+      return { success: false, error: err.message || "Unknown error" };
+    }
   };
+  
+  
   const handleDateRangeSelect = (startDate, endDate) => {
     if (!startDate || !endDate) {
       // Reset to all events when no date range is selected
@@ -361,6 +456,7 @@ const handleMultipleEventUpdate = (updatedEvents) => {
     setCalendarEndDate(endDate);
   };
   const handleEventUpdate = (updatedEvent) => {
+    console.log("upadted evevnt",updatedEvent)
     if (updatedEvent._id) {
       if (updatedEvent.status) {
         updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
@@ -402,9 +498,6 @@ const handleDelete = async (id) => {
     // Show error toast if deletion fails
     toast.error(`Failed to delete task: ${error.message}`);
   }
-
-  // Log current filteredEvents for debugging
-  console.log("Current filteredEvents after delete:", filteredEvents);
 };
 
 useEffect(() => {
@@ -440,14 +533,17 @@ useEffect(() => {
   
   if (status === 'loading') return <div>Loading...</div>;
   if (status === 'failed') return <div>Error: {error}</div>;
- 
+ console.log("calendarEvent",calendarEvent)
   return (
     <div className=' mt-7 lg:ml-72 mb-8'>
-      <DateRangeFilter 
+      {/* <DateRangeFilter 
       onDateRangeSelect={handleDateRangeSelect}
       onCalendarDateChange={handleCalendarDateChange} 
-     />
-
+     /> */}
+ <Sidebar
+        onDateRangeSelect={handleDateRangeSelect}
+        onCalendarDateChange={handleCalendarDateChange}
+      />
       <EventCalendarWrapper
         events={calendarEvent }
         calendarStartDate={calendarStartDate} // Pass the updated start date

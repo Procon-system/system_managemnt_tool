@@ -1,13 +1,77 @@
 import React, { useState,useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import FormInput from './formInput';
-import SelectInput from './selectInput';
+import {SelectInput,SelectTaskPeriodInput} from './selectInput';
 import RichTextEditor from './richTextEditor';
 import { fetchTools } from '../../features/toolsSlice'; // Redux action to fetch tools
 import { fetchMaterials } from '../../features/materialsSlice'; // Redux action to fetch materials
 import { fetchFacilities } from '../../features/facilitySlice'; // Redux action to fetch facilities
 import { fetchMachines } from '../../features/machineSlice'; // Redux action to fetch machines
 import { getUsers } from '../../features/userSlice';
+const DateTimeWithAdjust = ({ label, name, value, onChange }) => {
+  const adjustTime = (hours) => {
+    let dateValue;
+
+    try {
+      // Parse the value into a Date object
+      dateValue = value ? new Date(value) : new Date();
+    } catch {
+      // Fallback to current date if parsing fails
+      dateValue = new Date();
+    }
+
+    // Adjust the time by the specified number of hours
+    const newDate = new Date(dateValue);
+    newDate.setHours(newDate.getHours() + hours);
+
+    // Format the adjusted date to match the input type `datetime-local`
+    const formattedDate = formatDateForInput(newDate);
+
+    // Trigger the onChange event with the updated value
+    onChange({ target: { name, value: formattedDate } });
+  };
+
+  // Helper function to format date for `datetime-local` input
+  const formatDateForInput = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  return (
+    <div className="flex items-center">
+      <FormInput
+        label={label}
+        name={name}
+        type="datetime-local"
+        value={value}
+        onChange={onChange}
+        required
+      />
+      <div className="flex flex-col items-center space-y-1">
+        <button
+          type="button"
+          onClick={() => adjustTime(1)} // Increase time by 1 hour
+          className="w-6 h-6 text-white bg-blue-400 hover:bg-blue-500 rounded-full flex items-center justify-center"
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          onClick={() => adjustTime(-1)} // Decrease time by 1 hour
+          className="w-6 h-6 text-white bg-blue-400 hover:bg-blue-500 rounded-full flex items-center justify-center"
+        >
+          ↓
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
 const TaskForm = ({ onSubmit,initialData = {} }) => {
     const dispatch = useDispatch();
     const tools = useSelector((state) => state.tools.tools) || []; 
@@ -183,8 +247,30 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
   </div>
 
   <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
-    <FormInput label="Task Period" name="task_period" value={formData.task_period} onChange={handleChange} />
-    <FormInput label="Repeat Frequency" name="repeat_frequency" value={formData.repeat_frequency} onChange={handleChange} />
+    {/* <FormInput label="Task Period" name="task_period" value={formData.task_period} onChange={handleChange} />
+    <FormInput label="Repeat Frequency" name="repeat_frequency" value={formData.repeat_frequency} onChange={handleChange} /> */}
+     <SelectTaskPeriodInput
+    label="Task Period"
+    name="task_period"
+    value={formData.task_period}
+    onChange={handleChange}
+    required
+  />
+
+  <SelectInput
+    label="Frequency"
+    name="repeat_frequency"
+    value={formData.repeat_frequency}
+    onChange={handleChange}   
+    options={[
+      { label: 'None', value: 'none' },
+      { label: 'Daily', value: 'daily' },
+      { label: 'Weekly', value: 'weekly' },
+      { label: 'Monthly', value: 'monthly' },
+      { label: 'Yearly', value: 'yearly' },
+    ]}
+    required
+  />
        <SelectInput
       label="Materials"
       name="materials"
@@ -202,8 +288,8 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       required
     />
   </div>
-
-  <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
+  <div className="flex flex-wrap items-center gap-4">
+  <div className="flex-1 min-w-[200px]">
     <SelectInput
       label="Status"
       name="status"
@@ -216,10 +302,26 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
         { label: 'Overdue', value: 'overdue' },
       ]}
     />
-     <FormInput label="Start Time" name="start_time" type="datetime-local" value={formData.start_time} onChange={handleChange} required />
-     <FormInput label="End Time" name="end_time" type="datetime-local" value={formData.end_time} onChange={handleChange} required />
-
   </div>
+
+  <div className="flex-1 min-w-[180px]">
+    <DateTimeWithAdjust
+      label="Start Time"
+      name="start_time"
+      value={formData.start_time}
+      onChange={handleChange}
+    />
+  </div>
+
+  <div className="flex-1 min-w-[180px]">
+    <DateTimeWithAdjust
+      label="End Time"
+      name="end_time"
+      value={formData.end_time}
+      onChange={handleChange}
+    />
+  </div>
+</div>
 
   <div>
     <label className="block mb-1 text-sm font-medium text-gray-600">Notes</label>

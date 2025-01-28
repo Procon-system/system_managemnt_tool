@@ -4,34 +4,75 @@ export const handleEventDuplication = async ({
   onEventCreate,
   adjustTimeForBackend,
   preserveCalendarView,
-  restoreCalendarView
+  restoreCalendarView,
+  getTimezoneFromDate,
 }) => {
-  const { event } = info;
-  const timezoneOffset = 3; // Adjust based on your timezone
-  
-  const newEvent = {
-    start_time: adjustTimeForBackend(event.start, timezoneOffset),
-    end_time: adjustTimeForBackend(event.end, timezoneOffset),
-    title: `Copy of ${event.title}`,
-    color: event.backgroundColor
-  };
-
   try {
-    const currentViewState = preserveCalendarView();
-  console.log("currentviews",currentViewState)
-    await onEventCreate(newEvent);// Open form with pre-filled start time
+    // Deep copy the event data to avoid unintended mutations
+    console.log("info.event",info.event)
+    const eventData = JSON.parse(JSON.stringify(info.event));
+    console.log("Event duplication initiated:", eventData);
 
-  // Restore the calendar view after form submission (assuming successful)
-  if (currentViewState) {
-    restoreCalendarView(currentViewState);
-  }
-    // await onEventCreate(newEvent);
+    const eventTimezone = getTimezoneFromDate(eventData.start);
+    const extendedProps = eventData.extendedProps || {};
+    const assignedResources = extendedProps.assigned_resources || {
+      assigned_to: [],
+      materials: [],
+      tools: []
+    };
+  console.log("assignedResources",assignedResources)
+    // Prepare the new event object
+    const newEvent = {
+      start_time: adjustTimeForBackend(eventData.start, eventTimezone),
+      end_time: adjustTimeForBackend(eventData.end, eventTimezone),
+      title: `Copy of ${eventData.title}`,
+      color: eventData.backgroundColor || "#FFFFFF",
+      assigned_to: Array.isArray(assignedResources.assigned_to)
+        ? assignedResources.assigned_to.filter((res) => res && res._id).map((res) => res._id)
+        : [],
+      materials: Array.isArray(assignedResources.materials)
+        ? assignedResources.materials.filter((mat) => mat && mat._id).map((mat) => mat._id)
+        : [],
+      tools: Array.isArray(assignedResources.tools)
+        ? assignedResources.tools.filter((tool) => tool && tool._id).map((tool) => tool._id)
+        : [],      machine: eventData.extendedProps?.machine || null,
+      facility: eventData.extendedProps?.facility || null,
+      created_by: eventData.extendedProps?.created_by || "unknown",
+      repeat_frequency: "none",
+      // eventData.extendedProps?.repeat_frequency || 
+      task_period: eventData.extendedProps?.task_period || null,
+    };
+
+    console.log("Prepared new event object:", newEvent);
+
+    const currentViewState = preserveCalendarView();
+
+    // Attempt to create the event
+    const creationResult = await onEventCreate(newEvent);
+
+    if (!creationResult || !creationResult.success) {
+      throw new Error(creationResult.error || "Event creation failed");
+    }
+
+    if (currentViewState) {
+      restoreCalendarView(currentViewState);
+    }
+
+    console.log("Event duplication successful:", newEvent);
+    // toast.success("Event duplicated successfully!");
   } catch (error) {
-    console.error('Error duplicating event:', error);
-    info.revert();
-    toast.error('Failed to duplicate event');
+    console.error("Error during event duplication:", error);
+
+    // Revert UI changes if the operation fails
+    if (info.revert) {
+      info.revert();
+    }
+
+    toast.error(`Failed to duplicate event: ${error.message}`);
   }
 };
+
+
 // Date click handler
 export const handleDateClick = (info, user, adjustTimeForBackend, openCreateForm) => {
   if (user.access_level < 3) {
@@ -55,7 +96,6 @@ export const handleEventClick = (info, user, selectedEventsRef, selectedEvents, 
   }
 
   const eventId = info.event.extendedProps._id;
-  console.log('Event clicked, ID:', eventId);
 
   if (info.jsEvent.shiftKey || info.jsEvent.ctrlKey) {
     info.jsEvent.preventDefault();
@@ -64,21 +104,14 @@ export const handleEventClick = (info, user, selectedEventsRef, selectedEvents, 
 
     if (newSelected.has(eventId)) {
       newSelected.delete(eventId);
-      console.log("Deselecting event:", eventId);
       updateEventAppearance(eventId, false);  // Corrected: passing the eventId to update appearance
     } else {
       newSelected.add(eventId);
-      console.log("Selecting event:", eventId);
       updateEventAppearance(eventId, true);  // Corrected: passing the eventId to update appearance
     }
 
     selectedEventsRef.current = newSelected;
     setSelectedEvents(newSelected);  // Ensure both ref and state are updated
-
-    console.log("Updated selected events:", Array.from(newSelected));
-    console.log("selected events ref:", selectedEventsRef.current);
-    console.log("selected events state:", Array.from(selectedEvents));
-
     return;  // Exit after processing the shift-click
   } else {
     // Single click on event (deselect all if any are selected)
@@ -106,13 +139,8 @@ export const handleEventClick = (info, user, selectedEventsRef, selectedEvents, 
 export const handleEventDragStart = (info, calendarRef, selectedEventsRef, dragStartPositionsRef, clearEventSelection) => {
   const eventId = info.event.extendedProps._id;
 
-  console.log("Drag started for event ID:", eventId);
-  console.log("Current selected events:", selectedEventsRef.current);
-
   // Convert selected events from ref to an array
   const selectedEventIds = Array.from(selectedEventsRef.current);
-
-  console.log("Selected events at drag start:", selectedEventIds);
 
   // Clear any previous drag start positions
   dragStartPositionsRef.current.clear();

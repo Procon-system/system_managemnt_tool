@@ -40,6 +40,7 @@ const createTask = async (taskData, file) => {
 
     return { message: "Task created successfully", taskData };
   } catch (error) {
+    console.log("errro",error)
     throw new Error(`Failed to create task: ${error.message}`);
   }
 };
@@ -52,6 +53,7 @@ const getAllTasks = async () => {
         status: { $ne: 'done' },
       },
       sort: [{ updated_at: 'desc' }],
+      limit: 200,
     });
 
     const tasks = result.docs;
@@ -61,12 +63,23 @@ const getAllTasks = async () => {
     const toolIds = new Set();
     const materialIds = new Set();
 
+    // tasks.forEach(task => {
+    //   task.assigned_to?.forEach(userId => userIds.add(userId));
+    //   task.tools?.forEach(toolId => toolIds.add(toolId));
+    //   task.materials?.forEach(materialId => materialIds.add(materialId));
+    // });
     tasks.forEach(task => {
-      task.assigned_to?.forEach(userId => userIds.add(userId));
-      task.tools?.forEach(toolId => toolIds.add(toolId));
-      task.materials?.forEach(materialId => materialIds.add(materialId));
+      // Ensure `assigned_to`, `tools`, and `materials` are arrays before using `forEach`
+      if (Array.isArray(task.assigned_to)) {
+        task.assigned_to.forEach(userId => userIds.add(userId));
+      }
+      if (Array.isArray(task.tools)) {
+        task.tools.forEach(toolId => toolIds.add(toolId));
+      }
+      if (Array.isArray(task.materials)) {
+        task.materials.forEach(materialId => materialIds.add(materialId));
+      }
     });
-
     // Step 3: Fetch related documents for users, tools, and materials
     const [users, tools, materials] = await Promise.all([
       fetchDocuments([...userIds], 'user'),
@@ -91,11 +104,23 @@ const getAllTasks = async () => {
     }, {});
 
     // Step 5: Populate tasks with related details
+    // const populatedTasks = tasks.map(task => ({
+    //   ...task,
+    //   assigned_to: task.assigned_to?.map(userId => userMap[userId]) || [],
+    //   tools: task.tools?.map(toolId => toolMap[toolId]) || [],
+    //   materials: task.materials?.map(materialId => materialMap[materialId]) || [],
+    // }));
     const populatedTasks = tasks.map(task => ({
       ...task,
-      assigned_to: task.assigned_to?.map(userId => userMap[userId]) || [],
-      tools: task.tools?.map(toolId => toolMap[toolId]) || [],
-      materials: task.materials?.map(materialId => materialMap[materialId]) || [],
+      assigned_to: Array.isArray(task.assigned_to)
+        ? task.assigned_to.map(userId => userMap[userId]) || []
+        : [], // Fallback to empty array if not an array
+      tools: Array.isArray(task.tools)
+        ? task.tools.map(toolId => toolMap[toolId]) || []
+        : [], // Fallback to empty array if not an array
+      materials: Array.isArray(task.materials)
+        ? task.materials.map(materialId => materialMap[materialId]) || []
+        : [], // Fallback to empty array if not an array
     }));
 
     return populatedTasks;
@@ -163,6 +188,7 @@ const getTaskById = async (id) => {
  */
 const updateTask = async (id, updateData, res) => {
   try {
+    console.log("updated Dtaa",updateData)
     // Fetch the existing task to ensure the _rev is current
     const existingTask = await db.get(id);
     if (!existingTask) {
