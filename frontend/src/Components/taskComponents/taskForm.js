@@ -205,8 +205,7 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
         isMulti
         required
       />
-    {/* <FormInput label="Assigned Person Email" name="assigned_to_email" value={formData.assigned_to_email} onChange={handleChange} required /> */}
-    <FormInput label="Service Location" name="service_location" value={formData.service_location} onChange={handleChange} />
+        <FormInput label="Service Location" name="service_location" value={formData.service_location} onChange={handleChange} />
   </div>
 
   <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
@@ -247,9 +246,7 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
   </div>
 
   <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
-    {/* <FormInput label="Task Period" name="task_period" value={formData.task_period} onChange={handleChange} />
-    <FormInput label="Repeat Frequency" name="repeat_frequency" value={formData.repeat_frequency} onChange={handleChange} /> */}
-     <SelectTaskPeriodInput
+         <SelectTaskPeriodInput
     label="Task Period"
     name="task_period"
     value={formData.task_period}

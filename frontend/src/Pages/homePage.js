@@ -581,7 +581,7 @@ useEffect(() => {
       isVisible={isEditFormVisible}
       closeModal={closeModal}
       selectedEvent={selectedEvent}
-      role={user.access_level} 
+      role={user?.access_level} 
       handleFormSubmit={handleFormSubmit} // Pass handleFormSubmit to the modal
       handleDelete={handleDelete} 
     />

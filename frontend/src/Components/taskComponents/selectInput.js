@@ -1,24 +1,103 @@
 
 import Select from 'react-select';
 import React, { useState } from 'react';
-const SelectInput = ({ label, name, value = "", onChange, options, required = false, isMulti = false }) => {
-    // Convert the selected value into a compatible format for `react-select`
-    const selectedOption = isMulti 
-        ? options.filter(option => value.includes(option.value))
-        : options.find(option => option.value === value);
+// const SelectInput = ({ label, name, value = "", onChange, options, required = false, isMulti = false }) => {
+//     // Convert the selected value into a compatible format for `react-select`
+//     const selectedOption = isMulti 
+//         ? options.filter(option => value.includes(option.value))
+//         : options.find(option => option.value === value);
 
-    const handleSelectChange = (selectedOption) => {
-        // Handle single or multi-selection based on `isMulti`
-        const newValue = isMulti
-            ? selectedOption.map(option => option.value) // for multi-selection
-            : selectedOption ? selectedOption.value : ""; // for single-selection
-        onChange({ target: { name, value: newValue } });
-    };
+//     const handleSelectChange = (selectedOption) => {
+//         // Handle single or multi-selection based on `isMulti`
+//         const newValue = isMulti
+//             ? selectedOption.map(option => option.value) // for multi-selection
+//             : selectedOption ? selectedOption.value : ""; // for single-selection
+//         onChange({ target: { name, value: newValue } });
+//     };
 
-    return (
+//     return (
+//     <div className="mb-4 w-full px-2">
+//     <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
+//     <Select
+//         name={name}
+//         value={selectedOption}
+//         onChange={handleSelectChange}
+//         options={options}
+//         isClearable
+//         placeholder={`Select ${label}`}
+//         isSearchable
+//         isMulti={isMulti}
+//         className="w-full"
+//         styles={{
+//             control: (base) => ({ ...base, backgroundColor: 'rgb(249 250 251)', padding: '4px 8px', borderColor: 'rgb(209 213 219)' }),
+//             placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
+//         }}
+//     />
+// </div>
+//     );
+// };
+// const SelectInput = ({ label, name, value = "", onChange, options, required = false, isMulti = false }) => {
+//   // Ensure selected values match option values (IDs only)
+//   const selectedOption = isMulti
+//       ? options.filter(option => Array.isArray(value) && value.includes(option.value))
+//       : options.find(option => option.value === value);
+
+//   const handleSelectChange = (selectedOption) => {
+//       const newValue = isMulti
+//           ? (selectedOption ? selectedOption.map(option => option.value) : []) // Extract array of IDs
+//           : (selectedOption ? selectedOption.value : ""); // Single selection returns a string or empty
+
+//       onChange({ target: { name, value: newValue } });
+//   };
+
+//   return (
+//       <div className="mb-4 w-full px-2">
+//           <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
+//           <Select
+//               name={name}
+//               value={selectedOption}
+//               onChange={handleSelectChange}
+//               options={options}
+//               isClearable
+//               placeholder={`Select ${label}`}
+//               isSearchable
+//               isMulti={isMulti}
+//               className="w-full"
+//               styles={{
+//                   control: (base) => ({ ...base, backgroundColor: 'rgb(249 250 251)', padding: '4px 8px', borderColor: 'rgb(209 213 219)' }),
+//                   placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
+//               }}
+//           />
+//       </div>
+//   );
+// };
+const getSelectedOptions = (items, options) => {
+  return items.map(item => {
+    // Find the option by ID (_id), assuming item is an object containing _id
+    const option = options.find(option => option.value === item); 
+    return option ? option : null; // Return the matched option or null if not found
+  }).filter(option => option !== null); // Filter out nulls
+};
+
+// For the SelectInput component
+const SelectInput = ({ label, name, value = [], onChange, options, isMulti = false }) => {
+  // For multi-select: ensure `value` contains objects, not just ids
+  const selectedOption = isMulti 
+    ? getSelectedOptions(value, options) // Map IDs to objects for multi-select
+    : options.find(option => option.value === value); // For single select, find the selected option
+
+  const handleSelectChange = (selectedOption) => {
+    const newValue = isMulti
+      ? selectedOption.map(option => option.value) // Extract array of IDs
+      : selectedOption ? selectedOption.value : ""; // Extract single ID for non-multi-select
+
+    onChange({ target: { name, value: newValue } });
+  };
+
+  return (
     <div className="mb-4 w-full px-2">
-    <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
-    <Select
+      <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
+      <Select
         name={name}
         value={selectedOption}
         onChange={handleSelectChange}
@@ -29,12 +108,12 @@ const SelectInput = ({ label, name, value = "", onChange, options, required = fa
         isMulti={isMulti}
         className="w-full"
         styles={{
-            control: (base) => ({ ...base, backgroundColor: 'rgb(249 250 251)', padding: '4px 8px', borderColor: 'rgb(209 213 219)' }),
-            placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
+          control: (base) => ({ ...base, backgroundColor: 'rgb(249 250 251)', padding: '4px 8px', borderColor: 'rgb(209 213 219)' }),
+          placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
         }}
-    />
-</div>
-    );
+      />
+    </div>
+  );
 };
 
 // Options for time period (days, weeks, months, years)
@@ -141,4 +220,4 @@ const periodOptions = [
   };
   
 
-export { SelectTaskPeriodInput, SelectInput };
+export { SelectTaskPeriodInput,getSelectedOptions, SelectInput };

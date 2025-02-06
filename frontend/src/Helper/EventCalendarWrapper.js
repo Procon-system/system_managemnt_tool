@@ -482,21 +482,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
               }
               const { event } = info;
               const { extendedProps } = event;
-               console.log("event",extendedProps)
-              // Flatten the assigned resources
-// Flatten the assigned resources with proper checks for undefined or null
-// const assignedTo = (extendedProps?.assigned_resources?.assigned_to || [])
-//   .map(user =>`${user?.first_name || 'Unknown'} ${user?.last_name || 'User'}`)
-//   .join(', ') || 'No Users Assigned'; // Fallback if empty or undefined
-
-// const tools = (extendedProps?.assigned_resources?.tools || [])
-//   .map(tool => tool?.tool_name  || 'Unknown Tool')
-//   .join(', ') || 'No Tools Assigned'; // Fallback if empty or undefined
-
-// const materials = (extendedProps?.assigned_resources?.materials || [])
-//   .map(material => material?.material_name || 'Unknown Material')
-//   .join(', ') || 'No Materials Assigned'; // Fallback if empty or undefined
-
+               console.log("event",info)
 // Construct the updatedEvent object with a flat structure for assigned resources
 const updatedEvent = {
 _id: eventId,
@@ -513,9 +499,10 @@ machine: extendedProps?.machine || null,
 facility: extendedProps?.facility || null,
 created_by: extendedProps?.created_by || null,
 // Flattened assigned resources
-assigned_to: extendedProps?.assigned_resources?.assigned_to || [],
-  tools: extendedProps?.assigned_resources?.tools || [],
-  materials: extendedProps?.assigned_resources?.materials || [],
+// Flattened assigned resources with only IDs
+assigned_to: extendedProps?.assigned_resources?.assigned_to?.map(user => user._id || user.id) || [],
+tools: extendedProps?.assigned_resources?.tools?.map(tool => tool._id || tool.id) || [],
+materials: extendedProps?.assigned_resources?.materials?.map(material => material._id || material.id) || [],
 
 };
 console.log("upadted",updatedEvent)

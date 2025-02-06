@@ -55,7 +55,7 @@ const getAllTasks = async () => {
       sort: [{ updated_at: 'desc' }],
       limit: 200,
     });
-
+    console.log("result",result)
     const tasks = result.docs;
 
     // Step 2: Extract unique IDs for foreign keys
@@ -63,11 +63,6 @@ const getAllTasks = async () => {
     const toolIds = new Set();
     const materialIds = new Set();
 
-    // tasks.forEach(task => {
-    //   task.assigned_to?.forEach(userId => userIds.add(userId));
-    //   task.tools?.forEach(toolId => toolIds.add(toolId));
-    //   task.materials?.forEach(materialId => materialIds.add(materialId));
-    // });
     tasks.forEach(task => {
       // Ensure `assigned_to`, `tools`, and `materials` are arrays before using `forEach`
       if (Array.isArray(task.assigned_to)) {
@@ -82,10 +77,13 @@ const getAllTasks = async () => {
     });
     // Step 3: Fetch related documents for users, tools, and materials
     const [users, tools, materials] = await Promise.all([
-      fetchDocuments([...userIds], 'user'),
-      fetchDocuments([...toolIds], 'tool'),
-      fetchDocuments([...materialIds], 'material')
+      userIds.size ? fetchDocuments([...userIds], 'user') : Promise.resolve([]),
+      toolIds.size ? fetchDocuments([...toolIds], 'tool') : Promise.resolve([]),
+      materialIds.size ? fetchDocuments([...materialIds], 'material') : Promise.resolve([]),
     ]);
+    console.log("Material IDs being queried:", [...materialIds]);
+console.log("Tool IDs being queried:", [...toolIds]);
+console.log("User IDs being queried:", [...userIds]);
 
     // Step 4: Map related documents by ID for quick lookup
     const userMap = users.reduce((map, user) => {
@@ -103,45 +101,56 @@ const getAllTasks = async () => {
       return map;
     }, {});
 
-    // Step 5: Populate tasks with related details
-    // const populatedTasks = tasks.map(task => ({
-    //   ...task,
-    //   assigned_to: task.assigned_to?.map(userId => userMap[userId]) || [],
-    //   tools: task.tools?.map(toolId => toolMap[toolId]) || [],
-    //   materials: task.materials?.map(materialId => materialMap[materialId]) || [],
-    // }));
+    
     const populatedTasks = tasks.map(task => ({
       ...task,
       assigned_to: Array.isArray(task.assigned_to)
-        ? task.assigned_to.map(userId => userMap[userId]) || []
-        : [], // Fallback to empty array if not an array
+        ? task.assigned_to.map(userId => userMap[userId] || {}) // Fallback to empty object
+        : [],
       tools: Array.isArray(task.tools)
-        ? task.tools.map(toolId => toolMap[toolId]) || []
-        : [], // Fallback to empty array if not an array
+        ? task.tools.map(toolId => toolMap[toolId] || {})
+        : [],
       materials: Array.isArray(task.materials)
-        ? task.materials.map(materialId => materialMap[materialId]) || []
-        : [], // Fallback to empty array if not an array
+        ? task.materials.map(materialId => materialMap[materialId] || {})
+        : [],
     }));
-
+    
     return populatedTasks;
   } catch (error) {
     throw new Error(`Failed to fetch tasks: ${error.message}`);
   }
 };
 // Helper function to fetch related documents based on the type and ids
+// const fetchDocuments = async (ids, type) => {
+//   try {
+//     const result = await db.find({
+//       selector: {
+//         _id: { $in: ids },
+//         type: type,
+//       },
+//     });
+//     return result.docs;
+//   } catch (error) {
+//     throw new Error(`Failed to fetch related ${type} documents: ${error.message}`);
+//   }
+// };
 const fetchDocuments = async (ids, type) => {
   try {
+    if (!ids || ids.length === 0) return []; // Prevent empty queries
+
     const result = await db.find({
       selector: {
-        _id: { $in: ids },
         type: type,
+        _id: { $in: ids.filter(Boolean) }, // Ensure valid IDs
       },
     });
+
     return result.docs;
   } catch (error) {
     throw new Error(`Failed to fetch related ${type} documents: ${error.message}`);
   }
 };
+
 /**
  * Fetch a task by its ID.
  */
@@ -186,37 +195,89 @@ const getTaskById = async (id) => {
 /**
  * Update an existing task by ID.
  */
+// const updateTask = async (id, updateData, res) => {
+//   try {
+//     console.log("updated Dtaa",updateData)
+//     // Fetch the existing task to ensure the _rev is current
+//     const existingTask = await db.get(id);
+//     if (!existingTask) {
+//       return res.status(404).json({ error: 'Task not found' });
+//     }
+//     if (updateData.status === "done" && existingTask.materials) {
+//           await incrementMaterialCount(existingTask.materials); // Increment the material count
+//         }
+//     // Merge the updates with the existing task
+//     const updatedTask = {
+//       ...existingTask,
+//       ...updateData,
+//       _id: existingTask._id, // Ensure _id is preserved
+//       updated_at: new Date().toISOString(),
+//     };
+//     // Save the updated task
+//     const response = await db.insert(updatedTask);
+
+//     // Return the updated task
+//     res.status(200).json({
+//       message: 'Task updated successfully',
+//       task: { ...updatedTask, _rev: response.rev },
+//     });
+//   } catch (error) {
+//     console.error('Error performing task update:', error);
+//     res.status(500).json({ error: 'Failed to update task', details: error.message });
+//   }
+// };
 const updateTask = async (id, updateData, res) => {
   try {
-    console.log("updated Dtaa",updateData)
+    console.log("Updated Data:", updateData);
+
     // Fetch the existing task to ensure the _rev is current
     const existingTask = await db.get(id);
     if (!existingTask) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: "Task not found" });
     }
-    if (updateData.status === "done" && existingTask.materials) {
-          await incrementMaterialCount(existingTask.materials); // Increment the material count
-        }
-    // Merge the updates with the existing task
+
+    // Ensure assigned_to, tools, and materials are arrays (parse if needed)
+    const parseIfString = (data) => {
+      try {
+        return typeof data === "string" ? JSON.parse(data) : data;
+      } catch (error) {
+        console.error("Error parsing data:", data);
+        return [];
+      }
+    };
+
     const updatedTask = {
       ...existingTask,
       ...updateData,
+      assigned_to: parseIfString(updateData.assigned_to || existingTask.assigned_to),
+      tools: parseIfString(updateData.tools || existingTask.tools),
+      materials: parseIfString(updateData.materials || existingTask.materials),
       _id: existingTask._id, // Ensure _id is preserved
       updated_at: new Date().toISOString(),
     };
+
+    // If task is marked as "done", increment material count
+    if (updatedTask.status === "done" && updatedTask.materials.length > 0) {
+      await incrementMaterialCount(updatedTask.materials);
+    }
+
     // Save the updated task
     const response = await db.insert(updatedTask);
 
     // Return the updated task
     res.status(200).json({
-      message: 'Task updated successfully',
+      message: "Task updated successfully",
       task: { ...updatedTask, _rev: response.rev },
     });
   } catch (error) {
-    console.error('Error performing task update:', error);
-    res.status(500).json({ error: 'Failed to update task', details: error.message });
+    console.error("Error performing task update:", error);
+    res.status(500).json({
+      error: "Failed to update task",
+      details: error.message,
+    });
   }
 };
+
 const bulkUpdateTasks = async (taskUpdates) => {
   const results = [];
 
