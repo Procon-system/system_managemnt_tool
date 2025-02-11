@@ -26,12 +26,21 @@ useEffect(() => {
   setEditableEvent(selectedEvent || {});
 }, [selectedEvent]);
 
+// const handleChange = (e) => {
+//   setEditableEvent((prev) => ({
+//     ...prev,
+//     [e.target.name]: e.target.value,
+//   }));
+// };
 const handleChange = (e) => {
+  const { name, value } = e.target;
+  
   setEditableEvent((prev) => ({
     ...prev,
-    [e.target.name]: e.target.value,
+    [name]: Array.isArray(value) ? [...value] : value, // Ensure arrays are stored properly
   }));
 };
+
 const handleFileChange = (e) => {
   const file = e.target.files[0]; 
   setEditableEvent((prev) => ({
@@ -312,35 +321,35 @@ const onSubmit = (e) => {
 
 <div>
 <SelectInput
-    label="Assigned To"
-    name="assigned_to"
-    value={editableEvent?.assigned_to ? getSelectedOptions(editableEvent.assigned_to, userOptions) : []}
-    onChange={handleChange}
-    options={userOptions}
-    isMulti={true}
-  />
+  label="Assigned To"
+  name="assigned_to"
+  value={editableEvent?.assigned_to || []} // Pass empty array if undefined
+  onChange={handleChange}
+  options={userOptions}
+  isMulti={true}
+/>
 </div>
 
 <div>
-   <SelectInput
-    label="Tools"
-    name="tools"
-    value={editableEvent?.tools ? getSelectedOptions(editableEvent.tools, toolOptions) : []}
-    onChange={handleChange}
-    options={toolOptions}
-    isMulti={true}
-  />
+<SelectInput
+  label="Tools"
+  name="tools"
+  value={editableEvent?.tools || []} // Ensure it's an array
+  onChange={handleChange}
+  options={toolOptions}
+  isMulti={true}
+/>
 </div>
 
 <div>
-    <SelectInput
-    label="Materials"
-    name="materials"
-    value={editableEvent?.materials ? getSelectedOptions(editableEvent.materials, materialOptions) : []}
-    onChange={handleChange}
-    options={materialOptions}
-    isMulti={true}
-  />
+<SelectInput
+  label="Materials"
+  name="materials"
+  value={editableEvent?.materials || []}
+  onChange={handleChange}
+  options={materialOptions}
+  isMulti={true}
+/>
 </div>
 
 

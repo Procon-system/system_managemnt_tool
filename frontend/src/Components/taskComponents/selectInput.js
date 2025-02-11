@@ -71,25 +71,38 @@ import React, { useState } from 'react';
 //       </div>
 //   );
 // };
+// const getSelectedOptions = (items, options) => {
+//   return items.map(item => {
+//     // Find the option by ID (_id), assuming item is an object containing _id
+//     const option = options.find(option => option.value === item); 
+//     return option ? option : null; // Return the matched option or null if not found
+//   }).filter(option => option !== null); // Filter out nulls
+// };
 const getSelectedOptions = (items, options) => {
+  console.log("items, options",items, options)
+  if (!items || items.length === 0) return []; // Handle undefined/null/empty cases
+
   return items.map(item => {
-    // Find the option by ID (_id), assuming item is an object containing _id
-    const option = options.find(option => option.value === item); 
-    return option ? option : null; // Return the matched option or null if not found
-  }).filter(option => option !== null); // Filter out nulls
+    const id = typeof item === "object" ? item._id || item.id : item; // Extract ID if it's an object
+    return options.find(option => option.value === id) || null; // Find option in dropdown options
+  }).filter(option => option !== null); // Remove nulls
 };
 
-// For the SelectInput component
+
 const SelectInput = ({ label, name, value = [], onChange, options, isMulti = false }) => {
-  // For multi-select: ensure `value` contains objects, not just ids
+  // Ensure multi-select displays selected values correctly
   const selectedOption = isMulti 
-    ? getSelectedOptions(value, options) // Map IDs to objects for multi-select
-    : options.find(option => option.value === value); // For single select, find the selected option
+    ? getSelectedOptions(value, options) // Convert IDs to full objects
+    : options.find(option => option.value === value) || null; // Handle single select
+
+  console.log("Rendering SelectInput:", name, selectedOption);
 
   const handleSelectChange = (selectedOption) => {
     const newValue = isMulti
-      ? selectedOption.map(option => option.value) // Extract array of IDs
-      : selectedOption ? selectedOption.value : ""; // Extract single ID for non-multi-select
+      ? selectedOption.map(option => option.value) // Convert objects to an array of IDs
+      : selectedOption ? selectedOption.value : ""; // Convert single select to a single ID
+
+    console.log("New Selection:", name, newValue);
 
     onChange({ target: { name, value: newValue } });
   };
@@ -99,7 +112,7 @@ const SelectInput = ({ label, name, value = [], onChange, options, isMulti = fal
       <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
       <Select
         name={name}
-        value={selectedOption}
+        value={selectedOption} // Ensure selected value is mapped correctly
         onChange={handleSelectChange}
         options={options}
         isClearable
@@ -108,7 +121,12 @@ const SelectInput = ({ label, name, value = [], onChange, options, isMulti = fal
         isMulti={isMulti}
         className="w-full"
         styles={{
-          control: (base) => ({ ...base, backgroundColor: 'rgb(249 250 251)', padding: '4px 8px', borderColor: 'rgb(209 213 219)' }),
+          control: (base) => ({
+            ...base,
+            backgroundColor: 'rgb(249 250 251)',
+            padding: '4px 8px',
+            borderColor: 'rgb(209 213 219)'
+          }),
           placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
         }}
       />

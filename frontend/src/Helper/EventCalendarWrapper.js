@@ -500,9 +500,26 @@ facility: extendedProps?.facility || null,
 created_by: extendedProps?.created_by || null,
 // Flattened assigned resources
 // Flattened assigned resources with only IDs
-assigned_to: extendedProps?.assigned_resources?.assigned_to?.map(user => user._id || user.id) || [],
-tools: extendedProps?.assigned_resources?.tools?.map(tool => tool._id || tool.id) || [],
-materials: extendedProps?.assigned_resources?.materials?.map(material => material._id || material.id) || [],
+// assigned_to: extendedProps?.assigned_resources?.assigned_to?.map(user => user?._id || user?.id) || assigned_to|| [],
+// tools: extendedProps?.assigned_resources?.tools?.map(tool => tool?._id || tool?.id) || [],
+// materials: extendedProps?.assigned_resources?.materials?.map(material => material?._id || material?.id) || [],
+assigned_to:Array.isArray(extendedProps?.assigned_resources?.assigned_to)
+  ? extendedProps.assigned_resources.assigned_to.map(user => 
+      typeof user === 'object' ? user?._id || user?.id : user
+    ) 
+  : [],
+
+tools :Array.isArray(extendedProps?.assigned_resources?.tools)
+  ? extendedProps.assigned_resources.tools.map(tool => 
+      typeof tool === 'object' ? tool?._id || tool?.id : tool
+    ) 
+  : [],
+
+ materials:Array.isArray(extendedProps?.assigned_resources?.materials)
+  ? extendedProps.assigned_resources.materials.map(material => 
+      typeof material === 'object' ? material?._id || material?.id : material
+    ) 
+  : []
 
 };
 console.log("upadted",updatedEvent)
