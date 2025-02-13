@@ -77,7 +77,6 @@ export const fetchTasks = createAsyncThunk(
     }
   }
 );
-
 export const updateTask = createAsyncThunk(
   'tasks/updateTask',
   async ({ taskId, updatedData }, { getState, rejectWithValue }) => {
@@ -87,31 +86,56 @@ export const updateTask = createAsyncThunk(
       toast.error("Your session has expired. Please log in again.");
       return null;
     }
+
+    console.log("🟢 FormData before sending to service:");
+    for (let pair of updatedData.entries()) {
+        console.log(pair[0], pair[1]);
+    }
+
     try {
-      // Prepare FormData
-      const formData = new FormData();
-
-      for (const key in updatedData) {
-        if (updatedData[key] && key !== 'image') {
-          if (typeof updatedData[key] === 'object' && !(updatedData[key] instanceof File)) {
-            formData.append(key, JSON.stringify(updatedData[key])); // Flatten nested objects/arrays
-          } else {
-            formData.append(key, updatedData[key]);
-          }
-        }
-      }
-
-      if (updatedData.image) {
-        formData.append('image', updatedData.image);
-      }
-      // Call the update service
-      return await taskService.updateTask(taskId, formData, token);
+      return await taskService.updateTask(taskId, updatedData, token);
     } catch (error) {
       console.error('Error in updateTask:', error.response?.data || error.message);
       return rejectWithValue(error.response?.data || error.message || 'Error updating task');
     }
   }
 );
+
+
+// export const updateTask = createAsyncThunk(
+//   'tasks/updateTask',
+//   async ({ taskId, updatedData }, { getState, rejectWithValue }) => {
+//     const token = getState().auth.token;
+//     if (checkTokenExpiration(token)) {
+//       window.Storage.dispatch(logout()); 
+//       toast.error("Your session has expired. Please log in again.");
+//       return null;
+//     }
+//     try {
+//       // Prepare FormData
+//       const formData = new FormData();
+
+//       for (const key in updatedData) {
+//         if (updatedData[key] && key !== 'image') {
+//           if (typeof updatedData[key] === 'object' && !(updatedData[key] instanceof File)) {
+//             formData.append(key, JSON.stringify(updatedData[key])); // Flatten nested objects/arrays
+//           } else {
+//             formData.append(key, updatedData[key]);
+//           }
+//         }
+//       }
+
+//       if (updatedData.image) {
+//         formData.append('image', updatedData.image);
+//       }
+//       // Call the update service
+//       return await taskService.updateTask(taskId, formData, token);
+//     } catch (error) {
+//       console.error('Error in updateTask:', error.response?.data || error.message);
+//       return rejectWithValue(error.response?.data || error.message || 'Error updating task');
+//     }
+//   }
+// );
 
 
 // Delete Task

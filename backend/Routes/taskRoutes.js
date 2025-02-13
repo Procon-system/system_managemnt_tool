@@ -14,7 +14,7 @@ const {
     deleteBulkTasks,
   } = require('../Controllers/taskControllers');
   const {
-    getImage
+    getImages
   } = require('../Services/taskServices')
 const {
       authenticateUser,
@@ -25,10 +25,10 @@ const {
  const upload = require('../utils/uploadImage'); // Multer middleware
 const router = express.Router();
 router.post('/create-tasks',authenticateUser,isManager,upload.single('image'),createTask);
-router.get('/get-image/:id', getImage);
+router.get('/get-images/:id', getImages);
 router.get('/get-all-tasks', getAllTasks);
 router.get('/get-tasks-id/:id',authenticateUser,isServicePersonal,getTaskById);
-router.put('/update-tasks/:id',authenticateUser,isServicePersonal,upload.single('image'),updateTask);
+router.put('/update-tasks/:id',upload.array('images', 5),updateTask);
 router.put('/bulk-update',authenticateUser,isManager,bulkUpdateTasks);
 router.delete('/delete-tasks/:id', authenticateUser,isManager,deleteTask);
 router.delete('/bulk-delete', deleteBulkTasks);

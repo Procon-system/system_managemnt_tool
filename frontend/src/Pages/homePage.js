@@ -243,7 +243,7 @@ const calendarEvents = useMemo(() => {
           start: task.start_time,
           end: task.end_time,
           color: task.color_code,
-          image: task.image,
+          images: task.images || [],
           task_period:task.task_period,
           repeat_frequency:task.repeat_frequency,
           created_by:task.created_by,
@@ -455,29 +455,89 @@ const handleMultipleEventUpdate = (updatedEvents) => {
     setCalendarStartDate(startDate);
     setCalendarEndDate(endDate);
   };
-  const handleEventUpdate = (updatedEvent) => {
-    console.log("upadted evevnt",updatedEvent)
-    if (updatedEvent._id) {
-      if (updatedEvent.status) {
-        updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
-      }
+  // const handleEventUpdate = (updatedEvent) => {
+  //   console.log("upadted evevnt",updatedEvent)
+  //   if (updatedEvent._id) {
+  //     if (updatedEvent.status) {
+  //       updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
+  //     }
   
-      dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }))
-        .then(() => {
-          // Emit the updated task to the server
-          socket.emit("updateTask", updatedEvent);
-          toast.success("Task updated successfully!")
-        })
-        .catch((err) => {
-          toast.error("Failed to update task. Please try again.")
-          console.error("Task update failed:", err);
-        });
+  //     dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }))
+  //       .then(() => {
+  //         // Emit the updated task to the server
+  //         socket.emit("updateTask", updatedEvent);
+  //         toast.success("Task updated successfully!")
+  //       })
+  //       .catch((err) => {
+  //         toast.error("Failed to update task. Please try again.")
+  //         console.error("Task update failed:", err);
+  //       });
         
+  //   } else {
+  //     toast.error("Update failed: Event ID is undefined.");
+  //     console.error("Update failed: Event ID is undefined.");
+  //   }
+  // };
+  const handleEventUpdate = (updatedEvent) => {
+    console.log("Updated event before:", updatedEvent);
+    console.log("Images before appending:", updatedEvent.images);
+
+    updatedEvent.images.forEach((image) => {
+        console.log("Image type:", image instanceof File ? "File" : typeof image);
+    });
+
+    if (updatedEvent._id) {
+        if (updatedEvent.status) {
+            updatedEvent.color = getColorForStatus(updatedEvent.status);
+        }
+
+        const formData = new FormData();
+        formData.append("taskId", updatedEvent._id);
+
+        // Ensure images are appended correctly
+        if (updatedEvent.images && Array.isArray(updatedEvent.images)) {
+            updatedEvent.images.forEach((image, index) => {
+                if (image instanceof File) {  // Ensure it's a File object
+                    formData.append(`images`, image);  // No need for index notation
+                } else {
+                    console.warn("Skipping non-File image:", image);
+                }
+            });
+        }
+
+        // Append other fields
+        for (const key in updatedEvent) {
+            if (key !== "images") {
+                if (typeof updatedEvent[key] === "object" && updatedEvent[key] !== null) {
+                    formData.append(key, JSON.stringify(updatedEvent[key]));
+                } else {
+                    formData.append(key, updatedEvent[key]);
+                }
+            }
+        }
+
+        // Debugging FormData
+        console.log("FormData content:");
+        for (let pair of formData.entries()) {
+            console.log(pair[0], pair[1]);
+        }
+
+        dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
+            .then(() => {
+                socket.emit("updateTask", updatedEvent);
+                toast.success("Task updated successfully!");
+            })
+            .catch((err) => {
+                toast.error("Failed to update task. Please try again.");
+                console.error("Task update failed:", err);
+            });
     } else {
-      toast.error("Update failed: Event ID is undefined.");
-      console.error("Update failed: Event ID is undefined.");
+        toast.error("Update failed: Event ID is undefined.");
+        console.error("Update failed: Event ID is undefined.");
     }
-  };
+};
+
+
 const handleDelete = async (id) => {
   try {
     // Dispatch delete action and wait for it to succeed

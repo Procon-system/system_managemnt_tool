@@ -252,6 +252,7 @@ const updateTask = async (id, updateData, res) => {
       assigned_to: parseIfString(updateData.assigned_to || existingTask.assigned_to),
       tools: parseIfString(updateData.tools || existingTask.tools),
       materials: parseIfString(updateData.materials || existingTask.materials),
+      images: updateData.images || existingTask.images || [], // Ensure images array is preserved
       _id: existingTask._id, // Ensure _id is preserved
       updated_at: new Date().toISOString(),
     };
@@ -541,59 +542,125 @@ const fetchDoneTasksForUser = async (userId) => {
 /**
  * Fetch an image attachment by task ID.
  */
-const fetchImage = async (taskId) => {
+// const fetchImage = async (taskId) => {
+//   try {
+//     const task = await db.get(taskId); // Fetch the task document
+
+//     if (task._attachments) {
+//       // Get all attachment keys (image names)
+//       const attachmentKeys = Object.keys(task._attachments);
+
+//       if (attachmentKeys.length === 0) {
+//         throw new Error('No attachments found for this task');
+//       }
+
+//       // Assume the latest image is the last one added (or use a naming convention to identify it)
+//       const latestImageName = attachmentKeys[attachmentKeys.length - 1 ];
+
+//       // Fetch the attachment based on whether it's a stub
+//       const attachmentDetails = task._attachments[latestImageName];
+//       if (attachmentDetails.stub) {
+//         console.log("Attachment is a stub, fetching the full attachment...");
+//         const attachment = await db.attachment.get(taskId, latestImageName, { rev: task._rev }); // Fetch full attachment
+//         return { buffer: attachment, name: latestImageName }; // Return the image buffer and name
+//       } else {
+//         const buffer = await db.attachment.get(taskId, latestImageName); // Fetch as usual
+//         return { buffer, name: latestImageName }; // Return the image buffer and name
+//       }
+//     } else {
+//       throw new Error('No attachments found for this task');
+//     }
+//   } catch (error) {
+//     console.error('Error fetching image:', error.message);
+//     throw new Error(`Failed to fetch image: ${error.message}`);
+//   }
+// };
+const fetchImages = async (taskId) => {
   try {
     const task = await db.get(taskId); // Fetch the task document
 
-    if (task._attachments) {
-      // Get all attachment keys (image names)
-      const attachmentKeys = Object.keys(task._attachments);
-
-      if (attachmentKeys.length === 0) {
-        throw new Error('No attachments found for this task');
-      }
-
-      // Assume the latest image is the last one added (or use a naming convention to identify it)
-      const latestImageName = attachmentKeys[attachmentKeys.length - 1 ];
-
-      // Fetch the attachment based on whether it's a stub
-      const attachmentDetails = task._attachments[latestImageName];
-      if (attachmentDetails.stub) {
-        console.log("Attachment is a stub, fetching the full attachment...");
-        const attachment = await db.attachment.get(taskId, latestImageName, { rev: task._rev }); // Fetch full attachment
-        return { buffer: attachment, name: latestImageName }; // Return the image buffer and name
-      } else {
-        const buffer = await db.attachment.get(taskId, latestImageName); // Fetch as usual
-        return { buffer, name: latestImageName }; // Return the image buffer and name
-      }
-    } else {
+    if (!task._attachments) {
       throw new Error('No attachments found for this task');
     }
+
+    // Get all attachment keys (image names)
+    const attachmentKeys = Object.keys(task._attachments);
+
+    if (attachmentKeys.length === 0) {
+      throw new Error('No attachments found for this task');
+    }
+
+    // Fetch all attachments
+    const images = await Promise.all(
+      attachmentKeys.map(async (imageName) => {
+        const attachmentDetails = task._attachments[imageName];
+
+        if (attachmentDetails.stub) {
+          console.log(`Fetching full attachment for ${imageName}...`);
+          const buffer = await db.attachment.get(taskId, imageName, { rev: task._rev });
+          return { buffer, name: imageName };
+        } else {
+          const buffer = await db.attachment.get(taskId, imageName);
+          return { buffer, name: imageName };
+        }
+      })
+    );
+ 
+    return images; // Return an array of images
+
   } catch (error) {
-    console.error('Error fetching image:', error.message);
-    throw new Error(`Failed to fetch image: ${error.message}`);
+    console.error('Error fetching images:', error.message);
+    throw new Error(`Failed to fetch images: ${error.message}`);
   }
 };
 
-const getImage = async (req, res) => {
+// const getImage = async (req, res) => {
+//   try {
+//     const taskId = req.params.id; // Get task ID from the request
+//     const { buffer, name } = await fetchImage(taskId); // Fetch the latest image buffer and name
+
+//     // Determine the content type based on the file extension (basic example)
+//     const extension = name.split('.').pop().toLowerCase();
+//     const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg'; // Add more cases as needed
+
+//     // Set the appropriate content-type for the image
+//     res.setHeader('Content-Type', mimeType);
+
+//     // Send the image buffer in the response
+//     res.send(buffer);
+//   } catch (error) {
+//     console.error('Error fetching image:', error.message);
+//     res.status(500).json({ error: 'Failed to fetch image', details: error.message });
+//   }
+// };
+const getImages = async (req, res) => {
   try {
-    const taskId = req.params.id; // Get task ID from the request
-    const { buffer, name } = await fetchImage(taskId); // Fetch the latest image buffer and name
+    const taskId = req.params.id; // Get task ID from request
+    const images = await fetchImages(taskId); // Fetch all images
 
-    // Determine the content type based on the file extension (basic example)
-    const extension = name.split('.').pop().toLowerCase();
-    const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg'; // Add more cases as needed
+    if (!images || images.length === 0) {
+      return res.status(404).json({ error: "No images found for this task" });
+    }
 
-    // Set the appropriate content-type for the image
-    res.setHeader('Content-Type', mimeType);
+    // Process images into base64 for frontend use
+    const formattedImages = images.map(({ buffer, name }) => {
+      const extension = name.split('.').pop().toLowerCase();
+      const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg'; // Extend as needed
 
-    // Send the image buffer in the response
-    res.send(buffer);
+      return {
+        name,
+        mimeType,
+        base64: `data:${mimeType};base64,${buffer.toString('base64')}`, // Convert to base64 for display
+      };
+    });
+    res.json({ images: formattedImages });
+
   } catch (error) {
-    console.error('Error fetching image:', error.message);
-    res.status(500).json({ error: 'Failed to fetch image', details: error.message });
+    console.error("Error fetching images:", error.message);
+    res.status(500).json({ error: "Failed to fetch images", details: error.message });
   }
 };
+
 /**
  * Create a task linked to a specific machine.
  */
@@ -614,7 +681,7 @@ module.exports = {
   updateTask,
   bulkUpdateTasks,
   deleteTask,
-  getImage,
+  getImages,
   fetchAllDoneTasks,
   fetchDoneTasksForUser,
   getTasksByAssignedUser,

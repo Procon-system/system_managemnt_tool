@@ -11,6 +11,7 @@ import { fetchFacilities } from '../../features/facilitySlice'; // Redux action 
 import { fetchMachines } from '../../features/machineSlice'; // Redux action to fetch machines
 import { getUsers } from '../../features/userSlice';
 import DOMPurify from "dompurify";
+import ImageSlider from './imageSlider';
 const EventDetailsModal = ({
   isVisible,
   closeModal,
@@ -26,12 +27,6 @@ useEffect(() => {
   setEditableEvent(selectedEvent || {});
 }, [selectedEvent]);
 
-// const handleChange = (e) => {
-//   setEditableEvent((prev) => ({
-//     ...prev,
-//     [e.target.name]: e.target.value,
-//   }));
-// };
 const handleChange = (e) => {
   const { name, value } = e.target;
   
@@ -42,12 +37,14 @@ const handleChange = (e) => {
 };
 
 const handleFileChange = (e) => {
-  const file = e.target.files[0]; 
+  const files = Array.from(e.target.files); // Convert FileList to Array
+
   setEditableEvent((prev) => ({
     ...prev,
-    image: file,
+    images: [...(prev.images || []), ...files], // Append new images
   }));
 };
+
 const onSubmit = (e) => {
   e.preventDefault();
   handleFormSubmit(editableEvent);
@@ -58,6 +55,20 @@ const onSubmit = (e) => {
   const { materials } = useSelector((state) => state.materials);
   const { facilities } = useSelector((state) => state.facilities);
   const { machines } = useSelector((state) => state.machines);
+  const [images, setImages] = useState([]);
+
+  useEffect(() => {
+    if (editableEvent?._id) {
+      fetch(`http://localhost:5000/api/tasks/get-images/${editableEvent._id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data.images)) {
+            setImages(data.images); // Store the image URLs array
+          }
+        })
+        .catch((error) => console.error("Error fetching images:", error));
+    }
+  }, [editableEvent?._id]);
 
   // Fetch Data on Component Mount
   useEffect(() => {
@@ -138,37 +149,7 @@ const onSubmit = (e) => {
         label: `${user.first_name} ${user.last_name}`, // Use backticks
         value: user._id
       }));
-      
-  console.log("editableEvent",editableEvent)
-  // const onSubmit = (e) => {
-  //   e.preventDefault();
-  //   const updatedEvent = {
-  //     ...editableEvent,
-  //     status: e.target.status?.value,
-  //     notes: e.target.notes?.value,
-  //     repeat_frequency: e.target.repeat_frequency?.value,
-  //     task_period: e.target.task_period?.value,
-  //     machine: e.target.machine?.value,
-  //     facility: e.target.facility?.value,
-  //     assigned_to: editableEvent.assigned_to || [],
-  //     tools: editableEvent.tools || [],
-  //     materials: editableEvent.materials || [],
-  //   };
-
-  //   if (role >= 3) {
-  //     updatedEvent.title = e.target.title?.value;
-  //     updatedEvent.start_time = e.target.start?.value;
-  //     updatedEvent.end_time = e.target.end?.value;
-  //   }
-
-  //   const imageFile = e.target.image?.files[0]; // Access the uploaded image file
-  //   if (imageFile) {
-  //     updatedEvent.image = imageFile;
-  //   }
-
-  //   handleFormSubmit(updatedEvent); // Pass updated event data to the handler
-  // };
-
+    
   const [isEditMode, setIsEditMode] = useState(false);
 
   const toggleEditMode = () => {
@@ -379,11 +360,12 @@ const onSubmit = (e) => {
                   <div>
                     <label className="block mb-1 text-sm font-medium">Upload Image:</label>
                     <input
-                      type="file"
-                      name="image"
-                      onChange={handleFileChange}
-                      className="w-full px-3 py-1 border rounded-md"
-                    />
+    type="file"
+    name="images"
+    multiple // Allow multiple files
+    onChange={handleFileChange}
+    className="w-full px-3 py-1 border rounded-md"
+  />
                   </div>
                  
 
@@ -408,17 +390,10 @@ const onSubmit = (e) => {
     <p className="text-center font-bold">{editableEvent?.title}</p>
   </div>
 
-  <div className="col-span-2 flex justify-center">
-    {editableEvent?.image ? (
-      <img
-        src={`http://localhost:5000/api/tasks/get-image/${editableEvent?._id}`}
-        alt={editableEvent?.title || 'Event Image'}
-        className="w-[500px] h-[250px] object-cover"
-      />
-    ) : (
-      <p>No image available</p>
-    )}
-  </div>
+ <div className=" col-span-2 flex justify-center ">
+ <ImageSlider images={images} />
+    </div>
+
 
   <div className="flex items-center gap-2">
     <FaClock className="text-blue-500" />

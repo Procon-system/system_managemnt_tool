@@ -36,24 +36,30 @@ const taskService = {
     }
   },
   updateTask: async (taskId, updatedData, token) => {
- 
-    try {
-      const response = await axios.put(
-        `${API_URL}/update-tasks/${taskId}`,
-        updatedData, // Send FormData with the updated data
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-      return response.data.task; // Return the updated task data
-    } catch (error) {
-      console.error('Error updating task:', error.response?.data || error.message);
-      throw error.response?.data || error.message || new Error('Error updating task');
+    console.log("UpdatedData before sending:", updatedData);
+
+    for (let pair of updatedData.entries()) {
+        console.log(pair[0], pair[1]);  // Debugging FormData contents
     }
-  },
+
+    try {
+        const response = await axios.put(
+            `${API_URL}/update-tasks/${taskId}`,
+            updatedData, // Send FormData
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data',
+                },
+            }
+        );
+        return response.data.task; // Return the updated task data
+    } catch (error) {
+        console.error('Error updating task:', error.response?.data || error.message);
+        throw error.response?.data || error.message || new Error('Error updating task');
+    }
+},
+
   
   
   // Delete a task by ID

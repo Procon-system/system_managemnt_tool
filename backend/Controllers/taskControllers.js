@@ -295,64 +295,166 @@ const updateTask = async (req, res) => {
     const uuid = req.params.id; // Document ID
     const isMultipart = req.is('multipart/form-data');
     let updateData = { ...req.body };
-      // If status is provided, calculate the color code
+
+    // If status is provided, calculate the color code
     if (updateData.status) {
       updateData.color_code = getColorForStatus(updateData.status);
     }
-  
-    if (isMultipart) {
-      // Handle file upload via multer
-      upload.single('image')(req, res, async (err) => {
-        if (err) {
-          return res.status(400).json({ error: 'Failed to process file upload', details: err.message });
+
+    console.log("Received Files:", JSON.stringify(req.files, null, 2));
+
+    if (isMultipart && req.files && req.files.length > 0) {
+      // Fetch the existing task
+      const task = await db.get(uuid);
+
+      // Check if task.images is an array
+      if (Array.isArray(task.images) && task.images.length > 0) {
+        try {
+          await Promise.all(task.images.map(async (image) => {
+            const oldImageName = image.split('/').pop();
+            await deleteAttachment(uuid, oldImageName);
+          }));
+        } catch (deleteError) {
+          return res.status(500).json({ error: 'Failed to delete old images', details: deleteError.message });
         }
+      } else {
+        console.log("No valid images found for task", uuid);
+      }
 
-        const file = req.file;
+      // Upload new images and store their references
+      const uploadedImages = [];
 
-        if (file) {
-          // Check if the task already has an image and remove the old one
-          const task = await db.get(uuid); // Fetch the task document
-
-          if (task.image) {
-            // If there's an existing image, you may want to delete the old one
-            const oldImageName = task.image.split('/').pop(); // Extract the image name from the URL
-            try {
-              await deleteAttachment(uuid, oldImageName); // Function to delete the old image attachment
-            } catch (deleteError) {
-              return res.status(500).json({ error: 'Failed to delete old image', details: deleteError.message });
-            }
-          }
-
-          // Save the new image as an attachment in CouchDB
-          const fileBuffer = file.buffer; // Image as Buffer
+      for (const file of req.files) {
+        try {
+          const fileBuffer = file.buffer;
           const fileName = file.originalname;
           const mimeType = file.mimetype;
 
-          try {
-            // Save the new image as an attachment
-            const attachmentResponse = await saveAttachment(uuid, fileBuffer, fileName, mimeType);
-
-            // Get the URL or reference of the new attachment (CouchDB attachment URL)
-            const imageUrl = `/path_to_attachments/${fileName}`; // Customize this URL as needed based on your CouchDB setup
-            updateData.image = imageUrl; // Store the new image URL in the image field
-
-          } catch (saveError) {
-            return res.status(500).json({ error: 'Failed to save new image', details: saveError.message });
-          }
+          await saveAttachment(uuid, fileBuffer, fileName, mimeType);
+          uploadedImages.push(`/path_to_attachments/${fileName}`);
+        } catch (saveError) {
+          return res.status(500).json({ error: 'Failed to save image', details: saveError.message });
         }
-         
-        // Proceed with updating the task document with the new image URL
-        await taskService.updateTask(uuid, updateData, res);
-      });
-    } else {
-      // Handle JSON update (no file upload)
-      await taskService.updateTask(uuid, updateData, res);
+      }
+
+      console.log("Uploaded Images:", uploadedImages);
+      updateData.images = uploadedImages; // Store the array of image URLs
     }
+
+    // Proceed with updating the task
+    await taskService.updateTask(uuid, updateData, res);
   } catch (error) {
     console.error('Error updating task:', error);
     res.status(400).json({ error: 'Failed to update task', details: error.message });
   }
 };
+
+// const updateTask = async (req, res) => {
+//   try {
+//     const uuid = req.params.id; // Document ID
+//     const isMultipart = req.is('multipart/form-data');
+//     let updateData = { ...req.body };
+//       // If status is provided, calculate the color code
+//     if (updateData.status) {
+//       updateData.color_code = getColorForStatus(updateData.status);
+//     }
+//      console.log("req",req.files)
+//     if (isMultipart) {
+//       upload.array('images', 5)(req, res, async (err) => {
+//         if (err) {
+//           return res.status(400).json({ error: 'Failed to process file upload', details: err.message });
+//         }
+
+//         const files = req.files;
+//          console.log("files",files)
+//         if (files && files.length > 0) {
+//           // Fetch the existing task
+//           const task = await db.get(uuid);
+
+//           // Delete old images if they exist
+//           if (task.images && task.images.length > 0) {
+//             try {
+//               await Promise.all(task.images.map(async (image) => {
+//                 const oldImageName = image.split('/').pop();
+//                 await deleteAttachment(uuid, oldImageName);
+//               }));
+//             } catch (deleteError) {
+//               return res.status(500).json({ error: 'Failed to delete old images', details: deleteError.message });
+//             }
+//           }
+
+//           // Upload new images and store their references
+//           const uploadedImages = [];
+
+//           for (const file of files) {
+//             try {
+//               const fileBuffer = file.buffer;
+//               const fileName = file.originalname;
+//               const mimeType = file.mimetype;
+
+//               await saveAttachment(uuid, fileBuffer, fileName, mimeType);
+//               uploadedImages.push(`/path_to_attachments/${fileName}`);
+//             } catch (saveError) {
+//               return res.status(500).json({ error: 'Failed to save image', details: saveError.message });
+//             }
+//           }
+//       console.log("uploaded",uploadedImages);
+//           updateData.images = uploadedImages; // Store the array of image URLs
+//         }
+
+//     // if (isMultipart) {
+//     //   // Handle file upload via multer
+//     //   upload.single('image')(req, res, async (err) => {
+//     //     if (err) {
+//     //       return res.status(400).json({ error: 'Failed to process file upload', details: err.message });
+//     //     }
+
+//     //     const file = req.file;
+
+//     //     if (file) {
+//     //       // Check if the task already has an image and remove the old one
+//     //       const task = await db.get(uuid); // Fetch the task document
+
+//     //       if (task.image) {
+//     //         // If there's an existing image, you may want to delete the old one
+//     //         const oldImageName = task.image.split('/').pop(); // Extract the image name from the URL
+//     //         try {
+//     //           await deleteAttachment(uuid, oldImageName); // Function to delete the old image attachment
+//     //         } catch (deleteError) {
+//     //           return res.status(500).json({ error: 'Failed to delete old image', details: deleteError.message });
+//     //         }
+//     //       }
+
+//     //       // Save the new image as an attachment in CouchDB
+//     //       const fileBuffer = file.buffer; // Image as Buffer
+//     //       const fileName = file.originalname;
+//     //       const mimeType = file.mimetype;
+
+//     //       try {
+//     //         // Save the new image as an attachment
+//     //         const attachmentResponse = await saveAttachment(uuid, fileBuffer, fileName, mimeType);
+
+//     //         // Get the URL or reference of the new attachment (CouchDB attachment URL)
+//     //         const imageUrl = `/path_to_attachments/${fileName}`; // Customize this URL as needed based on your CouchDB setup
+//     //         updateData.image = imageUrl; // Store the new image URL in the image field
+
+//     //       } catch (saveError) {
+//     //         return res.status(500).json({ error: 'Failed to save new image', details: saveError.message });
+//     //       }
+//     //     }
+         
+//         // Proceed with updating the task document with the new image URL
+//         await taskService.updateTask(uuid, updateData, res);
+//       });
+//     } else {
+//       // Handle JSON update (no file upload)
+//       await taskService.updateTask(uuid, updateData, res);
+//     }
+//   } catch (error) {
+//     console.error('Error updating task:', error);
+//     res.status(400).json({ error: 'Failed to update task', details: error.message });
+//   }
+// };
 const bulkUpdateTasks = async (req, res) => {
   try {
     const { taskUpdates } = req.body; // Array of updates
@@ -380,23 +482,28 @@ const bulkUpdateTasks = async (req, res) => {
 };
 const deleteAttachment = async (uuid, fileName) => {
   try {
-    // Fetch the document containing the attachment
-    const taskDoc = await db.get(uuid);
+    let taskDoc = await db.get(uuid); // Fetch latest revision
 
     if (taskDoc._attachments && taskDoc._attachments[fileName]) {
       // Remove the attachment from the document
       delete taskDoc._attachments[fileName];
 
+      // **Fetch latest document version before updating**
+      const latestDoc = await db.get(uuid); 
+      taskDoc._rev = latestDoc._rev; // Use the latest revision
+
       // Update the document in the database
       const response = await db.insert(taskDoc);
-      console.log(`Deleted attachment ${fileName} for task ${uuid}:`, response);
+      console.log(`✅ Deleted attachment ${fileName} for task ${uuid}:`, response);
     } else {
-      console.log(`Attachment ${fileName} not found for task ${uuid}`);
+      console.log(`⚠️ Attachment ${fileName} not found for task ${uuid}`);
     }
   } catch (error) {
+    console.error(`❌ Failed to delete attachment ${fileName}:`, error.message);
     throw new Error(`Failed to delete attachment ${fileName}: ${error.message}`);
   }
 };
+
 const deleteTask = async (req, res) => {
   try {
     const result = await taskService.deleteTask(req.params.id); // Get the deleted task result

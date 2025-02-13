@@ -10,7 +10,7 @@ const TaskModel = {
   repeat_frequency: '',       // Frequency of repetition
   status: 'pending',          // Task status: pending, in progress, etc.
   notes: '',                  // Optional notes about the task
-  image: '',                  // ID of the image document in GridFS
+  images: [],                  // ID of the image document in GridFS
   start_time: '',             // Start time (ISO 8601 format)
   end_time: '',               // End time (ISO 8601 format)
   color_code: '',             // Status-dependent color code (blue, green, yellow, red, etc.)
