@@ -57,7 +57,7 @@ try {
       repeat_frequency: taskData.repeat_frequency,
       status: taskData.status || "pending",
       notes: taskData.notes || "",
-      image: null,
+      images: taskData.images || [],  
       start_time: taskData.start_time,
       end_time: taskData.end_time,
       color_code: taskData.color_code,
@@ -72,7 +72,7 @@ try {
       updated_at: new Date().toISOString(),
     };
 
-    console.log("Base task prepared:", baseTask);
+   
 
     // Step 4: Decrement material quantities if applicable
     if (baseTask.materials && baseTask.materials.length > 0) {
@@ -299,12 +299,13 @@ const updateTask = async (req, res) => {
     });
   }
 };
-
-
 const deleteAttachments = async (uuid, imagesToDelete, task) => {
   try {
     // ✅ Ensure we fetch the latest document revision
     let latestTask = await db.get(uuid);
+
+    // ✅ Ensure `images` is always an array
+    latestTask.images = Array.isArray(latestTask.images) ? latestTask.images : [];
 
     // ✅ Remove attachments in-memory before saving
     imagesToDelete.forEach((image) => {
@@ -314,7 +315,7 @@ const deleteAttachments = async (uuid, imagesToDelete, task) => {
       }
     });
 
-    // ✅ Remove deleted images from `images` array
+    // ✅ Safely filter images
     latestTask.images = latestTask.images.filter(
       (img) => !imagesToDelete.some((deleted) => deleted.name === img.name)
     );
@@ -329,6 +330,36 @@ const deleteAttachments = async (uuid, imagesToDelete, task) => {
     throw new Error(`Failed to delete attachments: ${error.message}`);
   }
 };
+
+
+// const deleteAttachments = async (uuid, imagesToDelete, task) => {
+//   try {
+//     // ✅ Ensure we fetch the latest document revision
+//     let latestTask = await db.get(uuid);
+
+//     // ✅ Remove attachments in-memory before saving
+//     imagesToDelete.forEach((image) => {
+//       const fileName = image.name || image.split("/").pop();
+//       if (latestTask._attachments && latestTask._attachments[fileName]) {
+//         delete latestTask._attachments[fileName];
+//       }
+//     });
+
+//     // ✅ Remove deleted images from `images` array
+//     latestTask.images = latestTask.images.filter(
+//       (img) => !imagesToDelete.some((deleted) => deleted.name === img.name)
+//     );
+
+//     // ✅ Save the updated document with the latest `_rev`
+//     const response = await db.insert(latestTask);
+
+//     console.log(`✅ Successfully deleted attachments and updated task ${uuid}`);
+//     return response;
+//   } catch (error) {
+//     console.error(`❌ Failed to delete attachments:`, error.message);
+//     throw new Error(`Failed to delete attachments: ${error.message}`);
+//   }
+// };
 
 const bulkUpdateTasks = async (req, res) => {
   try {
