@@ -36,19 +36,7 @@ const handleChange = (e) => {
   }));
 };
 
-const handleFileChange = (e) => {
-  const files = Array.from(e.target.files); // Convert FileList to Array
 
-  setEditableEvent((prev) => ({
-    ...prev,
-    images: [...(prev.images || []), ...files], // Append new images
-  }));
-};
-
-const onSubmit = (e) => {
-  e.preventDefault();
-  handleFormSubmit(editableEvent);
-};
   // Fetch Data from Redux Store
   const { users } = useSelector((state) => state.users);
   const { tools } = useSelector((state) => state.tools);
@@ -56,6 +44,7 @@ const onSubmit = (e) => {
   const { facilities } = useSelector((state) => state.facilities);
   const { machines } = useSelector((state) => state.machines);
   const [images, setImages] = useState([]);
+  const [newImages, setNewImages] = useState([]); // Store new images for preview
 
   useEffect(() => {
     if (editableEvent?._id) {
@@ -99,7 +88,7 @@ const onSubmit = (e) => {
         if (typeof tool === "object") {
           return tool.tool_name;
         }
-        const foundTool = tools.find((t) => t._id === tool);
+        const foundTool = tools?.find((t) => t._id === tool);
         return foundTool ? foundTool.tool_name : "Unknown Tool";
       })
       .join(", ") || "Not set";
@@ -111,41 +100,41 @@ const onSubmit = (e) => {
             if (typeof material === "object") {
               return material.material_name;
             }
-            const foundMaterial = materials.find((m) => m._id === material);
+            const foundMaterial = materials?.find((m) => m._id === material);
             return foundMaterial ? foundMaterial.material_name : "Unknown Material";
           })
           .join(", ") || "Not set";
       
   const getFacilityName = (id) => {
-        const facility = facilities.find((f) => f._id === id);
+        const facility = facilities?.find((f) => f._id === id);
         return facility ? facility.facility_name : 'Unknown Facility';
       };
     
   const getMachineName = (id) => {
-        const machine = machines.find((m) => m._id === id);
+        const machine = machines?.find((m) => m._id === id);
         return machine ? machine.machine_name : 'Unknown Machine';
       };
-      const machineOptions = machines.map(machine => ({
+      const machineOptions = machines?.map(machine => ({
         label: machine.machine_name,
         value: machine._id
       }));
       
-      const facilityOptions = facilities.map(facility => ({
+      const facilityOptions = facilities?.map(facility => ({
         label: facility.facility_name,
         value: facility._id
       }));
       
       
-      const toolOptions = tools.map(tool => ({
+      const toolOptions = tools?.map(tool => ({
         label: tool.tool_name,
         value: tool._id
       }));
       
-      const materialOptions = materials.map(material => ({
+      const materialOptions = materials?.map(material => ({
         label: material.material_name,
         value: material._id
       }));
-      const userOptions = users.map(user => ({
+      const userOptions = users?.map(user => ({
         label: `${user.first_name} ${user.last_name}`, // Use backticks
         value: user._id
       }));
@@ -160,10 +149,31 @@ const onSubmit = (e) => {
   if (!editableEvent) {
     return <p>Loading event details...</p>;  // Show a loading message instead of crashing
   }
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setNewImages([...newImages, ...files]); // Append new files
+  };
+  const handleRemoveImage = (image) => {
+    setImages((prevImages) => prevImages.filter((img) => img !== image));
+  };
   
+  const handleRemoveNewImage = (index) => {
+    setNewImages((prevNewImages) => prevNewImages.filter((_, i) => i !== index));
+  };
+  
+  const onSubmit = (e) => {
+    e.preventDefault();
+    handleFormSubmit({ 
+      ...editableEvent, 
+      images, 
+      newImages, 
+    });
+  };
+  
+ 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="relative bg-white p-6 rounded-lg max-w-3xl w-full">
+      <div className="relative bg-white p-6 rounded-lg max-w-4xl w-full">
         <button
           type="button"
           onClick={closeModal}
@@ -200,21 +210,22 @@ const onSubmit = (e) => {
 
           {/* Conditional rendering based on edit mode */}
           {isEditMode ? (
-            <>
+              <>
               {role >= 3 && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Title */}
                   <div>
                     <label className="block mb-1 text-sm font-medium">Title:</label>
                     <input
                       type="text"
                       name="title"
                       defaultValue={editableEvent?.title}
-                      // value={editableEvent.title}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   </div>
-
+          
+                  {/* Start Time */}
                   <div>
                     <label className="block mb-1 text-sm font-medium">Start Time:</label>
                     <input
@@ -233,7 +244,8 @@ const onSubmit = (e) => {
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   </div>
-
+          
+                  {/* End Time */}
                   <div>
                     <label className="block mb-1 text-sm font-medium">End Time:</label>
                     <input
@@ -252,136 +264,183 @@ const onSubmit = (e) => {
                       className="w-full px-3 py-2 border rounded-md"
                     />
                   </div>
-
+          
+                  {/* Frequency */}
                   <div>
-                  <SelectInput
-    label="Frequency"
-    name="repeat_frequency"
-    value={editableEvent?.repeat_frequency}
-    onChange={handleChange}   
-    options={[
-      { label: 'None', value: 'none' },
-      { label: 'Daily', value: 'daily' },
-      { label: 'Weekly', value: 'weekly' },
-      { label: 'Monthly', value: 'monthly' },
-      { label: 'Yearly', value: 'yearly' },
-    ]}
-    required
-  />
+                    <SelectInput
+                      label="Frequency"
+                      name="repeat_frequency"
+                      value={editableEvent?.repeat_frequency}
+                      onChange={handleChange}
+                      options={[
+                        { label: "None", value: "none" },
+                        { label: "Daily", value: "daily" },
+                        { label: "Weekly", value: "weekly" },
+                        { label: "Monthly", value: "monthly" },
+                        { label: "Yearly", value: "yearly" },
+                      ]}
+                      required
+                    />
                   </div>
-
+          
+                  {/* Task Period */}
                   <div>
-                  <SelectTaskPeriodInput
-    label="Task Period"
-    name="task_period"
-    value={editableEvent?.task_period}
-    onChange={handleChange}
-    required
-  />
+                    <SelectTaskPeriodInput
+                      label="Task Period"
+                      name="task_period"
+                      value={editableEvent?.task_period}
+                      onChange={handleChange}
+                      required
+                    />
                   </div>
-
+          
+                  {/* Machine */}
                   <div>
-    <SelectInput
-    label="Machine"
-    name="machine"
-    value={editableEvent?.machine}
-    onChange={handleChange}
-    options={machineOptions}
-  />
-</div>
-
-<div>
-   <SelectInput
-    label="Facility"
-    name="facility"
-    value={editableEvent?.facility}
-    onChange={handleChange}
-    options={facilityOptions}
-  />
-</div>
-
-<div>
-<SelectInput
-  label="Assigned To"
-  name="assigned_to"
-  value={editableEvent?.assigned_to || []} // Pass empty array if undefined
-  onChange={handleChange}
-  options={userOptions}
-  isMulti={true}
-/>
-</div>
-
-<div>
-<SelectInput
-  label="Tools"
-  name="tools"
-  value={editableEvent?.tools || []} // Ensure it's an array
-  onChange={handleChange}
-  options={toolOptions}
-  isMulti={true}
-/>
-</div>
-
-<div>
-<SelectInput
-  label="Materials"
-  name="materials"
-  value={editableEvent?.materials || []}
-  onChange={handleChange}
-  options={materialOptions}
-  isMulti={true}
-/>
-</div>
-
-
+                    <SelectInput
+                      label="Machine"
+                      name="machine"
+                      value={editableEvent?.machine}
+                      onChange={handleChange}
+                      options={machineOptions}
+                    />
+                  </div>
+          
+                  {/* Facility */}
+                  <div>
+                    <SelectInput
+                      label="Facility"
+                      name="facility"
+                      value={editableEvent?.facility}
+                      onChange={handleChange}
+                      options={facilityOptions}
+                    />
+                  </div>
+          
+                  {/* Assigned To */}
+                  <div>
+                    <SelectInput
+                      label="Assigned To"
+                      name="assigned_to"
+                      value={editableEvent?.assigned_to || []}
+                      onChange={handleChange}
+                      options={userOptions}
+                      isMulti={true}
+                    />
+                  </div>
+          
+                  {/* Tools */}
+                  <div>
+                    <SelectInput
+                      label="Tools"
+                      name="tools"
+                      value={editableEvent?.tools || []}
+                      onChange={handleChange}
+                      options={toolOptions}
+                      isMulti={true}
+                    />
+                  </div>
+          
+                  {/* Materials */}
+                  <div>
+                    <SelectInput
+                      label="Materials"
+                      name="materials"
+                      value={editableEvent?.materials || []}
+                      onChange={handleChange}
+                      options={materialOptions}
+                      isMulti={true}
+                    />
+                  </div>
+          
+                  {/* Status (Role ≥ 2) */}
+                  {role >= 2 && (
+                    <div>
+                      <label className="block mb-1 text-sm font-medium">Status:</label>
+                      <select
+                        name="status"
+                        defaultValue={editableEvent?.status || "pending"}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border rounded-md"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="in progress">In progress</option>
+                        <option value="done">Done</option>
+                        <option value="impossible">Impossible</option>
+                        <option value="overdue">Overdue</option>
+                      </select>
+                    </div>
+                  )}
+          
+                  {/* Upload Image (Role ≥ 2) */}
+                  {role >= 2 && (
+                    <div>
+                      <label className="block text-sm font-medium">Upload Image:</label>
+                      <input
+                        type="file"
+                        name="images"
+                        multiple
+                        onChange={handleFileChange}
+                        className="w-full px-2 py-1 border rounded-md text-sm"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
-
+          
+              {/* Image Previews (Role ≥ 2) */}
               {role >= 2 && (
-                <div>
-<div className="grid grid-cols-2 gap-4">
+                <div className="mt-3 p-3 border rounded-md shadow-md grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block mb-1 text-sm font-medium">Status:</label>
-                    <select
-                      name="status"
-                      
-                      defaultValue={editableEvent?.status || 'pending'}
-                      onChange={(e) => handleChange(e)}
-                      className="w-full px-3 py-2 border rounded-md"
-                    >
-        
-                      <option value="pending">Pending</option>
-                      <option value="in progress">In progress</option>
-                      <option value="done">Done</option>
-                      <option value="impossible">Impossible</option>
-                      <option value="overdue">Overdue</option>
-                    </select>
+                    <h3 className="text-sm font-semibold mb-2">Current Images:</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {images.map((image, index) => (
+                        <div key={index} className="relative w-24 h-24">
+                          <img src={image.base64 || image} alt="Preview" className="w-full h-full object-cover rounded-md" />
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleRemoveImage(image);
+                            }}
+                            className="absolute top-1 right-1 bg-red-500 text-white text-xs p-1 rounded-full"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+          
                   <div>
-                    <label className="block mb-1 text-sm font-medium">Upload Image:</label>
-                    <input
-    type="file"
-    name="images"
-    multiple // Allow multiple files
-    onChange={handleFileChange}
-    className="w-full px-3 py-1 border rounded-md"
-  />
-                  </div>
-                 
-
-                 
-                </div>
-                <div>
-                    <label className="block mb-1 text-sm font-medium">Note:</label>
-                    <RichTextEditor 
-  value={editableEvent?.notes} 
-  onChange={(value) => handleChange({ target: { name: "notes", value } })} 
-/>
-
-                    {/* <RichTextEditor value={editableEvent.notes} /> */}
+                    <h3 className="text-sm font-semibold">New Images:</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {newImages.map((file, index) => (
+                        <div key={index} className="relative w-24 h-24">
+                          <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover rounded-md" />
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleRemoveNewImage(index);
+                            }}
+                            className="absolute top-1 right-1 bg-red-500 text-white text-xs p-1 rounded-full"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                
+              )}
+          
+              {/* Notes Section */}
+              {role >= 2 && (
+                <div className="mt-3">
+                  <label className="block mb-1 text-sm font-medium">Note:</label>
+                  <RichTextEditor
+                    value={editableEvent?.notes}
+                    onChange={(value) => handleChange({ target: { name: "notes", value } })}
+                  />
+                </div>
               )}
             </>
           ): (

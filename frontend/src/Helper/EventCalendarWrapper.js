@@ -507,20 +507,20 @@ assigned_to:Array.isArray(extendedProps?.assigned_resources?.assigned_to)
   ? extendedProps.assigned_resources.assigned_to.map(user => 
       typeof user === 'object' ? user?._id || user?.id : user
     ) 
-  : [],
+    : JSON.parse(extendedProps?.assigned_resources?.assigned_to || "[]"), 
+
 
 tools :Array.isArray(extendedProps?.assigned_resources?.tools)
   ? extendedProps.assigned_resources.tools.map(tool => 
       typeof tool === 'object' ? tool?._id || tool?.id : tool
     ) 
-  : [],
+    : JSON.parse(extendedProps?.assigned_resources?.tools || "[]"),
 
  materials:Array.isArray(extendedProps?.assigned_resources?.materials)
   ? extendedProps.assigned_resources.materials.map(material => 
       typeof material === 'object' ? material?._id || material?.id : material
     ) 
-  : []
-
+    : JSON.parse(extendedProps?.assigned_resources?.materials || "[]"),
 };
 console.log("upadted",updatedEvent)
               openForm(updatedEvent);

@@ -1,83 +1,7 @@
 
 import Select from 'react-select';
 import React, { useState } from 'react';
-// const SelectInput = ({ label, name, value = "", onChange, options, required = false, isMulti = false }) => {
-//     // Convert the selected value into a compatible format for `react-select`
-//     const selectedOption = isMulti 
-//         ? options.filter(option => value.includes(option.value))
-//         : options.find(option => option.value === value);
 
-//     const handleSelectChange = (selectedOption) => {
-//         // Handle single or multi-selection based on `isMulti`
-//         const newValue = isMulti
-//             ? selectedOption.map(option => option.value) // for multi-selection
-//             : selectedOption ? selectedOption.value : ""; // for single-selection
-//         onChange({ target: { name, value: newValue } });
-//     };
-
-//     return (
-//     <div className="mb-4 w-full px-2">
-//     <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
-//     <Select
-//         name={name}
-//         value={selectedOption}
-//         onChange={handleSelectChange}
-//         options={options}
-//         isClearable
-//         placeholder={`Select ${label}`}
-//         isSearchable
-//         isMulti={isMulti}
-//         className="w-full"
-//         styles={{
-//             control: (base) => ({ ...base, backgroundColor: 'rgb(249 250 251)', padding: '4px 8px', borderColor: 'rgb(209 213 219)' }),
-//             placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
-//         }}
-//     />
-// </div>
-//     );
-// };
-// const SelectInput = ({ label, name, value = "", onChange, options, required = false, isMulti = false }) => {
-//   // Ensure selected values match option values (IDs only)
-//   const selectedOption = isMulti
-//       ? options.filter(option => Array.isArray(value) && value.includes(option.value))
-//       : options.find(option => option.value === value);
-
-//   const handleSelectChange = (selectedOption) => {
-//       const newValue = isMulti
-//           ? (selectedOption ? selectedOption.map(option => option.value) : []) // Extract array of IDs
-//           : (selectedOption ? selectedOption.value : ""); // Single selection returns a string or empty
-
-//       onChange({ target: { name, value: newValue } });
-//   };
-
-//   return (
-//       <div className="mb-4 w-full px-2">
-//           <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
-//           <Select
-//               name={name}
-//               value={selectedOption}
-//               onChange={handleSelectChange}
-//               options={options}
-//               isClearable
-//               placeholder={`Select ${label}`}
-//               isSearchable
-//               isMulti={isMulti}
-//               className="w-full"
-//               styles={{
-//                   control: (base) => ({ ...base, backgroundColor: 'rgb(249 250 251)', padding: '4px 8px', borderColor: 'rgb(209 213 219)' }),
-//                   placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
-//               }}
-//           />
-//       </div>
-//   );
-// };
-// const getSelectedOptions = (items, options) => {
-//   return items.map(item => {
-//     // Find the option by ID (_id), assuming item is an object containing _id
-//     const option = options.find(option => option.value === item); 
-//     return option ? option : null; // Return the matched option or null if not found
-//   }).filter(option => option !== null); // Filter out nulls
-// };
 const getSelectedOptions = (items, options) => {
   console.log("items, options",items, options)
   if (!items || items.length === 0) return []; // Handle undefined/null/empty cases
@@ -95,20 +19,18 @@ const SelectInput = ({ label, name, value = [], onChange, options, isMulti = fal
     ? getSelectedOptions(value, options) // Convert IDs to full objects
     : options.find(option => option.value === value) || null; // Handle single select
 
-  console.log("Rendering SelectInput:", name, selectedOption);
-
   const handleSelectChange = (selectedOption) => {
     const newValue = isMulti
       ? selectedOption.map(option => option.value) // Convert objects to an array of IDs
       : selectedOption ? selectedOption.value : ""; // Convert single select to a single ID
 
-    console.log("New Selection:", name, newValue);
+   
 
     onChange({ target: { name, value: newValue } });
   };
 
   return (
-    <div className="mb-4 w-full px-2">
+    <div className="w-full px-2">
       <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
       <Select
         name={name}
@@ -195,7 +117,7 @@ const periodOptions = [
     };
   
     return (
-        <div className="mb-4 w-full px-2">
+        <div className="w-full px-2">
           <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
           
           {/* Flex container to hold both inputs horizontally */}
@@ -231,7 +153,7 @@ const periodOptions = [
           </div>
       
           {/* Display error message if the input is invalid */}
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
         </div>
       );
       

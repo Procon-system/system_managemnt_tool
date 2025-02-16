@@ -44,96 +44,143 @@ const createTask = async (taskData, file) => {
     throw new Error(`Failed to create task: ${error.message}`);
   }
 };
-const getAllTasks = async () => {
-  try {
-    // Step 1: Fetch all tasks
-    const result = await db.find({
-      selector: {
-        type: 'task',
-        status: { $ne: 'done' },
-      },
-      sort: [{ updated_at: 'desc' }],
-      limit: 200,
-    });
-    console.log("result",result)
-    const tasks = result.docs;
+// const getAllTasks = async () => {
+//   try {
+//     // Step 1: Fetch all tasks
+//     const result = await db.find({
+//       selector: {
+//         type: 'task',
+//         status: { $ne: 'done' },
+//       },
+//       sort: [{ updated_at: 'desc' }],
+//       limit: 200,
+//     });
+//     const tasks = result.docs;
 
-    // Step 2: Extract unique IDs for foreign keys
+//     // Step 2: Extract unique IDs for foreign keys
+//     const userIds = new Set();
+//     const toolIds = new Set();
+//     const materialIds = new Set();
+
+//     tasks.forEach(task => {
+//       // Ensure `assigned_to`, `tools`, and `materials` are arrays before using `forEach`
+//       if (Array.isArray(task.assigned_to)) {
+//         task.assigned_to.forEach(userId => userIds.add(userId));
+//       }
+//       if (Array.isArray(task.tools)) {
+//         task.tools.forEach(toolId => toolIds.add(toolId));
+//       }
+//       if (Array.isArray(task.materials)) {
+//         task.materials.forEach(materialId => materialIds.add(materialId));
+//       }
+//     });
+//     // Step 3: Fetch related documents for users, tools, and materials
+//     const [users, tools, materials] = await Promise.all([
+//       userIds.size ? fetchDocuments([...userIds], 'user') : Promise.resolve([]),
+//       toolIds.size ? fetchDocuments([...toolIds], 'tool') : Promise.resolve([]),
+//       materialIds.size ? fetchDocuments([...materialIds], 'material') : Promise.resolve([]),
+//     ]);
+   
+//     // Step 4: Map related documents by ID for quick lookup
+//     const userMap = users.reduce((map, user) => {
+//       map[user._id] = user;
+//       return map;
+//     }, {});
+
+//     const toolMap = tools.reduce((map, tool) => {
+//       map[tool._id] = tool;
+//       return map;
+//     }, {});
+
+//     const materialMap = materials.reduce((map, material) => {
+//       map[material._id] = material;
+//       return map;
+//     }, {});
+
+    
+//     const populatedTasks = tasks.map(task => ({
+//       ...task,
+//       assigned_to: Array.isArray(task.assigned_to)
+//         ? task.assigned_to.map(userId => userMap[userId] || {}) // Fallback to empty object
+//         : [],
+//       tools: Array.isArray(task.tools)
+//         ? task.tools.map(toolId => toolMap[toolId] || {})
+//         : [],
+//       materials: Array.isArray(task.materials)
+//         ? task.materials.map(materialId => materialMap[materialId] || {})
+//         : [],
+//     }));
+    
+//     return populatedTasks;
+//   } catch (error) {
+//     throw new Error(`Failed to fetch tasks: ${error.message}`);
+//   }
+// };
+const getAllTasks = async (batchSize = 20) => {
+  try {
+    let allTasks = [];
+    let lastUpdatedAt = null;
+
+    while (true) {
+      // Step 1: Fetch a batch of tasks
+      const query = {
+        selector: {
+          type: 'task',
+          status: { $ne: 'done' },
+          ...(lastUpdatedAt && { updated_at: { $lt: lastUpdatedAt } }) // Fetch older tasks
+        },
+        sort: [{ updated_at: 'desc' }],
+        limit: batchSize,
+      };
+
+      const result = await db.find(query);
+      const tasks = result.docs;
+
+      if (tasks.length === 0) break; // Stop when no more tasks
+
+      allTasks = allTasks.concat(tasks);
+      lastUpdatedAt = tasks[tasks.length - 1].updated_at; // Update last timestamp for next batch
+    }
+
+    console.log(`Fetched ${allTasks.length} tasks`);
+
+    // Step 2: Extract unique IDs for related entities
     const userIds = new Set();
     const toolIds = new Set();
     const materialIds = new Set();
 
-    tasks.forEach(task => {
-      // Ensure `assigned_to`, `tools`, and `materials` are arrays before using `forEach`
-      if (Array.isArray(task.assigned_to)) {
-        task.assigned_to.forEach(userId => userIds.add(userId));
-      }
-      if (Array.isArray(task.tools)) {
-        task.tools.forEach(toolId => toolIds.add(toolId));
-      }
-      if (Array.isArray(task.materials)) {
-        task.materials.forEach(materialId => materialIds.add(materialId));
-      }
+    allTasks.forEach((task) => {
+      if (Array.isArray(task.assigned_to)) task.assigned_to.forEach((id) => userIds.add(id));
+      if (Array.isArray(task.tools)) task.tools.forEach((id) => toolIds.add(id));
+      if (Array.isArray(task.materials)) task.materials.forEach((id) => materialIds.add(id));
     });
-    // Step 3: Fetch related documents for users, tools, and materials
+
+    // Step 3: Fetch related data in batches (instead of per ID)
     const [users, tools, materials] = await Promise.all([
       userIds.size ? fetchDocuments([...userIds], 'user') : Promise.resolve([]),
       toolIds.size ? fetchDocuments([...toolIds], 'tool') : Promise.resolve([]),
       materialIds.size ? fetchDocuments([...materialIds], 'material') : Promise.resolve([]),
     ]);
-    console.log("Material IDs being queried:", [...materialIds]);
-console.log("Tool IDs being queried:", [...toolIds]);
-console.log("User IDs being queried:", [...userIds]);
 
-    // Step 4: Map related documents by ID for quick lookup
-    const userMap = users.reduce((map, user) => {
-      map[user._id] = user;
-      return map;
-    }, {});
+    // Step 4: Map related documents by ID
+    const userMap = Object.fromEntries(users.map((user) => [user._id, user]));
+    const toolMap = Object.fromEntries(tools.map((tool) => [tool._id, tool]));
+    const materialMap = Object.fromEntries(materials.map((material) => [material._id, material]));
 
-    const toolMap = tools.reduce((map, tool) => {
-      map[tool._id] = tool;
-      return map;
-    }, {});
-
-    const materialMap = materials.reduce((map, material) => {
-      map[material._id] = material;
-      return map;
-    }, {});
-
-    
-    const populatedTasks = tasks.map(task => ({
+    // Step 5: Populate tasks with related data
+    const populatedTasks = allTasks.map((task) => ({
       ...task,
-      assigned_to: Array.isArray(task.assigned_to)
-        ? task.assigned_to.map(userId => userMap[userId] || {}) // Fallback to empty object
-        : [],
-      tools: Array.isArray(task.tools)
-        ? task.tools.map(toolId => toolMap[toolId] || {})
-        : [],
-      materials: Array.isArray(task.materials)
-        ? task.materials.map(materialId => materialMap[materialId] || {})
-        : [],
+      assigned_to: Array.isArray(task.assigned_to) ? task.assigned_to.map((id) => userMap[id] || {}) : [],
+      tools: Array.isArray(task.tools) ? task.tools.map((id) => toolMap[id] || {}) : [],
+      materials: Array.isArray(task.materials) ? task.materials.map((id) => materialMap[id] || {}) : [],
     }));
-    
+
     return populatedTasks;
   } catch (error) {
     throw new Error(`Failed to fetch tasks: ${error.message}`);
   }
 };
-// Helper function to fetch related documents based on the type and ids
-// const fetchDocuments = async (ids, type) => {
-//   try {
-//     const result = await db.find({
-//       selector: {
-//         _id: { $in: ids },
-//         type: type,
-//       },
-//     });
-//     return result.docs;
-//   } catch (error) {
-//     throw new Error(`Failed to fetch related ${type} documents: ${error.message}`);
-//   }
-// };
+
 const fetchDocuments = async (ids, type) => {
   try {
     if (!ids || ids.length === 0) return []; // Prevent empty queries
@@ -192,40 +239,6 @@ const getTaskById = async (id) => {
     throw new Error(`Failed to fetch task by ID: ${error.message}`);
   }
 };
-/**
- * Update an existing task by ID.
- */
-// const updateTask = async (id, updateData, res) => {
-//   try {
-//     console.log("updated Dtaa",updateData)
-//     // Fetch the existing task to ensure the _rev is current
-//     const existingTask = await db.get(id);
-//     if (!existingTask) {
-//       return res.status(404).json({ error: 'Task not found' });
-//     }
-//     if (updateData.status === "done" && existingTask.materials) {
-//           await incrementMaterialCount(existingTask.materials); // Increment the material count
-//         }
-//     // Merge the updates with the existing task
-//     const updatedTask = {
-//       ...existingTask,
-//       ...updateData,
-//       _id: existingTask._id, // Ensure _id is preserved
-//       updated_at: new Date().toISOString(),
-//     };
-//     // Save the updated task
-//     const response = await db.insert(updatedTask);
-
-//     // Return the updated task
-//     res.status(200).json({
-//       message: 'Task updated successfully',
-//       task: { ...updatedTask, _rev: response.rev },
-//     });
-//   } catch (error) {
-//     console.error('Error performing task update:', error);
-//     res.status(500).json({ error: 'Failed to update task', details: error.message });
-//   }
-// };
 const updateTask = async (id, updateData, res) => {
   try {
     console.log("Updated Data:", updateData);
@@ -358,10 +371,6 @@ const deleteBulkTasks = async (ids) => {
   }
 };
 
-
-/**
- * Fetch tasks assigned to a specific user.
- */
 const getTasksByAssignedUser = async (userId) => {
   try {
     const result = await db.find({
@@ -539,42 +548,7 @@ const fetchDoneTasksForUser = async (userId) => {
     throw new Error(`Failed to fetch done tasks for user: ${error.message}`);
   }
 };
-/**
- * Fetch an image attachment by task ID.
- */
-// const fetchImage = async (taskId) => {
-//   try {
-//     const task = await db.get(taskId); // Fetch the task document
 
-//     if (task._attachments) {
-//       // Get all attachment keys (image names)
-//       const attachmentKeys = Object.keys(task._attachments);
-
-//       if (attachmentKeys.length === 0) {
-//         throw new Error('No attachments found for this task');
-//       }
-
-//       // Assume the latest image is the last one added (or use a naming convention to identify it)
-//       const latestImageName = attachmentKeys[attachmentKeys.length - 1 ];
-
-//       // Fetch the attachment based on whether it's a stub
-//       const attachmentDetails = task._attachments[latestImageName];
-//       if (attachmentDetails.stub) {
-//         console.log("Attachment is a stub, fetching the full attachment...");
-//         const attachment = await db.attachment.get(taskId, latestImageName, { rev: task._rev }); // Fetch full attachment
-//         return { buffer: attachment, name: latestImageName }; // Return the image buffer and name
-//       } else {
-//         const buffer = await db.attachment.get(taskId, latestImageName); // Fetch as usual
-//         return { buffer, name: latestImageName }; // Return the image buffer and name
-//       }
-//     } else {
-//       throw new Error('No attachments found for this task');
-//     }
-//   } catch (error) {
-//     console.error('Error fetching image:', error.message);
-//     throw new Error(`Failed to fetch image: ${error.message}`);
-//   }
-// };
 const fetchImages = async (taskId) => {
   try {
     const task = await db.get(taskId); // Fetch the task document
@@ -614,25 +588,6 @@ const fetchImages = async (taskId) => {
   }
 };
 
-// const getImage = async (req, res) => {
-//   try {
-//     const taskId = req.params.id; // Get task ID from the request
-//     const { buffer, name } = await fetchImage(taskId); // Fetch the latest image buffer and name
-
-//     // Determine the content type based on the file extension (basic example)
-//     const extension = name.split('.').pop().toLowerCase();
-//     const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg'; // Add more cases as needed
-
-//     // Set the appropriate content-type for the image
-//     res.setHeader('Content-Type', mimeType);
-
-//     // Send the image buffer in the response
-//     res.send(buffer);
-//   } catch (error) {
-//     console.error('Error fetching image:', error.message);
-//     res.status(500).json({ error: 'Failed to fetch image', details: error.message });
-//   }
-// };
 const getImages = async (req, res) => {
   try {
     const taskId = req.params.id; // Get task ID from request
@@ -661,9 +616,6 @@ const getImages = async (req, res) => {
   }
 };
 
-/**
- * Create a task linked to a specific machine.
- */
 const createTaskFromMachine = async (machineId, taskData) => {
   try {
     const task = formatTask({ ...taskData, machine_id: machineId });
