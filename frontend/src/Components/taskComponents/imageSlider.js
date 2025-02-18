@@ -25,7 +25,7 @@ const ImageSlider = ({ images }) => {
             <img
               src={image.base64 || image} // Supports both base64 and URL
               alt={`${index + 1}`}
-              className="w-full h-[350px] object-cover rounded-lg shadow-md"
+              className="w-full h-[450px] object-cover rounded-lg shadow-md"
             />
           </SwiperSlide>
         ))}

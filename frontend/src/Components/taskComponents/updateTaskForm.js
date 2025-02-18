@@ -173,7 +173,7 @@ const handleChange = (e) => {
  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="relative bg-white p-6 rounded-lg max-w-4xl w-full">
+      <div className="relative bg-white p-6 rounded-lg max-w-5xl w-full">
         <button
           type="button"
           onClick={closeModal}
@@ -212,7 +212,7 @@ const handleChange = (e) => {
           {isEditMode ? (
               <>
               {role >= 3 && (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid md:grid-cols-4 grid-cols-3 md:gap-4 gap-1">
                   {/* Title */}
                   <div>
                     <label className="block mb-1 text-sm font-medium">Title:</label>
@@ -389,9 +389,9 @@ const handleChange = (e) => {
           
               {/* Image Previews (Role ≥ 2) */}
               {role >= 2 && (
-                <div className="mt-3 p-3 border rounded-md shadow-md grid grid-cols-2 gap-4">
+                <div className="mt-3 p-3 border  rounded-md shadow-md grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-semibold mb-2">Current Images:</h3>
+                    <h3 className="text-sm font-semibold mb-2 bg-blue-400 text-white px-5 py-1 rounded-md hover:bg-blue-400">Current Images:</h3>
                     <div className="flex flex-wrap gap-2">
                       {images.map((image, index) => (
                         <div key={index} className="relative w-24 h-24">
@@ -411,7 +411,7 @@ const handleChange = (e) => {
                   </div>
           
                   <div>
-                    <h3 className="text-sm font-semibold">New Images:</h3>
+                    <h3 className="text-sm font-semibold mb-2 bg-blue-400 text-white px-5 py-1 rounded-md hover:bg-blue-400">New Images:</h3>
                     <div className="flex flex-wrap gap-2">
                       {newImages.map((file, index) => (
                         <div key={index} className="relative w-24 h-24">
@@ -446,7 +446,7 @@ const handleChange = (e) => {
           ): (
             <div className="grid grid-cols-2 gap-4">
   <div className="flex items-center justify-center col-span-2">
-    <p className="text-center font-bold">{editableEvent?.title}</p>
+    <p className="text-center font-bold ">{editableEvent?.title}</p>
   </div>
 
  <div className=" col-span-2 flex justify-center ">

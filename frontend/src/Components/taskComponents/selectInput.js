@@ -47,7 +47,7 @@ const SelectInput = ({ label, name, value = [], onChange, options, isMulti = fal
             ...base,
             backgroundColor: 'rgb(249 250 251)',
             padding: '4px 8px',
-            borderColor: 'rgb(209 213 219)'
+            borderColor: 'rgb(209 213 219)',
           }),
           placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
         }}
