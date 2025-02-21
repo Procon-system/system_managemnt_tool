@@ -180,12 +180,28 @@ export const bulkUpdateTasks = createAsyncThunk(
     }
   }
 );
-
+export const filterTasks = createAsyncThunk(
+  'tasks/filterTasks',
+  async (filters, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      if (checkTokenExpiration(token)) {
+        window.Storage.dispatch(logout());
+        toast.error("Your session has expired. Please log in again.");
+        return null;
+      }
+      return await taskService.filterTasks(filters); // ✅ Call filterTasks API
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Error filtering tasks');
+    }
+  }
+);
 const taskSlice = createSlice({
   name: 'tasks',
   initialState: {
     tasks: [],
     status: 'idle',
+    filteredTasks: [], 
     error: null,
     currentView: 'allTasks', // Default to showing all tasks
   },
@@ -200,20 +216,17 @@ const taskSlice = createSlice({
         state.tasks.push(newTask);
       }
     },
+    resetFilteredTasks: (state) => {
+      state.filteredTasks = [];
+      state.currentView = 'allTasks'; // Reset to all tasks view
+    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(createTask.pending, (state) => {
         state.status = 'loading';
       })
-      // .addCase(createTask.fulfilled, (state, action) => {
-      //   state.status = 'succeeded';
-      //   // if (action.payload && action.payload.newTask) {
-      //   //   state.tasks.push(action.payload.newTask);
-      //   // }
-      //   console.log("action.payload",action.payload)
-      //   state.tasks.push(action.payload);
-      // })
+      
       .addCase(createTask.fulfilled, (state, action) => {
         console.log("Payload received in fulfilled case:", action.payload);
       
@@ -240,7 +253,18 @@ const taskSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
-      
+      .addCase(filterTasks.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(filterTasks.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.filteredTasks = action.payload;
+        state.currentView = 'filteredTasks'; // ✅ Switch view to filtered tasks
+      })
+      .addCase(filterTasks.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
       .addCase(fetchTasks.pending, (state) => {
         state.status = 'loading';
       })
@@ -334,6 +358,6 @@ const taskSlice = createSlice({
       
   },
 });
-export const { setTaskView,addTaskFromSocket } = taskSlice.actions;
+export const { setTaskView,addTaskFromSocket ,resetFilteredTasks} = taskSlice.actions;
 
 export default taskSlice.reducer;

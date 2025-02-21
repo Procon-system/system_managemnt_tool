@@ -16,7 +16,6 @@ import {
 import { toast } from 'react-toastify';
 import TaskPage from './Task/createTaskPage';
 import EventDetailsModal from '../Components/taskComponents/updateTaskForm';
-import DateRangeFilter from '../Components/taskComponents/datePicker';
 import getColorForStatus from '../Helper/getColorForStatus';
 
 const socket = io("http://localhost:5000"); // Replace with your server URL
@@ -34,44 +33,7 @@ const HomePage = () => {
   const eventsRef = useRef([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
-  const [isUpdating, setIsUpdating] = useState(false);
-  //  const updateEventState = (updatedEvent = null, deletedEventId = null) => {
-   
-  //   setFilteredEvents((prevEvents) => {
-  //     let currentEvents = prevEvents || tasks || [];
-      
-  //     // Handle deletion
-  //     if (deletedEventId) {
-  //       handleTaskDeletion(deletedEventId);
-  //       const updatedEvents = currentEvents.filter(
-  //         (event) => event._id !== deletedEventId
-  //       );
-  //       eventsRef.current = updatedEvents; // Sync with ref
-  //       return updatedEvents; // Update state
-  //     }
-  //     // Handle update or addition
-  //     if (updatedEvent && updatedEvent._id && updatedEvent.title) {
-  //       const eventMap = new Map(
-  //         currentEvents.map((event) => [event._id, event])
-  //       );
-  //       eventMap.set(updatedEvent._id, {
-  //         ...eventMap.get(updatedEvent._id),
-  //         ...updatedEvent,
-  //       });
-  //       const updatedEvents = Array.from(eventMap.values()).filter(
-  //         (event) =>
-  //           !deletedTaskIds.has(event._id) && // Exclude deleted tasks
-  //           event._id &&
-  //           event.title &&
-  //           (event.start_time || event.start) &&
-  //           (event.end_time || event.end)
-  //       );
-  //       eventsRef.current = updatedEvents; // Sync with ref
-  //       return updatedEvents;
-  //     }
-  //     return currentEvents;
-  //   });
-  // };
+  
   const updateEventState = (updatedEvents = [], deletedEventId = null) => {
     setFilteredEvents((prevEvents) => {
       let currentEvents = prevEvents || tasks || [];
@@ -115,9 +77,7 @@ const HomePage = () => {
       return currentEvents;
     });
   };
-  
-  
-  const handleTaskDeletion = (deletedTaskId) => {
+   const handleTaskDeletion = (deletedTaskId) => {
     setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
   };
   useEffect(() => {
@@ -384,36 +344,6 @@ const handleMultipleEventUpdate = (updatedEvents) => {
   toast.success("Tasks updated successfully!");
 };
 
-
-
-  // const handleEventCreate = (newEvent) => {
-  //   dispatch(createTask(newEvent))
-  //     .then((createdTask) => {
-  //       socket.emit("createTask", createdTask);
-  //       toast.success("Task updated successfully!");
-  //     })
-  //     .catch((err) => {
-  //       console.error("Task creation failed:", err);
-  //     });
-  // };
-  // const handleEventCreate = (newEvent) => {
-  //   dispatch(createTask(newEvent))
-  //     .then((createdTask) => {
-  //       if (Array.isArray(createdTask.payload)) {
-  //         // Multiple tasks were created (recurring events)
-  //         socket.emit("createTask", { newTasks: createdTask.payload });
-  //       } else {
-  //         // Single task was created
-  //         socket.emit("createTask", { newTasks: [createdTask.payload] });
-  //       }
-  //       toast.success("Task created successfully!");
-  //       return { success: true, data: createdTask }; 
-  //     })
-  //     .catch((err) => {
-  //       console.error("Task creation failed:", err);
-  //       return { success: false, error: err.message || "Unknown error" };
-  //     });
-  // };
   const handleEventCreate = async (newEvent) => {
     try {
       const createdTask = await dispatch(createTask(newEvent));

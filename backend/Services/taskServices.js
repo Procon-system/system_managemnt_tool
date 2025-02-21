@@ -44,78 +44,7 @@ const createTask = async (taskData, file) => {
     throw new Error(`Failed to create task: ${error.message}`);
   }
 };
-// const getAllTasks = async () => {
-//   try {
-//     // Step 1: Fetch all tasks
-//     const result = await db.find({
-//       selector: {
-//         type: 'task',
-//         status: { $ne: 'done' },
-//       },
-//       sort: [{ updated_at: 'desc' }],
-//       limit: 200,
-//     });
-//     const tasks = result.docs;
 
-//     // Step 2: Extract unique IDs for foreign keys
-//     const userIds = new Set();
-//     const toolIds = new Set();
-//     const materialIds = new Set();
-
-//     tasks.forEach(task => {
-//       // Ensure `assigned_to`, `tools`, and `materials` are arrays before using `forEach`
-//       if (Array.isArray(task.assigned_to)) {
-//         task.assigned_to.forEach(userId => userIds.add(userId));
-//       }
-//       if (Array.isArray(task.tools)) {
-//         task.tools.forEach(toolId => toolIds.add(toolId));
-//       }
-//       if (Array.isArray(task.materials)) {
-//         task.materials.forEach(materialId => materialIds.add(materialId));
-//       }
-//     });
-//     // Step 3: Fetch related documents for users, tools, and materials
-//     const [users, tools, materials] = await Promise.all([
-//       userIds.size ? fetchDocuments([...userIds], 'user') : Promise.resolve([]),
-//       toolIds.size ? fetchDocuments([...toolIds], 'tool') : Promise.resolve([]),
-//       materialIds.size ? fetchDocuments([...materialIds], 'material') : Promise.resolve([]),
-//     ]);
-   
-//     // Step 4: Map related documents by ID for quick lookup
-//     const userMap = users.reduce((map, user) => {
-//       map[user._id] = user;
-//       return map;
-//     }, {});
-
-//     const toolMap = tools.reduce((map, tool) => {
-//       map[tool._id] = tool;
-//       return map;
-//     }, {});
-
-//     const materialMap = materials.reduce((map, material) => {
-//       map[material._id] = material;
-//       return map;
-//     }, {});
-
-    
-//     const populatedTasks = tasks.map(task => ({
-//       ...task,
-//       assigned_to: Array.isArray(task.assigned_to)
-//         ? task.assigned_to.map(userId => userMap[userId] || {}) // Fallback to empty object
-//         : [],
-//       tools: Array.isArray(task.tools)
-//         ? task.tools.map(toolId => toolMap[toolId] || {})
-//         : [],
-//       materials: Array.isArray(task.materials)
-//         ? task.materials.map(materialId => materialMap[materialId] || {})
-//         : [],
-//     }));
-    
-//     return populatedTasks;
-//   } catch (error) {
-//     throw new Error(`Failed to fetch tasks: ${error.message}`);
-//   }
-// };
 const getAllTasks = async (batchSize = 20) => {
   try {
     let allTasks = [];
@@ -616,6 +545,93 @@ const getImages = async (req, res) => {
   }
 };
 
+const getFilteredTasks = async (filters, limit = 50, skip = 0) => {
+  try {
+    let query = {
+      selector: { type: "task" },
+      sort: [{ updated_at: "desc" }],
+      limit,
+      skip
+    };
+
+    // Apply filters dynamically
+    if (filters.status) query.selector.status = filters.status;
+
+    if (filters.startDate || filters.endDate) {
+      query.selector.updated_at = {};
+      if (filters.startDate) query.selector.updated_at.$gte = filters.startDate;
+      if (filters.endDate) query.selector.updated_at.$lte = filters.endDate;
+    }
+
+    if (filters.assignedTo) {
+      query.selector.assigned_to = { $all: Array.isArray(filters.assignedTo) ? filters.assignedTo : [filters.assignedTo] };
+    }
+
+    if (filters.facility) query.selector.facility = filters.facility;
+
+    if (filters.machine) query.selector.machine = filters.machine;
+
+    if (filters.tools) {
+      query.selector.tools = {  $all: Array.isArray(filters.tools) ? filters.tools : [filters.tools] };
+    }
+
+    if (filters.materials) {
+      query.selector.materials = {  $all: Array.isArray(filters.materials) ? filters.materials : [filters.materials] };
+    }
+
+    // Fetch filtered tasks
+    const result = await db.find(query);
+    const filteredTasks = result.docs;
+
+    if (filteredTasks.length === 0) return [];
+
+    // Extract unique IDs for related entities
+    const userIds = new Set();
+    const toolIds = new Set();
+    const materialIds = new Set();
+    const facilityIds = new Set();
+    const machineIds = new Set();
+
+    filteredTasks.forEach((task) => {
+      if (Array.isArray(task.assigned_to)) task.assigned_to.forEach((id) => userIds.add(id));
+      if (Array.isArray(task.tools)) task.tools.forEach((id) => toolIds.add(id));
+      if (Array.isArray(task.materials)) task.materials.forEach((id) => materialIds.add(id));
+      if (task.facility) facilityIds.add(task.facility);
+      if (task.machine) machineIds.add(task.machine);
+    });
+
+    // Fetch related data in batches
+    const [users, tools, materials, facilities, machines] = await Promise.all([
+      userIds.size ? fetchDocuments([...userIds], "user") : Promise.resolve([]),
+      toolIds.size ? fetchDocuments([...toolIds], "tool") : Promise.resolve([]),
+      materialIds.size ? fetchDocuments([...materialIds], "material") : Promise.resolve([]),
+      facilityIds.size ? fetchDocuments([...facilityIds], "facility") : Promise.resolve([]),
+      machineIds.size ? fetchDocuments([...machineIds], "machine") : Promise.resolve([]),
+    ]);
+
+    // Map related documents by ID
+    const userMap = Object.fromEntries(users.map((user) => [user._id, user]));
+    const toolMap = Object.fromEntries(tools.map((tool) => [tool._id, tool]));
+    const materialMap = Object.fromEntries(materials.map((material) => [material._id, material]));
+    const facilityMap = Object.fromEntries(facilities.map((facility) => [facility._id, facility]));
+    const machineMap = Object.fromEntries(machines.map((machine) => [machine._id, machine]));
+
+    // Populate tasks with related data
+    const populatedTasks = filteredTasks.map((task) => ({
+      ...task,
+      assigned_to: Array.isArray(task.assigned_to) ? task.assigned_to.map((id) => userMap[id] || {}) : [],
+      tools: Array.isArray(task.tools) ? task.tools.map((id) => toolMap[id] || {}) : [],
+      materials: Array.isArray(task.materials) ? task.materials.map((id) => materialMap[id] || {}) : [],
+      facility: facilityMap[task.facility] || {},
+      machine: machineMap[task.machine] || {},
+    }));
+
+    return populatedTasks;
+  } catch (error) {
+    throw new Error(`Failed to fetch filtered tasks: ${error.message}`);
+  }
+};
+
 const createTaskFromMachine = async (machineId, taskData) => {
   try {
     const task = formatTask({ ...taskData, machine_id: machineId });
@@ -637,6 +653,7 @@ module.exports = {
   fetchAllDoneTasks,
   fetchDoneTasksForUser,
   getTasksByAssignedUser,
+  getFilteredTasks,
   createTaskFromMachine,
   deleteBulkTasks,
 };

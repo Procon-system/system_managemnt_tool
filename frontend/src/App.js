@@ -1,7 +1,8 @@
 
-import React from 'react';
+
 import { BrowserRouter as Router, Route, Routes, useLocation , Navigate } from 'react-router-dom';
 import Sidebar from './Components/sidebarComponent';
+import React, { useEffect } from 'react';
 import RegisterPage from './Pages/Auth/registerPage';
 import LoginPage from './Pages/Auth/loginPage';
 import LogoutPage from './Pages/Auth/logoutPage';
@@ -14,6 +15,7 @@ import CreateFacilityPage from './Pages/Facility/createFacilityPage';
 import CreateMachinePage from './Pages/Machine/createMachinePage';
 import CreateMaterialPage from './Pages/Material/createMaterialPage';
 import CreateToolPage from './Pages/Tool/createToolPage';
+import FilterPage from './Pages/FilterAndReport/filterPage'
 import Navbar from './Components/navbarComponents';
 import ProfilePage from './Components/profileComponents';
 import { ToastContainer } from 'react-toastify';
@@ -22,7 +24,14 @@ import ProtectedRoute from "./accessControl/protectedRoute";
 import { ROLES } from "./accessControl/roles";
 import UnauthorizedPage from "./Pages/unauthorizedPage";
 import UserManagementPage from "./Pages/User/userPage"
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from 'react-redux';
+// Import Redux actions for fetching global data
+import { getUsers } from "./features/userSlice";
+import {fetchMaterials } from "./features/materialsSlice";
+import { fetchTools } from "./features/toolsSlice";
+import { fetchMachines } from "./features/machineSlice";
+import { fetchFacilities } from "./features/facilitySlice";
+
 // ConditionalNavBar Component
 const ConditionalNavBar = () => {
   const location = useLocation();
@@ -41,6 +50,15 @@ const ConditionalNavBar = () => {
 };
 const App = () => {
   const { isLoggedIn } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
+   // ✅ Fetch shared data when the app loads
+   useEffect(() => {
+    dispatch(getUsers());
+    dispatch(fetchMaterials());
+    dispatch(fetchTools());
+    dispatch(fetchMachines());
+    dispatch(fetchFacilities());
+  }, [dispatch]);
 
   return (
     <Router>
@@ -69,14 +87,6 @@ const App = () => {
               </ProtectedRoute>
             }
           />
-          {/* <Route
-  path="/register"
-  element={
-    <ProtectedRoute requiredAccessLevel={ROLES.ADMIN}>
-      <RegisterPage />
-    </ProtectedRoute>
-  }
-/> */}
 <Route
   path="/user"
   element={
@@ -91,6 +101,14 @@ const App = () => {
             element={
               <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
                 <TaskPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/filter-tasks"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+                <FilterPage />
               </ProtectedRoute>
             }
           />

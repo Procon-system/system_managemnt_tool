@@ -112,7 +112,6 @@ try {
     res.status(400).json({ error: "Failed to create task", details: error.message });
   }
 };
-
 async function formatTaskData(taskData) {
   if (taskData.facility) {
     const facility = await Facility.findOne({ facility_name: taskData.facility });
@@ -277,26 +276,8 @@ const updateTask = async (req, res) => {
       } else {
         updateData.images = existingImages;
       }
-
-      // // ✅ Always fetch latest `_rev` before final save
-      // task = await db.get(uuid);
-
-      // const updatedTask = {
-      //   ...task,
-      //   ...updateData,
-      //   _rev: task._rev, // Use the latest revision
-      //   updated_at: new Date().toISOString(),
-      // };
-
-      // // ✅ Save the updated document
-      // return await db.insert(updatedTask);
       await taskService.updateTask(uuid, updateData, res);
     });
-
-    // res.status(200).json({
-    //   message: "Task updated successfully",
-    //   task: { ...response },
-    // });
   } catch (error) {
     console.error("Error updating task:", error);
     res.status(500).json({
@@ -305,63 +286,6 @@ const updateTask = async (req, res) => {
     });
   }
 };
-// const updateTask = async (req, res) => {
-//   try {
-//     const uuid = req.params.id; // Document ID
-//     const isMultipart = req.is('multipart/form-data');
-//     let updateData = { ...req.body };
-
-//     // If status is provided, calculate the color code
-//     if (updateData.status) {
-//       updateData.color_code = getColorForStatus(updateData.status);
-//     }
-
-//     console.log("Received Files:", req.files);
-
-//     if (isMultipart && req.files && req.files.length > 0) {
-//       // Fetch the existing task
-//       const task = await db.get(uuid);
-
-//       // Delete old images if they exist
-//       if (task.images && task.images.length > 0) {
-//         try {
-//           await Promise.all(task.images.map(async (image) => {
-//             const oldImageName = image.split('/').pop();
-//             await deleteAttachment(uuid, oldImageName);
-//           }));
-//         } catch (deleteError) {
-//           return res.status(500).json({ error: 'Failed to delete old images', details: deleteError.message });
-//         }
-//       }
-
-//       // Upload new images and store their references
-//       const uploadedImages = [];
-
-//       for (const file of req.files) {
-//         try {
-//           const fileBuffer = file.buffer;
-//           const fileName = file.originalname;
-//           const mimeType = file.mimetype;
-
-//           await saveAttachment(uuid, fileBuffer, fileName, mimeType);
-//           uploadedImages.push(`/path_to_attachments/${fileName}`);
-//         } catch (saveError) {
-//           return res.status(500).json({ error: 'Failed to save image', details: saveError.message });
-//         }
-//       }
-
-//       console.log("Uploaded Images:", uploadedImages);
-//       updateData.images = uploadedImages; // Store the array of image URLs
-//     }
-
-//     // Proceed with updating the task
-//     await taskService.updateTask(uuid, updateData, res);
-//   } catch (error) {
-//     console.error('Error updating task:', error);
-//     res.status(400).json({ error: 'Failed to update task', details: error.message });
-//   }
-// };
-
 const deleteAttachments = async (uuid, imagesToDelete, task) => {
   try {
     // ✅ Ensure we fetch the latest document revision
@@ -393,37 +317,6 @@ const deleteAttachments = async (uuid, imagesToDelete, task) => {
     throw new Error(`Failed to delete attachments: ${error.message}`);
   }
 };
-
-
-// const deleteAttachments = async (uuid, imagesToDelete, task) => {
-//   try {
-//     // ✅ Ensure we fetch the latest document revision
-//     let latestTask = await db.get(uuid);
-
-//     // ✅ Remove attachments in-memory before saving
-//     imagesToDelete.forEach((image) => {
-//       const fileName = image.name || image.split("/").pop();
-//       if (latestTask._attachments && latestTask._attachments[fileName]) {
-//         delete latestTask._attachments[fileName];
-//       }
-//     });
-
-//     // ✅ Remove deleted images from `images` array
-//     latestTask.images = latestTask.images.filter(
-//       (img) => !imagesToDelete.some((deleted) => deleted.name === img.name)
-//     );
-
-//     // ✅ Save the updated document with the latest `_rev`
-//     const response = await db.insert(latestTask);
-
-//     console.log(`✅ Successfully deleted attachments and updated task ${uuid}`);
-//     return response;
-//   } catch (error) {
-//     console.error(`❌ Failed to delete attachments:`, error.message);
-//     throw new Error(`Failed to delete attachments: ${error.message}`);
-//   }
-// };
-
 const bulkUpdateTasks = async (req, res) => {
   try {
     const { taskUpdates } = req.body; // Array of updates
@@ -449,7 +342,6 @@ const bulkUpdateTasks = async (req, res) => {
     res.status(500).json({ error: 'Failed to perform bulk update', details: error.message });
   }
 };
-
 const deleteTask = async (req, res) => {
   try {
     const result = await taskService.deleteTask(req.params.id); // Get the deleted task result
@@ -476,8 +368,33 @@ const deleteBulkTasks = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete tasks', details: error.message });
   }
 };
+const getFilteredTasks = async (req, res) => {
+  try {
+    const { status, startDate, endDate, assignedTo, facility, machine, tools, materials, limit = 50, page = 1 } = req.query;
 
-// Create a task from a machine object
+    const filters = {
+      status,
+      startDate,
+      endDate,
+      assignedTo,
+      facility,
+      machine,
+      tools,
+      materials
+    };
+
+    // Ensure limit is a valid number to prevent excessive fetches
+    const taskLimit = Math.min(parseInt(limit, 10) || 50, 100);
+    const skip = (parseInt(page, 10) - 1) * taskLimit;
+
+    const tasks = await taskService.getFilteredTasks(filters, taskLimit, skip);
+    res.status(200).json(tasks);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch filtered tasks", details: error.message });
+  }
+};
+
+
 const createTaskFromMachine = async (req, res) => {
   try {
     const machineId = req.params.machineId;
@@ -500,5 +417,6 @@ module.exports = {
   getAllDoneTasks,
   getDoneTasksForUser,
   createTaskFromMachine,
+  getFilteredTasks,
   setTaskSocketIoInstance 
 };

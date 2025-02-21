@@ -17,7 +17,7 @@ const SelectInput = ({ label, name, value = [], onChange, options, isMulti = fal
   // Ensure multi-select displays selected values correctly
   const selectedOption = isMulti 
     ? getSelectedOptions(value, options) // Convert IDs to full objects
-    : options.find(option => option.value === value) || null; // Handle single select
+    : options?.find(option => option.value === value) || null; // Handle single select
 
   const handleSelectChange = (selectedOption) => {
     const newValue = isMulti

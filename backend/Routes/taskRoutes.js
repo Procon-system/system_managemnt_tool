@@ -12,6 +12,7 @@ const {
     bulkUpdateTasks,
     getDoneTasksForUser,
     deleteBulkTasks,
+    getFilteredTasks
   } = require('../Controllers/taskControllers');
   const {
     getImages
@@ -27,6 +28,7 @@ const router = express.Router();
 router.post('/create-tasks',authenticateUser,isManager,upload.single('image'),createTask);
 router.get('/get-images/:id', getImages);
 router.get('/get-all-tasks', getAllTasks);
+router.get('/filter', getFilteredTasks); 
 router.get('/get-tasks-id/:id',authenticateUser,isServicePersonal,getTaskById);
 router.put('/update-tasks/:id',upload.array('images', 5),updateTask);
 router.put('/bulk-update',authenticateUser,isManager,bulkUpdateTasks);

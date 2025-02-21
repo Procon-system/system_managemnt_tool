@@ -6,14 +6,12 @@ import { FaBars, FaTimes } from 'react-icons/fa';
 import { setTaskView } from '../features/taskSlice';
 import { FiList, FiCheckCircle, FiArchive,FiClipboard, FiHome, FiCpu, FiTool, FiLayers } from "react-icons/fi";
 import { FaUser} from "react-icons/fa";
-import DatePicker from "react-datepicker";
 import DateRangeFilter from "../Components/taskComponents/datePicker"; // Import the DateRangeFilter component
 
 import "react-datepicker/dist/react-datepicker.css"; // Import the styles
 import { AiOutlineHome } from "react-icons/ai";
 const Sidebar = ({ onDateRangeSelect, onCalendarDateChange }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date()); // For the date picker
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -48,10 +46,7 @@ const Sidebar = ({ onDateRangeSelect, onCalendarDateChange }) => {
    setIsOpen(false); // Close sidebar
   };
 
-  const handleDateChange = (date) => {
-    setSelectedDate(date);
-    console.log("Selected Date:", date); // Add any action you want with the selected date
-  };
+
   return (
     <>
       {/* Toggle Button for Mobile View */}
@@ -71,8 +66,6 @@ const Sidebar = ({ onDateRangeSelect, onCalendarDateChange }) => {
         <div className="flex flex-col space-y-2 py-4 pl-4 pr-1">
            {/* Date Picker Section */}
            <div className="mt-3">
-            {/* <h2 className="text-lg font-semibold mb-2 w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition">Select Date Range</h2> */}
-           
              <DateRangeFilter
               onDateRangeSelect={onDateRangeSelect} // Trigger callback for date range selection
               onCalendarDateChange={onCalendarDateChange} // Update the calendar view
@@ -118,7 +111,13 @@ const Sidebar = ({ onDateRangeSelect, onCalendarDateChange }) => {
         <FiClipboard className="text-blue-500 mr-3" size={24} />
         Task
       </button>
-
+      <button
+        className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
+        onClick={() => handleNavigation('/filter-tasks')}
+      >
+        <FiClipboard className="text-blue-500 mr-3" size={24} />
+        Filter and Report
+      </button>
       {/* Facility */}
       <button
         className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"

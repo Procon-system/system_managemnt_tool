@@ -126,17 +126,7 @@ const TaskForm = ({ onSubmit,initialData = {} }) => {
       const handleNotesChange = (value) => {
         setFormData({ ...formData, notes: value });
       };
-      // const handleFileChange = (e) => {
-      //   const file = e.target.files[0];
-      //   if (file && file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024) { // 2MB limit
-      //     setFormData({
-      //       ...formData,
-      //       image: file,
-      //     });
-      //   } else {
-      //     alert("Please select a valid image file (max 2MB).");
-      //   }
-      // };
+      
 
     const handleSubmit = async (e) => {
       e.preventDefault(); // Prevent default form submission

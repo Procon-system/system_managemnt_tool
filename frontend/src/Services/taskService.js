@@ -35,30 +35,7 @@ const taskService = {
       throw error.response?.data || new Error('Error fetching tasks');
     }
   },
-//   updateTask: async (taskId, updatedData, token) => {
-//     console.log("UpdatedData before sending:", updatedData);
 
-//     for (let pair of updatedData.entries()) {
-//         console.log(pair[0], pair[1]);  // Debugging FormData contents
-//     }
-
-//     try {
-//         const response = await axios.put(
-//             `${API_URL}/update-tasks/${taskId}`,
-//             updatedData, // Send FormData
-//             {
-//                 headers: {
-//                     Authorization: `Bearer ${token}`,
-//                     'Content-Type': 'multipart/form-data',
-//                 },
-//             }
-//         );
-//         return response.data.task; // Return the updated task data
-//     } catch (error) {
-//         console.error('Error updating task:', error.response?.data || error.message);
-//         throw error.response?.data || error.message || new Error('Error updating task');
-//     }
-// },
 
 updateTask: async (taskId, updatedData, token) => {
   console.log("UpdatedData before sending:", updatedData);
@@ -179,6 +156,15 @@ updateTask: async (taskId, updatedData, token) => {
       console.log("error service",error)
       console.error('Error updating tasks:', error.response?.data || error.message);
       throw error.response?.data || error.message || new Error('Error updating tasks');
+    }
+  },
+ filterTasks: async (filters) => {
+    try {
+      const response = await axios.get(`${API_URL}/filter`, { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error('Error filtering tasks:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Error filtering tasks');
     }
   },
 };
