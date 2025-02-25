@@ -156,17 +156,19 @@ const FilterForm = ({ onFilter, onReset, users, facilities, machines, tools, mat
             <option value="in progress">In Progress</option>
             <option value="done">Done</option>
             <option value="pending">Pending</option>
+            <option value="impossible">Impossible</option>
+            <option value="overdue">Overdue</option>
           </select>
         </div>
       </div>
 
       {/* Buttons */}
-      <div className="mt-4 flex space-x-4">
+      <div className="mt-4 ml-2 flex space-x-4">
         <button onClick={handleApplyFilters} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-          Apply Filters
+          Search
         </button>
         <button onClick={handleResetFilters} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
-          Reset Filters
+          Reset
         </button>
       </div>
     </div>

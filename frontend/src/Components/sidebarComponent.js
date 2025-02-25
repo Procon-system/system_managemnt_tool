@@ -104,6 +104,13 @@ const Sidebar = ({ onDateRangeSelect, onCalendarDateChange }) => {
           {/* Access Level >= 3: Full Options */}
           {access_level >= 3 && (
             <>
+            <button
+        className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
+        onClick={() => handleNavigation('/filter-tasks')}
+      >
+        <FiClipboard className="text-blue-500 mr-3" size={24} />
+        Filter and Report
+      </button>
               <button
         className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
         onClick={() => handleNavigation('/create-task')}
@@ -111,13 +118,7 @@ const Sidebar = ({ onDateRangeSelect, onCalendarDateChange }) => {
         <FiClipboard className="text-blue-500 mr-3" size={24} />
         Task
       </button>
-      <button
-        className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
-        onClick={() => handleNavigation('/filter-tasks')}
-      >
-        <FiClipboard className="text-blue-500 mr-3" size={24} />
-        Filter and Report
-      </button>
+      
       {/* Facility */}
       <button
         className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"

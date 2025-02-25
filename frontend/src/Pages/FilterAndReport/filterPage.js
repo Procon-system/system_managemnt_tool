@@ -17,7 +17,7 @@ const FilterPage = () => {
 
   // Handle filtering
   const handleFilter = (filters) => {
-    console.log("filters",filters)
+  
     dispatch(filterTasks(filters));
   };
 
@@ -31,7 +31,7 @@ const FilterPage = () => {
 
   return (
     <div className="p-6 lg:ml-80">
-      <h1 className="text-3xl font-bold mb-4">Task Filter</h1>
+     
       <FilterForm
         onFilter={handleFilter}
         onReset={resetFilters}
