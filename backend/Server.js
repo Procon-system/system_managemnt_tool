@@ -1,6 +1,7 @@
 
 const http = require("http");
 const { Server } = require("socket.io");
+const redis = require("redis");
 const authRoutes = require('./Routes/authRoutes');
 const facilityRoutes = require('./Routes/facilityRoutes');
 const machineRoutes = require('./Routes/machineRoutes');
@@ -22,6 +23,15 @@ require('dotenv').config(); // Load environment variables
 
 const app = express();
 const server = http.createServer(app); // Create HTTP server
+const { redisClient, connectRedis } = require("./redisClient");
+
+// Ensure Redis is connected before starting the server
+(async () => {
+  await connectRedis(); // ✅ Ensures Redis is only connected once
+})();
+
+// Now use redisClient normally in your code
+
 const io = new Server(server, {
   cors: {
     origin: "*", // Allow all origins
@@ -56,43 +66,42 @@ app.use('/api/tasks', tasksRoutes);
 app.use('/api/users', userRoutes);
 
 // // WebSocket setup
-io.on("connection", (socket) => {
-  console.log(`User connected: ${socket.id}`);
- // Log all events received
- socket.onAny((event, ...args) => {
-  console.log(`Event received: ${event}`, args);
-});
-  // Handle custom events
-  socket.on("updateTask", (data) => {
-    console.log("Task update received:", data);
-  
-    // Emit to all connected clients
-    io.emit("taskUpdated", data);
-    console.log("Task update broadcasted to all clients:", data);
-  });
-  
-  //  // Handle task creation
-  //  socket.on("createTask", (data) => {
-  //   console.log("Task creation received:", data);
+// WebSocket Middleware
+// io.on("connection", (socket) => {
+//   console.log(`User connected: ${socket.id}`);
 
-  //   // Emit to all connected clients
-  //   io.emit("taskCreated", data);
-  //   console.log("Task creation broadcasted to all clients:", data);
-  // });
-   // Handle task deletion
-   socket.on("deleteTask", (taskId) => {
-    console.log(`Task with ID ${taskId} deleted`);
+//   // Log received events
+//   socket.onAny((event, ...args) => {
+//     console.log(`Event received: ${event}`, args);
+//   });
 
-    // Emit the taskDeleted event to all clients
-    io.emit("taskDeleted", taskId);  // Notify all clients about the task deletion
-    console.log(`Task deletion broadcasted to all clients: ${taskId}`);
-  });
+//   // Handle task updates with Redis cache
+//   socket.on("updateTask", async (data) => {
+//     console.log("Task update received:", data);
 
-  socket.on("disconnect", () => {
-    console.log(`User disconnected: ${socket.id}`);
-  });
-});
+//     // Invalidate Redis cache
+//     await redisClient.del("tasks");
 
+//     io.emit("taskUpdated", data);
+//     console.log("Task update broadcasted and cache cleared.");
+//   });
+
+//   // Handle task deletions with Redis cache
+//   socket.on("deleteTask", async (taskId) => {
+//     console.log(`Task with ID ${taskId} deleted`);
+
+//     // Invalidate Redis cache
+//     await redisClient.del("tasks");
+
+//     io.emit("taskDeleted", taskId);
+//     console.log(`Task deletion broadcasted and cache cleared.`);
+//   });
+
+//   // Handle disconnection
+//   socket.on("disconnect", () => {
+//     console.log(`User disconnected: ${socket.id}`);
+//   });
+// });
 // Start the server
 server.listen(config.port, () => {
   console.log(`Server running on port ${config.port}`);

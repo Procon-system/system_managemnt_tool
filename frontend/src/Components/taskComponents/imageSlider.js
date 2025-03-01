@@ -30,7 +30,7 @@ const ImageGallery = ({ images }) => {
             <img
               src={image.base64 || image} // Supports both base64 and URL
               alt={`Images ${index + 1}`}
-              className={`rounded-lg shadow-md cursor-pointer ${images.length === 1 ? "w-full h-auto max-h-[80vh]" : "w-full h-60 object-cover"}`}
+              className={`rounded-lg shadow-md cursor-pointer ${images.length === 1 ? "w-full h-2/3 max-h-[50vh]" : "w-full h-60 object-cover"}`}
               onClick={() => setSelectedImage(image.base64 || image)}
             />
           </div>

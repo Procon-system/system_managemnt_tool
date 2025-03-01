@@ -80,117 +80,117 @@ const HomePage = () => {
    const handleTaskDeletion = (deletedTaskId) => {
     setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
   };
-  useEffect(() => {
-    // Confirm socket connection
-      socket.on("connect", () => {
-        console.log("Connected to WebSocket server:", socket.id);
-    });
+  // useEffect(() => {
+  //   // Confirm socket connection
+  //     socket.on("connect", () => {
+  //       console.log("Connected to WebSocket server:", socket.id);
+  //   });
 
-  socket.on("taskUpdated", (updatedTask) => {
-    updateEventState(updatedTask);
-    });
+//   socket.on("taskUpdated", (updatedTask) => {
+//     updateEventState(updatedTask);
+//     });
 
-  socket.on("taskCreated", (broadcastData) => {
-    const newTasks = broadcastData?.newTasks 
-      ? broadcastData.newTasks 
-      : broadcastData?.newTask 
-      ? [broadcastData.newTask] 
-      : []; // Normalize to an array
+//   socket.on("taskCreated", (broadcastData) => {
+//     const newTasks = broadcastData?.newTasks 
+//       ? broadcastData.newTasks 
+//       : broadcastData?.newTask 
+//       ? [broadcastData.newTask] 
+//       : []; // Normalize to an array
   
-    if (newTasks.length === 0) {
-      console.error("Invalid task creation broadcast data:", broadcastData);
-      return;
-    }
+//     if (newTasks.length === 0) {
+//       console.error("Invalid task creation broadcast data:", broadcastData);
+//       return;
+//     }
   
-    newTasks.forEach((newTask) => {
-      if (
-        newTask &&
-        newTask._id &&
-        !filteredEvents.some((event) => event._id === newTask._id)
-      ) {
-        updateEventState(newTask);
-      }
-    });
-  });
+//     newTasks.forEach((newTask) => {
+//       if (
+//         newTask &&
+//         newTask._id &&
+//         !filteredEvents.some((event) => event._id === newTask._id)
+//       ) {
+//         updateEventState(newTask);
+//       }
+//     });
+//   });
   
-  // Add the bulk update socket handler
-  socket.on("tasksUpdated", ({ updatedTasks }) => {
-    if (!Array.isArray(updatedTasks)) return;
+//   // Add the bulk update socket handler
+//   socket.on("tasksUpdated", ({ updatedTasks }) => {
+//     if (!Array.isArray(updatedTasks)) return;
   
-    try {
-      // Backup the current state before making any changes
-      const currentEvents = [...filteredEvents];  // Define currentEvents here
+//     try {
+//       // Backup the current state before making any changes
+//       const currentEvents = [...filteredEvents];  // Define currentEvents here
   
-      // Batch update all events at once
-      setFilteredEvents(prevEvents => {
-        const eventMap = new Map(prevEvents.map(event => [event._id, event]));
+//       // Batch update all events at once
+//       setFilteredEvents(prevEvents => {
+//         const eventMap = new Map(prevEvents.map(event => [event._id, event]));
   
-        updatedTasks.forEach(task => {
-          const taskData = task.updatedTask || task;
+//         updatedTasks.forEach(task => {
+//           const taskData = task.updatedTask || task;
   
-          // Properly format the task data
-          const formattedTask = {
-            _id: taskData._id,  // Ensure _id is used for uniqueness
-            title: taskData.title,
-            start: taskData.start_time || taskData.start,
-            end: taskData.end_time || taskData.end,
-            color: taskData.color || taskData.color_code, // Fallback to color_code if color is not present
-            status: taskData.status,
-            notes: taskData.notes,
-            assigned_resources: {
-              assigned_to: taskData.assigned_to || [],
-              tools: taskData.tools || [],
-              materials: taskData.materials || [],
-            },
-          };
+//           // Properly format the task data
+//           const formattedTask = {
+//             _id: taskData._id,  // Ensure _id is used for uniqueness
+//             title: taskData.title,
+//             start: taskData.start_time || taskData.start,
+//             end: taskData.end_time || taskData.end,
+//             color: taskData.color || taskData.color_code, // Fallback to color_code if color is not present
+//             status: taskData.status,
+//             notes: taskData.notes,
+//             assigned_resources: {
+//               assigned_to: taskData.assigned_to || [],
+//               tools: taskData.tools || [],
+//               materials: taskData.materials || [],
+//             },
+//           };
   
-          // Check if the task already exists in the map, then update or add it
-          if (eventMap.has(formattedTask._id)) {
-            eventMap.set(formattedTask._id, {
-              ...eventMap.get(formattedTask._id),
-              ...formattedTask,  // Merge the old and new task properties
-            });
-          } else {
-            eventMap.set(formattedTask._id, formattedTask); // Add new task if not found
-          }
-        });
+//           // Check if the task already exists in the map, then update or add it
+//           if (eventMap.has(formattedTask._id)) {
+//             eventMap.set(formattedTask._id, {
+//               ...eventMap.get(formattedTask._id),
+//               ...formattedTask,  // Merge the old and new task properties
+//             });
+//           } else {
+//             eventMap.set(formattedTask._id, formattedTask); // Add new task if not found
+//           }
+//         });
   
-        // Convert the map back to an array and return
-        const updatedEvents = Array.from(eventMap.values());
+//         // Convert the map back to an array and return
+//         const updatedEvents = Array.from(eventMap.values());
   
-        // Ensure valid events before updating the state
-        return updatedEvents.length > 0 ? updatedEvents : prevEvents; // Return prevEvents if updatedEvents is empty
-      });
+//         // Ensure valid events before updating the state
+//         return updatedEvents.length > 0 ? updatedEvents : prevEvents; // Return prevEvents if updatedEvents is empty
+//       });
   
-    } catch (error) {
-      console.error("Error processing task updates:", error);
+//     } catch (error) {
+//       console.error("Error processing task updates:", error);
   
-      // If an error occurs, restore the previous state
-      setFilteredEvents(filteredEvents); // Restore the filteredEvents state
+//       // If an error occurs, restore the previous state
+//       setFilteredEvents(filteredEvents); // Restore the filteredEvents state
   
-      toast.error("Failed to update tasks. Please try again.");
-    }
-  });
+//       toast.error("Failed to update tasks. Please try again.");
+//     }
+//   });
   
   
-socket.on("taskDeleted", (taskId) => {
+// socket.on("taskDeleted", (taskId) => {
 
-  if (!taskId) {
-    console.error("Invalid task ID received for deletion.");
-    return;
-  }
+//   if (!taskId) {
+//     console.error("Invalid task ID received for deletion.");
+//     return;
+//   }
 
-  updateEventState(null, taskId); // Update state for deletion
-});
-  // Clean up on unmount
-  return () => {
-    socket.off("taskUpdated");
-    socket.off("taskCreated");
-    socket.off("taskDeleted");
-    socket.off("tasksUpdated");
-    socket.disconnect();
-  };
-}, []);
+//   updateEventState(null, taskId); // Update state for deletion
+// });
+//   // Clean up on unmount
+//   return () => {
+//     socket.off("taskUpdated");
+//     socket.off("taskCreated");
+//     socket.off("taskDeleted");
+//     socket.off("tasksUpdated");
+//     socket.disconnect();
+//   };
+// }, []);
 
 
 const calendarEvents = useMemo(() => {
@@ -304,13 +304,13 @@ const handleMultipleEventUpdate = (updatedEvents) => {
   });
 
   // Emit all updated tasks at once to the server using the socket instance
-  if (socket) {
-    socket.emit("updateMultipleTasks", updatedEvents);
+  // if (socket) {
+  //   socket.emit("updateMultipleTasks", updatedEvents);
    
-  } else {
-    console.error("Socket instance is not available.");
-    toast.error("Unable to emit updates. Socket connection not found.");
-  }
+  // } else {
+  //   console.error("Socket instance is not available.");
+  //   toast.error("Unable to emit updates. Socket connection not found.");
+  // }
 
   // Once all updates are dispatched, update the local state with the new tasks
   setFilteredEvents((prevEvents) => {
@@ -352,11 +352,11 @@ const handleMultipleEventUpdate = (updatedEvents) => {
         throw new Error(createdTask.error || "Unknown error");
       }
   
-      if (Array.isArray(createdTask.payload)) {
-        socket.emit("createTask", { newTasks: createdTask.payload });
-      } else {
-        socket.emit("createTask", { newTasks: [createdTask.payload] });
-      }
+      // if (Array.isArray(createdTask.payload)) {
+      //   socket.emit("createTask", { newTasks: createdTask.payload });
+      // } else {
+      //   socket.emit("createTask", { newTasks: [createdTask.payload] });
+      // }
   
       toast.success("Task created successfully!");
       return { success: true, data: createdTask.payload };
@@ -417,7 +417,7 @@ const handleEventUpdate = (updatedEvent) => {
 
   dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
     .then(() => {
-      socket.emit("updateTask", updatedEvent);
+      // socket.emit("updateTask", updatedEvent);
       toast.success("Task updated successfully!");
     })
     .catch((err) => {
@@ -432,7 +432,7 @@ const handleDelete = async (id) => {
     await dispatch(deleteTask(id));
 
     // Emit WebSocket event after successful deletion
-    socket.emit("deleteTask", id);
+    // socket.emit("deleteTask", id);
 
     // Update filtered events only after successful deletion
     // setFilteredEvents((prevEvents) =>
