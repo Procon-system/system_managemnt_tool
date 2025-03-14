@@ -17,13 +17,187 @@ import SearchBar from '../../Components/common/SearchBar';
 import Pagination from '../../Components/common/Pagination';
 import useSearchAndPagination from '../../hooks/useSearchAndPagination';
 
+// const CreateFacilityPage = () => {
+//   const dispatch = useDispatch();
+//   const socket = io("http://localhost:5000");
+//   const facilities = useSelector((state) => state.facilities.facilities || []);
+//   const [showForm, setShowForm] = useState(false);
+//   const [editingFacility, setEditingFacility] = useState(null);
+
+//   const {
+//     searchTerm,
+//     currentPage,
+//     currentItems: currentFacilities,
+//     totalPages,
+//     handleSearchChange,
+//     handlePageChange,
+//     totalItems
+//   } = useSearchAndPagination(facilities, 7, ['facility_name', 'location']);
+
+//   useEffect(() => {
+//     // Initial fetch of facilities
+//     dispatch(fetchFacilities());
+
+//     // Socket event listeners
+//     const handleFacilityCreated = (data) => {
+//       if (data && data.newFacility) {
+//         dispatch(facilityCreated(data));
+//         toast.success('New facility added');
+//       }
+//     };
+
+//     const handleFacilityUpdated = (data) => {
+//       if (data && data.updatedData) {
+//         dispatch(facilityUpdated(data));
+//         toast.success('Facility updated');
+//       }
+//     };
+
+//     const handleFacilityDeleted = (facilityId) => {
+//       if (facilityId) {
+//         dispatch(facilityDeleted(facilityId));
+//         toast.success('Facility deleted');
+//       }
+//     };
+
+//     // Add socket listeners
+//     socket.on('facilityCreated', handleFacilityCreated);
+//     socket.on('facilityUpdated', handleFacilityUpdated);
+//     socket.on('facilityDeleted', handleFacilityDeleted);
+
+//     // Cleanup socket listeners
+//     return () => {
+//       socket.off('facilityCreated', handleFacilityCreated);
+//       socket.off('facilityUpdated', handleFacilityUpdated);
+//       socket.off('facilityDeleted', handleFacilityDeleted);
+//     };
+//   }, [dispatch]);
+
+//   const handleAddClick = () => {
+//     setEditingFacility(null);
+//     setShowForm(true);
+//   };
+
+//   const handleEditClick = (facility) => {
+//     if (facility && facility._id) {
+//       setEditingFacility(facility);
+//       setShowForm(true);
+//     }
+//   };
+
+//   const handleDeleteClick = async (facilityId) => {
+//     if (facilityId) {
+//       try {
+//         await dispatch(deleteFacility(facilityId)).unwrap();
+//       } catch (error) {
+//         toast.error(`Failed to delete facility: ${error.message}`);
+//       }
+//     }
+//   };
+
+//   const handleFormSubmit = async (facilityData) => {
+//     try {
+//       if (editingFacility && editingFacility._id) {
+//         await dispatch(updateFacility({
+//           facilityId: editingFacility._id,
+//           updatedData: facilityData
+//         })).unwrap();
+//       } else {
+//         await dispatch(createFacility(facilityData)).unwrap();
+//       }
+//       setShowForm(false);
+//       setEditingFacility(null);
+//     } catch (error) {
+//       toast.error(`Error: ${error.message}`);
+//     }
+//   };
+
+const API_URL = 'http://localhost:5000'; // Replace with your server URL
+const isOnline = () => navigator.onLine;
+
+let socket;
+const eventQueue = [];
+
+// Initialize Socket.IO
+const initializeSocket = () => {
+  socket = io(API_URL, {
+    autoConnect: false, // Manually control connection
+  });
+
+  socket.on('connect', () => {
+    console.log('Socket.IO connected');
+    processQueuedEvents(); // Process any queued events when connected
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket.IO disconnected');
+  });
+
+  socket.on('connect_error', (error) => {
+    console.error('Socket.IO connection error:', error);
+    if (!isOnline()) {
+      console.log('App is offline. Socket.IO connection paused.');
+    }
+  });
+};
+
+// Connect Socket.IO only when online
+const connectSocket = () => {
+  if (isOnline()) {
+    socket.connect();
+  } else {
+    console.log('App is offline. Socket.IO connection paused.');
+  }
+};
+
+// Disconnect Socket.IO when offline
+const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+  }
+};
+
+// Queue or emit Socket.IO events
+const emitWhenOnline = (event, data) => {
+  if (isOnline()) {
+    socket.emit(event, data);
+  } else {
+    console.log('App is offline. Queuing event:', event);
+    eventQueue.push({ event, data });
+  }
+};
+
+// Process queued events when the app comes back online
+const processQueuedEvents = () => {
+  console.log('App is online. Processing queued events...');
+  while (eventQueue.length > 0) {
+    const { event, data } = eventQueue.shift();
+    socket.emit(event, data);
+  }
+};
+
+// Listen for online/offline events
+window.addEventListener('offline', () => {
+  console.log('App is offline. Pausing Socket.IO...');
+  disconnectSocket();
+});
+
+window.addEventListener('online', () => {
+  console.log('App is online. Reconnecting Socket.IO...');
+  connectSocket();
+});
+
+// Initialize and connect Socket.IO when the app starts
+initializeSocket();
+connectSocket();
+
 const CreateFacilityPage = () => {
   const dispatch = useDispatch();
-  const socket = io("http://localhost:5000");
   const facilities = useSelector((state) => state.facilities.facilities || []);
   const [showForm, setShowForm] = useState(false);
   const [editingFacility, setEditingFacility] = useState(null);
 
+  // Initialize search and pagination
   const {
     searchTerm,
     currentPage,
@@ -60,10 +234,11 @@ const CreateFacilityPage = () => {
       }
     };
 
-    // Add socket listeners
-    socket.on('facilityCreated', handleFacilityCreated);
-    socket.on('facilityUpdated', handleFacilityUpdated);
-    socket.on('facilityDeleted', handleFacilityDeleted);
+    if (isOnline()) {
+      socket.on('facilityCreated', handleFacilityCreated);
+      socket.on('facilityUpdated', handleFacilityUpdated);
+      socket.on('facilityDeleted', handleFacilityDeleted);
+    }
 
     // Cleanup socket listeners
     return () => {
@@ -89,6 +264,7 @@ const CreateFacilityPage = () => {
     if (facilityId) {
       try {
         await dispatch(deleteFacility(facilityId)).unwrap();
+        emitWhenOnline('deleteFacility', facilityId); // Emit event when online
       } catch (error) {
         toast.error(`Failed to delete facility: ${error.message}`);
       }
@@ -102,8 +278,13 @@ const CreateFacilityPage = () => {
           facilityId: editingFacility._id,
           updatedData: facilityData
         })).unwrap();
+        emitWhenOnline('updateFacility', { 
+          facilityId: editingFacility._id, 
+          updatedData: facilityData 
+        });
       } else {
-        await dispatch(createFacility(facilityData)).unwrap();
+        const createdFacility = await dispatch(createFacility(facilityData)).unwrap();
+        emitWhenOnline('createFacility', createdFacility); // Emit event when online
       }
       setShowForm(false);
       setEditingFacility(null);
@@ -194,6 +375,7 @@ const CreateFacilityPage = () => {
       )}
     </div>
   );
+  
 };
 
 export default CreateFacilityPage;

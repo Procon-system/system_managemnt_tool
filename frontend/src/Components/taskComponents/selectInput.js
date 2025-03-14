@@ -3,7 +3,7 @@ import Select from 'react-select';
 import React, { useState } from 'react';
 
 const getSelectedOptions = (items, options) => {
-  console.log("items, options",items, options)
+ 
   if (!items || items.length === 0) return []; // Handle undefined/null/empty cases
 
   return items.map(item => {

@@ -8,6 +8,15 @@ module.exports = {
         primary: '#D97706',   // Dark orange
         secondary: '#C2410C', // Slightly darker orange
       },
+      keyframes: {
+        enlarge: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.1)' },
+        },
+      },
+      animation: {
+        enlarge: 'enlarge 1.5s infinite',
+      },
     },
   },
   variants: {

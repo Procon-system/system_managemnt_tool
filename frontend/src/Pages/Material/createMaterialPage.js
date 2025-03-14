@@ -14,12 +14,92 @@ import Pagination from '../../Components/common/Pagination';
 import useSearchAndPagination from '../../hooks/useSearchAndPagination';
 import { toast } from 'react-toastify';
 import io from 'socket.io-client';
+
+const API_URL = 'http://localhost:5000'; // Replace with your server URL
+const isOnline = () => navigator.onLine;
+
+let socket;
+const eventQueue = [];
+
+// Initialize Socket.IO
+const initializeSocket = () => {
+  socket = io(API_URL, {
+    autoConnect: false, // Manually control connection
+  });
+
+  socket.on('connect', () => {
+    console.log('Socket.IO connected');
+    processQueuedEvents(); // Process any queued events when connected
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket.IO disconnected');
+  });
+
+  socket.on('connect_error', (error) => {
+    console.error('Socket.IO connection error:', error);
+    if (!isOnline()) {
+      console.log('App is offline. Socket.IO connection paused.');
+    }
+  });
+};
+
+// Connect Socket.IO only when online
+const connectSocket = () => {
+  if (isOnline()) {
+    socket.connect();
+  } else {
+    console.log('App is offline. Socket.IO connection paused.');
+  }
+};
+
+// Disconnect Socket.IO when offline
+const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+  }
+};
+
+// Queue or emit Socket.IO events
+const emitWhenOnline = (event, data) => {
+  if (isOnline()) {
+    socket.emit(event, data);
+  } else {
+    console.log('App is offline. Queuing event:', event);
+    eventQueue.push({ event, data });
+  }
+};
+
+// Process queued events when the app comes back online
+const processQueuedEvents = () => {
+  console.log('App is online. Processing queued events...');
+  while (eventQueue.length > 0) {
+    const { event, data } = eventQueue.shift();
+    socket.emit(event, data);
+  }
+};
+
+// Listen for online/offline events
+window.addEventListener('offline', () => {
+  console.log('App is offline. Pausing Socket.IO...');
+  disconnectSocket();
+});
+
+window.addEventListener('online', () => {
+  console.log('App is online. Reconnecting Socket.IO...');
+  connectSocket();
+});
+
+// Initialize and connect Socket.IO when the app starts
+initializeSocket();
+connectSocket();
+
 const CreateMaterialPage = () => {
   const dispatch = useDispatch();
   const materials = useSelector((state) => state.materials.materials || []);
   const [showForm, setShowForm] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState(null);
-  const socket = io("http://localhost:5000");
+
   // Initialize search and pagination
   const {
     searchTerm,
@@ -32,35 +112,43 @@ const CreateMaterialPage = () => {
   } = useSearchAndPagination(materials, 7, ['material_name', 'material_description']);
 
   useEffect(() => {
+    // Fetch materials when the component mounts
     dispatch(fetchMaterials());
 
-    socket.on('materialCreated', (data) => {
+    // Listen for Socket.IO events
+    const handleMaterialCreated = (data) => {
       dispatch(addMaterialFromSocket(data));
       toast.success('New material added');
-    });
+    };
 
-    socket.on('materialUpdated', ({ materialId, updatedData }) => {
+    const handleMaterialUpdated = ({ materialId, updatedData }) => {
       const updatedMaterial = { _id: materialId, ...updatedData };
       dispatch({
         type: 'materials/updateMaterial/fulfilled',
         payload: updatedMaterial,
       });
       toast.success('Material updated');
-    });
+    };
 
-    socket.on('materialDeleted', (deletedMaterialId) => {
+    const handleMaterialDeleted = (deletedMaterialId) => {
       dispatch({ 
         type: 'materials/deleteMaterial/fulfilled', 
         payload: { id: deletedMaterialId } 
       });
       toast.success('Material deleted');
-    });
+    };
 
+    if (isOnline()) {
+      socket.on('materialCreated', handleMaterialCreated);
+      socket.on('materialUpdated', handleMaterialUpdated);
+      socket.on('materialDeleted', handleMaterialDeleted);
+    }
+
+    // Cleanup Socket.IO listeners when the component unmounts
     return () => {
-      socket.off('materialCreated');
-      socket.off('materialUpdated');
-      socket.off('materialDeleted');
-      socket.disconnect();
+      socket.off('materialCreated', handleMaterialCreated);
+      socket.off('materialUpdated', handleMaterialUpdated);
+      socket.off('materialDeleted', handleMaterialDeleted);
     };
   }, [dispatch]);
 
@@ -77,7 +165,7 @@ const CreateMaterialPage = () => {
   const handleDeleteClick = async (materialId) => {
     try {
       await dispatch(deleteMaterial(materialId)).unwrap();
-      socket.emit('deleteMaterial', materialId);
+      emitWhenOnline('deleteMaterial', materialId); // Emit event when online
     } catch (error) {
       toast.error(`Failed to delete material: ${error.message}`);
     }
@@ -90,18 +178,107 @@ const CreateMaterialPage = () => {
           materialId: editingMaterial._id, 
           updatedData: { ...materialData } 
         })).unwrap();
-        socket.emit('updateMaterial', { 
+        emitWhenOnline('updateMaterial', { 
           materialId: editingMaterial._id, 
           updatedData: materialData 
         });
       } else {
         const result = await dispatch(createMaterial(materialData)).unwrap();
+        emitWhenOnline('createMaterial', result); // Emit event when online
         setShowForm(false);
       }
     } catch (error) {
       toast.error(`Failed to submit form: ${error.message}`);
     }
   };
+// const CreateMaterialPage = () => {
+//   const dispatch = useDispatch();
+//   const materials = useSelector((state) => state.materials.materials || []);
+//   const [showForm, setShowForm] = useState(false);
+//   const [editingMaterial, setEditingMaterial] = useState(null);
+//   const socket = io("http://localhost:5000");
+//   // Initialize search and pagination
+//   const {
+//     searchTerm,
+//     currentPage,
+//     currentItems: currentMaterials,
+//     totalPages,
+//     handleSearchChange,
+//     handlePageChange,
+//     totalItems
+//   } = useSearchAndPagination(materials, 7, ['material_name', 'material_description']);
+
+//   useEffect(() => {
+//     dispatch(fetchMaterials());
+
+//     socket.on('materialCreated', (data) => {
+//       dispatch(addMaterialFromSocket(data));
+//       toast.success('New material added');
+//     });
+
+//     socket.on('materialUpdated', ({ materialId, updatedData }) => {
+//       const updatedMaterial = { _id: materialId, ...updatedData };
+//       dispatch({
+//         type: 'materials/updateMaterial/fulfilled',
+//         payload: updatedMaterial,
+//       });
+//       toast.success('Material updated');
+//     });
+
+//     socket.on('materialDeleted', (deletedMaterialId) => {
+//       dispatch({ 
+//         type: 'materials/deleteMaterial/fulfilled', 
+//         payload: { id: deletedMaterialId } 
+//       });
+//       toast.success('Material deleted');
+//     });
+
+//     return () => {
+//       socket.off('materialCreated');
+//       socket.off('materialUpdated');
+//       socket.off('materialDeleted');
+//       socket.disconnect();
+//     };
+//   }, [dispatch]);
+
+//   const handleAddClick = () => {
+//     setEditingMaterial(null);
+//     setShowForm(true);
+//   };
+
+//   const handleEditClick = (material) => {
+//     setEditingMaterial(material);
+//     setShowForm(true);
+//   };
+
+//   const handleDeleteClick = async (materialId) => {
+//     try {
+//       await dispatch(deleteMaterial(materialId)).unwrap();
+//       socket.emit('deleteMaterial', materialId);
+//     } catch (error) {
+//       toast.error(`Failed to delete material: ${error.message}`);
+//     }
+//   };
+
+//   const handleFormSubmit = async (materialData) => {
+//     try {
+//       if (editingMaterial) {
+//         await dispatch(updateMaterial({ 
+//           materialId: editingMaterial._id, 
+//           updatedData: { ...materialData } 
+//         })).unwrap();
+//         socket.emit('updateMaterial', { 
+//           materialId: editingMaterial._id, 
+//           updatedData: materialData 
+//         });
+//       } else {
+//         const result = await dispatch(createMaterial(materialData)).unwrap();
+//         setShowForm(false);
+//       }
+//     } catch (error) {
+//       toast.error(`Failed to submit form: ${error.message}`);
+//     }
+//   };
 
   return (
     <div className="container mx-auto p-4 md:mx-2 lg:ml-72">

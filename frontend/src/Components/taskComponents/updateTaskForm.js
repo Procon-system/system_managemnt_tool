@@ -12,6 +12,7 @@ import { fetchMachines } from '../../features/machineSlice'; // Redux action to 
 import { getUsers } from '../../features/userSlice';
 import DOMPurify from "dompurify";
 import ImageSlider from './imageSlider';
+import {localDB} from '../../pouchDb';
 const EventDetailsModal = ({
   isVisible,
   closeModal,
@@ -46,20 +47,62 @@ const handleChange = (e) => {
   const [images, setImages] = useState([]);
   const [newImages, setNewImages] = useState([]); // Store new images for preview
 
+  // useEffect(() => {
+  //   if (editableEvent?._id) {
+  //     fetch(`http://localhost:5000/api/tasks/get-images/${editableEvent._id}`)
+  //       .then((res) => res.json())
+  //       .then((data) => {
+  //         console.log("data",data)
+  //         if (Array.isArray(data.images)) {
+  //           setImages(data.images); // Store the image URLs array
+  //         }
+  //       })
+  //       .catch((error) => console.error("Error fetching images:", error));
+  //   }
+  // }, [editableEvent?._id]);
   useEffect(() => {
-    if (editableEvent?._id) {
-      fetch(`http://localhost:5000/api/tasks/get-images/${editableEvent._id}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (Array.isArray(data.images)) {
-            setImages(data.images); // Store the image URLs array
+    const fetchImages = async () => {
+      if (editableEvent?._id) {
+        if (navigator.onLine) {
+          try {
+            const res = await fetch(`http://localhost:5000/api/tasks/get-images/${editableEvent._id}`);
+            const data = await res.json();
+            console.log("Fetched images data:", data);
+  
+            if (Array.isArray(data.images)) {
+              setImages(data.images); // Store the image URLs array
+            }
+          } catch (error) {
+            console.error("Error fetching images from server:", error);
           }
-        })
-        .catch((error) => console.error("Error fetching images:", error));
-    }
-  }, [editableEvent?._id]);
-
-  // Fetch Data on Component Mount
+        } else {
+          try {
+            // Fetch the task document from PouchDB
+            const taskDoc = await localDB.get(editableEvent._id);
+            console.log("Fetched task document from PouchDB:", taskDoc);
+  
+            if (taskDoc._attachments) {
+              // Get all image attachments
+              const imageNames = Object.keys(taskDoc._attachments);
+              const imageUrls = await Promise.all(
+                imageNames.map(async (name) => {
+                  const blob = await localDB.getAttachment(editableEvent._id, name);
+                  return URL.createObjectURL(blob); // Convert Blob to URL
+                })
+              );
+              console.log("Generated local image URLs:", imageUrls);
+              setImages(imageUrls); // Store the image URLs array
+            }
+          } catch (error) {
+            console.error("Error fetching images from PouchDB:", error);
+          }
+        }
+      }
+    };
+  
+    fetchImages(); // Call the async function inside useEffect
+  }, [editableEvent?._id]); // Dependency array
+  
   useEffect(() => {
     if (isVisible) {
       dispatch(getUsers());

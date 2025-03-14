@@ -4,6 +4,8 @@ const TaskModel = require('../Models/TaskSchema'); // Import the TaskModel schem
 const { saveAttachment } = require('./imageService');
 const getColorForStatus =require('../utils/getColorForStatus');
 const {incrementMaterialCount} = require('../utils/decIncLogic');
+
+const { redisClient } = require("../redisClient");
 /**
  * Format a task based on the TaskModel schema.
  * This ensures all tasks conform to the expected structure.
@@ -37,7 +39,7 @@ const createTask = async (taskData, file) => {
       taskData.image = file.originalname; // Or some meaningful identifier
       await db.insert({ ...taskData, _rev: attachmentResponse.rev });
     }
-
+      
     return { message: "Task created successfully", taskData };
   } catch (error) {
     console.log("errro",error)
@@ -109,23 +111,54 @@ const getAllTasks = async (batchSize = 20) => {
     throw new Error(`Failed to fetch tasks: ${error.message}`);
   }
 };
-
 const fetchDocuments = async (ids, type) => {
   try {
-    if (!ids || ids.length === 0) return []; // Prevent empty queries
+    // Validate input
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      console.log(`No valid IDs provided for type: ${type}`);
+      return [];
+    }
 
+    // Filter out invalid IDs
+    const validIds = ids.filter((id) => id && typeof id === 'string' && id.startsWith(`${type}:`));
+    if (validIds.length === 0) {
+      console.log(`No valid IDs found for type: ${type}`);
+      return [];
+    }
+
+    console.log(`Fetching ${type} documents with IDs:`, validIds);
+
+    // Query the database
     const result = await db.find({
       selector: {
         type: type,
-        _id: { $in: ids.filter(Boolean) }, // Ensure valid IDs
+        _id: { $in: validIds }, // Use only valid IDs
       },
     });
 
+    console.log(`Fetched ${result.docs.length} ${type} documents`);
     return result.docs;
   } catch (error) {
+    console.error(`Error fetching ${type} documents:`, error.message);
     throw new Error(`Failed to fetch related ${type} documents: ${error.message}`);
   }
 };
+// const fetchDocuments = async (ids, type) => {
+//   try {
+//     if (!ids || ids.length === 0) return []; // Prevent empty queries
+
+//     const result = await db.find({
+//       selector: {
+//         type: type,
+//         _id: { $in: ids.filter(Boolean) }, // Ensure valid IDs
+//       },
+//     });
+
+//     return result.docs;
+//   } catch (error) {
+//     throw new Error(`Failed to fetch related ${type} documents: ${error.message}`);
+//   }
+// };
 
 /**
  * Fetch a task by its ID.
@@ -220,7 +253,6 @@ const updateTask = async (id, updateData, res) => {
     });
   }
 };
-
 const bulkUpdateTasks = async (taskUpdates) => {
   const results = [];
 
@@ -263,13 +295,13 @@ const bulkUpdateTasks = async (taskUpdates) => {
 
   return results;
 };
-
 const deleteTask = async (id) => {
   try {
     const task = await db.get(id); // Fetch the task to get `_rev`
     await db.destroy(id, task._rev); // Delete the task
     return { id, message: 'Task deleted successfully' }; // Return ID and message
   } catch (error) {
+  
     throw new Error(`Failed to delete task: ${error.message}`);
   }
 };
@@ -299,7 +331,6 @@ const deleteBulkTasks = async (ids) => {
     throw new Error(`Failed to delete tasks: ${error.message}`);
   }
 };
-
 const getTasksByAssignedUser = async (userId) => {
   try {
     const result = await db.find({
@@ -517,9 +548,46 @@ const fetchImages = async (taskId) => {
   }
 };
 
+// const getImages = async (req, res) => {
+//   try {
+//     const taskId = req.params.id; // Get task ID from request
+//     const images = await fetchImages(taskId); // Fetch all images
+
+//     if (!images || images.length === 0) {
+//       return res.status(404).json({ error: "No images found for this task" });
+//     }
+
+//     // Process images into base64 for frontend use
+//     const formattedImages = images.map(({ buffer, name }) => {
+//       const extension = name.split('.').pop().toLowerCase();
+//       const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg'; // Extend as needed
+
+//       return {
+//         name,
+//         mimeType,
+//         base64: `data:${mimeType};base64,${buffer.toString('base64')}`, // Convert to base64 for display
+//       };
+//     });
+//     res.json({ images: formattedImages });
+
+//   } catch (error) {
+//     console.error("Error fetching images:", error.message);
+//     res.status(500).json({ error: "Failed to fetch images", details: error.message });
+//   }
+// };
 const getImages = async (req, res) => {
   try {
     const taskId = req.params.id; // Get task ID from request
+
+    // 🔹 Check if images are in Redis cache
+    const cachedImages = await redisClient.get(`images:${taskId}`);
+
+    if (cachedImages) {
+      console.log(`✅ Returning images for task ${taskId} from cache`);
+      return res.status(200).json(JSON.parse(cachedImages));
+    }
+
+    // 🔹 Fetch images from database if not cached
     const images = await fetchImages(taskId); // Fetch all images
 
     if (!images || images.length === 0) {
@@ -537,14 +605,18 @@ const getImages = async (req, res) => {
         base64: `data:${mimeType};base64,${buffer.toString('base64')}`, // Convert to base64 for display
       };
     });
-    res.json({ images: formattedImages });
+
+    // 🔹 Store in Redis with expiration (e.g., 10 minutes)
+    await redisClient.setEx(`images:${taskId}`, 600, JSON.stringify({ images: formattedImages }));
+    console.log(`🔄 Fetched images for task ${taskId} from database and cached in Redis`);
+
+    res.status(200).json({ images: formattedImages });
 
   } catch (error) {
     console.error("Error fetching images:", error.message);
     res.status(500).json({ error: "Failed to fetch images", details: error.message });
   }
 };
-
 const getFilteredTasks = async (filters, limit = 50, skip = 0) => {
   try {
     let query = {

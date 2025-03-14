@@ -93,7 +93,10 @@ export const updateTask = createAsyncThunk(
     }
 
     try {
-      return await taskService.updateTask(taskId, updatedData, token);
+      // return await taskService.updateTask(taskId, updatedData, token);
+      const response = await taskService.updateTask(taskId, updatedData, token);
+  console.log("API Response:", response); // Verify the response
+  return response; 
     } catch (error) {
       console.error('Error in updateTask:', error.response?.data || error.message);
       return rejectWithValue(error.response?.data || error.message || 'Error updating task');
@@ -220,6 +223,25 @@ const taskSlice = createSlice({
       state.filteredTasks = [];
       state.currentView = 'allTasks'; // Reset to all tasks view
     },
+    // Add a reducer to handle bulk update success
+    bulkUpdateTasksSuccess: (state, action) => {
+      const updatedTasks = action.payload;
+      const taskMap = new Map(state.tasks.map((task) => [task._id, task]));
+
+      // Merge the updated tasks into the state
+      updatedTasks.forEach((updatedTask) => {
+        if (taskMap.has(updatedTask._id)) {
+          taskMap.set(updatedTask._id, {
+            ...taskMap.get(updatedTask._id),
+            ...updatedTask,
+          });
+        } else {
+          taskMap.set(updatedTask._id, updatedTask);
+        }
+      });
+
+      state.tasks = Array.from(taskMap.values());
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -236,6 +258,7 @@ const taskSlice = createSlice({
         const payloadArray = Array.isArray(action.payload) ? action.payload : [action.payload];
       
         payloadArray.forEach((payload) => {
+         
           const task = payload?.taskData; // Extract taskData from each payload item
           if (task && task._id) { // Ensure the task is valid
             // Avoid duplicating tasks in the state
@@ -281,7 +304,6 @@ const taskSlice = createSlice({
       
         // Extract the updated task from the payload
         const updatedTask = action.payload;
-      
         // Check if the task exists and update it, otherwise add it
         const index = state.tasks.findIndex(task => task._id === updatedTask._id);
         if (index !== -1) {
@@ -334,30 +356,38 @@ const taskSlice = createSlice({
         state.error = null;
       })
       .addCase(bulkUpdateTasks.fulfilled, (state, action) => {
-        const results = action.payload;
-        if (Array.isArray(results)) {
-          results.forEach(result => {
-            if (result.status === 'success' && result.updatedTask) {
-              const index = state.tasks.findIndex(task => task._id === result.updatedTask._id);
-              if (index !== -1) {
-                state.tasks[index] = {
-                  ...state.tasks[index],
-                  ...result.updatedTask,
-                  start: result.updatedTask.start_time,
-                  end: result.updatedTask.end_time
-                };
-              }
-            }
-          });
-        }
+        // const results = action.payload;
+        // if (Array.isArray(results)) {
+        //   results.forEach((result) => {
+        //     if (result.status === 'success' && result.updatedTask) {
+        //       const index = state.tasks.findIndex((task) => task._id === result.updatedTask._id);
+        //       if (index !== -1) {
+        //         // Merge the updated fields with the existing task
+        //         state.tasks[index] = {
+        //           ...state.tasks[index], // Keep existing fields
+        //           ...result.updatedTask, // Overwrite with updated fields
+        //           start: result.updatedTask.start_time || state.tasks[index].start, // Preserve existing start if not updated
+        //           end: result.updatedTask.end_time || state.tasks[index].end, // Preserve existing end if not updated
+        //         };
+        //       } else {
+        //         // If the task doesn't exist in the state, add it
+        //         state.tasks.push({
+        //           ...result.updatedTask,
+        //           start: result.updatedTask.start_time,
+        //           end: result.updatedTask.end_time,
+        //         });
+        //       }
+        //     }
+        //   });
+        // }
+        state.status = 'succeeded';
       })
       .addCase(bulkUpdateTasks.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload || 'Failed to update tasks';
-      });
-      
+      })
   },
 });
-export const { setTaskView,addTaskFromSocket ,resetFilteredTasks} = taskSlice.actions;
+export const { setTaskView,addTaskFromSocket ,resetFilteredTasks, bulkUpdateTasksSuccess} = taskSlice.actions;
 
 export default taskSlice.reducer;

@@ -100,6 +100,299 @@ To simply restart the application, run:
 
 docker compose up
 
+# Full Guide: Setting Up WSL and Installing the Task Manager App online
+
+## Step 1: Install WSL and Ubuntu
+
+1. **Enable WSL** (Windows Subsystem for Linux) on Windows:
+   - Open **PowerShell as Administrator** and run:
+     ```powershell
+     wsl --install -d Ubuntu
+     ```
+   - If WSL is already installed, update it with:
+     ```powershell
+     wsl --update
+     ```
+
+2. **Restart your system** and open Ubuntu from the Start Menu.
+
+3. **Set up your Ubuntu user** (you’ll be prompted to create a username and password).
+
+---
+
+## Step 2: Update System Packages
+
+Once inside WSL (Ubuntu), update package lists and upgrade:
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+---
+
+## Step 3: Install Docker and Docker Compose
+
+Run the following commands to install **Docker** and **Docker Compose**:
+```bash
+sudo apt install -y docker.io docker-compose
+```
+
+Enable Docker service:
+```bash
+sudo systemctl enable --now docker
+```
+
+Add your user to the Docker group (to avoid using `sudo` every time):
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+Verify Docker is working:
+```bash
+docker --version
+docker run hello-world
+```
+
+---
+
+## Step 4: Clone Your Task Manager App Repository
+
+clone it:
+```bash
+git clone https://github.com/Procon-system/system_managemnt_tool.git
+cd task-manager-app
+```
+
+If your project is local, ensure the `docker-compose.yml` file is in the project directory.
+
+---
+
+## Step 5: Run the Installation Script
+
+Now, run the **installation script** to automate everything:
+
+1. **Create the script file**:
+   ```bash
+   nano install_online.sh
+   ```
+
+2. **Copy and paste the script below into the file**:
+   ```bash
+   #!/bin/bash
+   
+   # Function to check command success
+   check_success() {
+     if [ $? -ne 0 ]; then
+       echo "Error: $1 failed. Exiting."
+       exit 1
+     fi
+   }
+   
+   echo "Starting online installation..."
+   
+   # Step 1: Update system
+   echo "Updating system packages..."
+   sudo apt update && sudo apt upgrade -y
+   check_success "System update"
+   
+   # Step 2: Install Docker & Docker Compose
+   echo "Installing Docker and Docker Compose..."
+   sudo apt install -y docker.io docker-compose
+   check_success "Docker installation"
+   
+   # Step 3: Start and enable Docker service
+   echo "Starting and enabling Docker service..."
+   sudo systemctl enable --now docker
+   check_success "Starting Docker service"
+   
+   # Step 4: Run Docker Compose
+   echo "Starting application with Docker Compose..."
+   docker-compose up -d
+   check_success "Starting Docker Compose services"
+   
+   # Verify installation
+   echo "Verifying running containers..."
+   docker ps
+   
+   echo "Online installation completed successfully!"
+   ```
+
+3. **Save and exit** (press `CTRL+X`, then `Y`, then `Enter`).
+
+4. **Make the script executable**:
+   ```bash
+   chmod +x install_online.sh
+   ```
+
+5. **Run the script**:
+   ```bash
+   ./install_online.sh
+   ```
+
+---
+
+## Step 6: Verify Everything is Running
+
+To check if all containers are running:
+```bash
+docker ps
+```
+
+If you need to restart the app later:
+```bash
+docker-compose down
+```
+```bash
+docker-compose up -d
+```
+
+To check application logs:
+```bash
+docker-compose logs -f
+```
+
+---
+
+## Conclusion
+
+🎉 Your Task Manager app should now be running in **WSL using Docker Compose**!
+
+
+# Full Guide: Setting Up WSL and Installing the Task Manager App (Offline)
+
+## Step 1: Install WSL and Ubuntu
+
+1. **Enable WSL** on Windows:
+   - Open **PowerShell as Administrator** and run:
+     ```powershell
+     wsl --install -d Ubuntu
+     ```
+   - If WSL is already installed, update it with:
+     ```powershell
+     wsl --update
+     ```
+
+2. **Restart your system** and open Ubuntu from the Start Menu.
+
+3. **Set up your Ubuntu user** (you’ll be prompted to create a username and password).
+
+---
+
+## Step 2: Prepare Offline Installation Files
+
+Since this is an **offline installation**, ensure you have the necessary files downloaded beforehand and transferred to your WSL environment:
+
+1. **Required `.deb` packages** for Docker, Node.js, Redis, and CouchDB.
+2. **Pre-downloaded Docker images** as `.tar` files.
+3. **Node.js dependencies** as a `.tgz` package (if applicable).
+4. **Your `docker-compose.yml` and project files**.
+
+Create the following directories in WSL and place the files inside:
+```bash
+mkdir -p ~/offline-packages ~/docker-images
+```
+Transfer the files to these directories.
+
+---
+
+## Step 3: Run the Offline Installation Script
+
+1. **Create the script file**:
+   ```bash
+   nano install_offline.sh
+   ```
+
+2. **Copy and paste the script below into the file**:
+   ```bash
+   #!/bin/bash
+   
+   # Define directories
+   PACKAGE_DIR="$(pwd)/offline-packages"
+   DOCKER_IMAGES_DIR="$(pwd)/docker-images"
+   
+   # Function to check command success
+   check_success() {
+     if [ $? -ne 0 ]; then
+       echo "Error: $1 failed. Exiting."
+       exit 1
+     fi
+   }
+   
+   echo "Starting offline installation..."
+   
+   # Step 1: Install .deb packages
+   echo "Installing required packages..."
+   sudo dpkg -i $PACKAGE_DIR/*.deb
+   check_success "Installing .deb packages"
+   
+   # Fix any broken dependencies
+   echo "Fixing broken dependencies..."
+   sudo apt --fix-broken install -y
+   check_success "Fixing dependencies"
+   
+   # Step 2: Load Docker images
+   echo "Loading Docker images..."
+   for image in $DOCKER_IMAGES_DIR/*.tar; do
+     docker load -i "$image"
+     check_success "Loading Docker image $image"
+   done
+   
+   # Step 3: Start services using Docker Compose
+   echo "Starting application with Docker Compose..."
+   docker-compose up -d
+   check_success "Starting Docker Compose services"
+   
+   # Verify installation
+   echo "Verifying installation..."
+   docker ps
+   node -v
+   npm -v
+   redis-server --version
+   couchdb -V
+   
+   echo "Offline installation completed successfully!"
+   ```
+
+3. **Save and exit** (press `CTRL+X`, then `Y`, then `Enter`).
+
+4. **Make the script executable**:
+   ```bash
+   chmod +x install_offline.sh
+   ```
+
+5. **Run the script**:
+   ```bash
+   ./install_offline.sh
+   ```
+
+---
+
+## Step 4: Verify Everything is Running
+
+To check if all containers are running:
+```bash
+docker ps
+```
+
+If you need to restart the app later:
+```bash
+docker-compose down
+```
+```bash
+docker-compose up -d
+```
+
+To check application logs:
+```bash
+docker-compose logs -f
+```
+
+---
+
+## Conclusion
+
+🎉 Your Task Manager app should now be running **offline in WSL using Docker Compose**! 
+
 # Service_managemnt_tool description
 The service Management tool should be a platform were a Person is able to see move (move in Time by drag and drop) setup and distribute service Tasks from one or Multiple Machines. 
 He should be able to distribute the Tasks to one ore Multiple Human or Technical resources such service Personal or needed Materials or Tools for the service etc. 

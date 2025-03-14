@@ -19,7 +19,7 @@ import EventDetailsModal from '../Components/taskComponents/updateTaskForm';
 import getColorForStatus from '../Helper/getColorForStatus';
 
 const socket = io("http://localhost:5000"); // Replace with your server URL
-
+const API_URL='http://localhost:5000';
 const HomePage = () => {
   const dispatch = useDispatch();
   const [filteredEvents, setFilteredEvents] = useState([]);
@@ -33,7 +33,23 @@ const HomePage = () => {
   const eventsRef = useRef([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
-  
+  const [showTaskPage, setShowTaskPage] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+ 
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    // Add event listeners for online/offline events
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Cleanup event listeners on unmount
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   const updateEventState = (updatedEvents = [], deletedEventId = null) => {
     setFilteredEvents((prevEvents) => {
       let currentEvents = prevEvents || tasks || [];
@@ -80,11 +96,17 @@ const HomePage = () => {
    const handleTaskDeletion = (deletedTaskId) => {
     setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
   };
-  // useEffect(() => {
-  //   // Confirm socket connection
-  //     socket.on("connect", () => {
-  //       console.log("Connected to WebSocket server:", socket.id);
-  //   });
+//   useEffect(() => {
+//   if (!isOnline) {
+//       console.log("Offline: WebSocket operations are paused.");
+//       toast.warn("You are offline. Please check your internet connection.");
+//       return; // Skip WebSocket operations if offline
+//     }
+
+//     // Confirm socket connection
+//       socket.on("connect", () => {
+//         console.log("Connected to WebSocket server:", socket.id);
+//     });
 
 //   socket.on("taskUpdated", (updatedTask) => {
 //     updateEventState(updatedTask);
@@ -190,8 +212,137 @@ const HomePage = () => {
 //     socket.off("tasksUpdated");
 //     socket.disconnect();
 //   };
-// }, []);
+// }, [isOnline]);
+useEffect(() => {
+  if (!isOnline) {
+    console.log("Offline: WebSocket operations are paused.");
+    // toast.warn("You are offline. Please check your internet connection.");
+    return; // Skip WebSocket operations if offline
+  }
 
+  console.log("Online: Establishing WebSocket connection...");
+
+  // Initialize WebSocket connection
+  const socket = io(API_URL, {
+    reconnection: true, // Enable reconnection
+    reconnectionAttempts: 5, // Number of reconnection attempts
+    reconnectionDelay: 1000, // Delay between reconnection attempts
+  });
+
+  // Event: Socket connected
+  socket.on("connect", () => {
+    console.log("Connected to WebSocket server:", socket.id);
+  });
+
+  // Event: Socket disconnected
+  socket.on("disconnect", () => {
+    console.log("Disconnected from WebSocket server.");
+  });
+
+  // Event: Task updated
+  socket.on("taskUpdated", (updatedTask) => {
+    console.log("Task updated:", updatedTask);
+    updateEventState(updatedTask);
+  });
+
+  // Event: Task created
+  socket.on("taskCreated", (broadcastData) => {
+    console.log("Task created:", broadcastData);
+
+    const newTasks = broadcastData?.newTasks
+      ? broadcastData.newTasks
+      : broadcastData?.newTask
+      ? [broadcastData.newTask]
+      : []; // Normalize to an array
+
+    if (newTasks.length === 0) {
+      console.error("Invalid task creation broadcast data:", broadcastData);
+      return;
+    }
+
+    newTasks.forEach((newTask) => {
+      if (newTask && newTask._id && !filteredEvents.some((event) => event._id === newTask._id)) {
+        updateEventState(newTask);
+      }
+    });
+  });
+
+  // Event: Multiple tasks updated
+  socket.on("tasksUpdated", ({ updatedTasks }) => {
+    console.log("Tasks updated:", updatedTasks);
+
+    if (!Array.isArray(updatedTasks)) return;
+
+    try {
+      // Backup the current state before making any changes
+      const currentEvents = [...filteredEvents];
+
+      // Batch update all events at once
+      setFilteredEvents((prevEvents) => {
+        const eventMap = new Map(prevEvents.map((event) => [event._id, event]));
+
+        updatedTasks.forEach((task) => {
+          const taskData = task.updatedTask || task;
+
+          const formattedTask = {
+            _id: taskData._id,
+            title: taskData.title,
+            start: taskData.start_time || taskData.start,
+            end: taskData.end_time || taskData.end,
+            color: taskData.color || taskData.color_code,
+            status: taskData.status,
+            notes: taskData.notes,
+            assigned_resources: {
+              assigned_to: taskData.assigned_to || [],
+              tools: taskData.tools || [],
+              materials: taskData.materials || [],
+            },
+          };
+
+          if (eventMap.has(formattedTask._id)) {
+            eventMap.set(formattedTask._id, {
+              ...eventMap.get(formattedTask._id),
+              ...formattedTask,
+            });
+          } else {
+            eventMap.set(formattedTask._id, formattedTask);
+          }
+        });
+
+        const updatedEvents = Array.from(eventMap.values());
+        return updatedEvents.length > 0 ? updatedEvents : prevEvents;
+      });
+    } catch (error) {
+      console.error("Error processing task updates:", error);
+      setFilteredEvents(filteredEvents); // Restore the previous state
+      toast.error("Failed to update tasks. Please try again.");
+    }
+  });
+
+  // Event: Task deleted
+  socket.on("taskDeleted", (taskId) => {
+    console.log("Task deleted:", taskId);
+
+    if (!taskId) {
+      console.error("Invalid task ID received for deletion.");
+      return;
+    }
+
+    updateEventState(null, taskId); // Update state for deletion
+  });
+
+  // Clean up on unmount or when `isOnline` changes
+  return () => {
+    console.log("Cleaning up WebSocket connection...");
+    socket.off("connect");
+    socket.off("disconnect");
+    socket.off("taskUpdated");
+    socket.off("taskCreated");
+    socket.off("tasksUpdated");
+    socket.off("taskDeleted");
+    socket.disconnect();
+  };
+}, [isOnline, updateEventState, filteredEvents, setFilteredEvents]); // Re-run effect when these dependencies change // Re-run effect when online status changes
 
 const calendarEvents = useMemo(() => {
   return Array.isArray(tasks)
@@ -247,7 +398,7 @@ useEffect(() => {
   } else if (currentView === 'allDoneTasks') {
     dispatch(getAllDoneTasks()); // Fetch all done tasks
   }
-}, [currentView, dispatch]);
+}, [currentView, dispatch, user?._id]);
 
 useEffect(() => {
   if (calendarEvents.length > 0) {
@@ -279,71 +430,186 @@ useEffect(() => {
 }, [calendarEvents, currentView, deletedTaskIds, user?._id]);
 
 const handleMultipleEventUpdate = (updatedEvents) => {
+  // console.log("hihi")
+  // if (!Array.isArray(updatedEvents) || updatedEvents.length === 0) {
+  //   toast.error("No valid events to update.");
+  //   return;
+  // }
+
+  // // Store current state as backup
+  // const backupEvents = [...filteredEvents];
+
+  // // Process each updated event
+  // updatedEvents.forEach((updatedEvent) => {
+  //   if (updatedEvent._id) {
+  //     if (updatedEvent.status) {
+  //       updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
+  //     }
+
+  //     // Dispatch the update for each event
+  //     dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }))
+  //       .catch((err) => {
+  //         toast.error("Failed to update task. Please try again.");
+  //         console.error("Task update failed:", err);
+  //       });
+  //   }
+  // });
+
+  
+  // // Once all updates are dispatched, update the local state with the new tasks
+  // setFilteredEvents((prevEvents) => {
+  //   let currentEvents = prevEvents || tasks || [];
+
+  //   // Create a map of the current events by task ID
+  //   const eventMap = new Map(currentEvents.map((event) => [event._id, event]));
+
+  //   // Iterate over the updated events and update them in the event map
+  //   updatedEvents.forEach((updatedEvent) => {
+  //     if (updatedEvent._id && updatedEvent.title) {
+  //       eventMap.set(updatedEvent._id, {
+  //         ...eventMap.get(updatedEvent._id),
+  //         ...updatedEvent,
+  //       });
+  //     }
+  //   });
+
+  //   // Filter out any deleted tasks (if you have a deletedTaskIds set)
+  //   const updatedFilteredEvents = Array.from(eventMap.values()).filter(
+  //     (event) =>
+  //       !deletedTaskIds.has(event._id) && // Exclude deleted tasks
+  //       event._id && event.title && (event.start_time || event.start) && (event.end_time || event.end)
+  //   );
+
+  //   eventsRef.current = updatedFilteredEvents; // Sync with ref
+   
+  //   return updatedFilteredEvents; // Update state with the new filtered events
+  // });
+
+  // toast.success("Tasks updated successfully!");
   if (!Array.isArray(updatedEvents) || updatedEvents.length === 0) {
     toast.error("No valid events to update.");
     return;
   }
 
-  // Store current state as backup
-  const backupEvents = [...filteredEvents];
-
-  // Process each updated event
-  updatedEvents.forEach((updatedEvent) => {
-    if (updatedEvent._id) {
-      if (updatedEvent.status) {
-        updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
-      }
-
-      // Dispatch the update for each event
-      dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }))
-        .catch((err) => {
-          toast.error("Failed to update task. Please try again.");
-          console.error("Task update failed:", err);
-        });
+  // Prepare the updated tasks data
+  const updatedTasksData = updatedEvents.map((updatedEvent) => {
+    if (updatedEvent.status) {
+      updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
     }
+    return {
+      _id: updatedEvent._id,
+      start_time: updatedEvent.start_time || updatedEvent.start,
+      end_time: updatedEvent.end_time || updatedEvent.end,
+      color: updatedEvent.color,
+      title: updatedEvent.title,
+      updated_at: new Date().toISOString(),
+    };
   });
 
-  // Emit all updated tasks at once to the server using the socket instance
-  // if (socket) {
-  //   socket.emit("updateMultipleTasks", updatedEvents);
-   
-  // } else {
-  //   console.error("Socket instance is not available.");
-  //   toast.error("Unable to emit updates. Socket connection not found.");
-  // }
+  // Dispatch the bulk update action
+  dispatch(bulkUpdateTasks(updatedTasksData))
+    .unwrap()
+    .then((successfulUpdates) => {
+      console.log("Successful updates:", successfulUpdates);
 
-  // Once all updates are dispatched, update the local state with the new tasks
-  setFilteredEvents((prevEvents) => {
-    let currentEvents = prevEvents || tasks || [];
+      // Update the local state with the successful updates
+      setFilteredEvents((prevEvents) => {
+        let currentEvents = prevEvents || tasks || [];
 
-    // Create a map of the current events by task ID
-    const eventMap = new Map(currentEvents.map((event) => [event._id, event]));
+        // Create a map of the current events by task ID
+        const eventMap = new Map(currentEvents.map((event) => [event._id, event]));
 
-    // Iterate over the updated events and update them in the event map
-    updatedEvents.forEach((updatedEvent) => {
-      if (updatedEvent._id && updatedEvent.title) {
-        eventMap.set(updatedEvent._id, {
-          ...eventMap.get(updatedEvent._id),
-          ...updatedEvent,
+        // Iterate over the successful updates and update them in the event map
+        successfulUpdates.forEach((updatedTask) => {
+          if (updatedTask._id && updatedTask.title) {
+            eventMap.set(updatedTask._id, {
+              ...eventMap.get(updatedTask._id),
+              ...updatedTask,
+            });
+          }
         });
-      }
+
+        // Filter out any deleted tasks (if you have a deletedTaskIds set)
+        const updatedFilteredEvents = Array.from(eventMap.values()).filter(
+          (event) =>
+            !deletedTaskIds.has(event._id) && // Exclude deleted tasks
+            event._id && event.title && (event.start_time || event.start) && (event.end_time || event.end)
+        );
+
+        eventsRef.current = updatedFilteredEvents; // Sync with ref
+        return updatedFilteredEvents; // Update state with the new filtered events
+      });
+
+      toast.success("Tasks updated successfully!");
+    })
+    .catch((error) => {
+      console.error("Error updating tasks:", error);
+      toast.error("Failed to update tasks. Please try again.");
     });
-
-    // Filter out any deleted tasks (if you have a deletedTaskIds set)
-    const updatedFilteredEvents = Array.from(eventMap.values()).filter(
-      (event) =>
-        !deletedTaskIds.has(event._id) && // Exclude deleted tasks
-        event._id && event.title && (event.start_time || event.start) && (event.end_time || event.end)
-    );
-
-    eventsRef.current = updatedFilteredEvents; // Sync with ref
-   
-    return updatedFilteredEvents; // Update state with the new filtered events
-  });
-
-  toast.success("Tasks updated successfully!");
 };
+// const handleMultipleEventUpdate = (updatedEvents) => {
+//   console.log("hihi");
+//   if (!Array.isArray(updatedEvents) || updatedEvents.length === 0) {
+//     toast.error("No valid events to update.");
+//     return;
+//   }
 
+//   // Prepare the updated tasks data
+//   const updatedTasksData = updatedEvents.map((updatedEvent) => {
+//     if (updatedEvent.status) {
+//       updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
+//     }
+//     return {
+//       _id: updatedEvent._id,
+//       start_time: updatedEvent.start_time || updatedEvent.start,
+//       end_time: updatedEvent.end_time || updatedEvent.end,
+//       color: updatedEvent.color,
+//       title: updatedEvent.title,
+//       updated_at: new Date().toISOString(),
+//     };
+//   });
+
+//   // Dispatch the bulk update action
+//   dispatch(bulkUpdateTasks(updatedTasksData))
+//     .unwrap()
+//     .then((successfulUpdates) => {
+//       console.log("Successful updates:", successfulUpdates);
+
+//       // Update the local state with the successful updates
+//       setFilteredEvents((prevEvents) => {
+//         let currentEvents = prevEvents || tasks || [];
+
+//         // Create a map of the current events by task ID
+//         const eventMap = new Map(currentEvents.map((event) => [event._id, event]));
+
+//         // Iterate over the successful updates and update them in the event map
+//         successfulUpdates.forEach((updatedTask) => {
+//           if (updatedTask._id && updatedTask.title) {
+//             eventMap.set(updatedTask._id, {
+//               ...eventMap.get(updatedTask._id),
+//               ...updatedTask,
+//             });
+//           }
+//         });
+
+//         // Filter out any deleted tasks (if you have a deletedTaskIds set)
+//         const updatedFilteredEvents = Array.from(eventMap.values()).filter(
+//           (event) =>
+//             !deletedTaskIds.has(event._id) && // Exclude deleted tasks
+//             event._id && event.title && (event.start_time || event.start) && (event.end_time || event.end)
+//         );
+
+//         eventsRef.current = updatedFilteredEvents; // Sync with ref
+//         return updatedFilteredEvents; // Update state with the new filtered events
+//       });
+
+//       toast.success("Tasks updated successfully!");
+//     })
+//     .catch((error) => {
+//       console.error("Error updating tasks:", error);
+//       toast.error("Failed to update tasks. Please try again.");
+//     });
+// };
   const handleEventCreate = async (newEvent) => {
     try {
       const createdTask = await dispatch(createTask(newEvent));
@@ -351,13 +617,6 @@ const handleMultipleEventUpdate = (updatedEvents) => {
       if (createdTask.error || !createdTask.payload) {
         throw new Error(createdTask.error || "Unknown error");
       }
-  
-      // if (Array.isArray(createdTask.payload)) {
-      //   socket.emit("createTask", { newTasks: createdTask.payload });
-      // } else {
-      //   socket.emit("createTask", { newTasks: [createdTask.payload] });
-      // }
-  
       toast.success("Task created successfully!");
       return { success: true, data: createdTask.payload };
     } catch (err) {
@@ -365,8 +624,6 @@ const handleMultipleEventUpdate = (updatedEvents) => {
       return { success: false, error: err.message || "Unknown error" };
     }
   };
-  
-  
   const handleDateRangeSelect = (startDate, endDate) => {
     if (!startDate || !endDate) {
       // Reset to all events when no date range is selected
@@ -385,10 +642,7 @@ const handleMultipleEventUpdate = (updatedEvents) => {
     setCalendarStartDate(startDate);
     setCalendarEndDate(endDate);
   };
-
 const handleEventUpdate = (updatedEvent) => {
-  console.log("Updated event before:", updatedEvent);
-
   const formData = new FormData();
   formData.append("taskId", updatedEvent._id);
 
@@ -417,7 +671,6 @@ const handleEventUpdate = (updatedEvent) => {
 
   dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
     .then(() => {
-      // socket.emit("updateTask", updatedEvent);
       toast.success("Task updated successfully!");
     })
     .catch((err) => {
@@ -430,14 +683,9 @@ const handleDelete = async (id) => {
   try {
     // Dispatch delete action and wait for it to succeed
     await dispatch(deleteTask(id));
-
-    // Emit WebSocket event after successful deletion
-    // socket.emit("deleteTask", id);
-
-    // Update filtered events only after successful deletion
-    // setFilteredEvents((prevEvents) =>
-    //   prevEvents.filter((event) => event._id !== id)
-    // );
+    setFilteredEvents((prevEvents) =>
+      prevEvents.filter((event) => event._id !== id)
+    );
 
     // Close the modal and show success toast
     closeModal();
@@ -481,16 +729,17 @@ useEffect(() => {
   
   if (status === 'loading') return <div>Loading...</div>;
   if (status === 'failed') return <div>Error: {error}</div>;
- console.log("calendarEvent",calendarEvent)
+ 
+  const handleTaskButtonClick = () => {
+    setShowTaskPage(true); // Show the TaskPage
+  };
   return (
     <div className=' mt-7 lg:ml-72 mb-8'>
-      {/* <DateRangeFilter 
-      onDateRangeSelect={handleDateRangeSelect}
-      onCalendarDateChange={handleCalendarDateChange} 
-     /> */}
+    
  <Sidebar
         onDateRangeSelect={handleDateRangeSelect}
         onCalendarDateChange={handleCalendarDateChange}
+        handleEventCreate={handleEventCreate}
       />
       <EventCalendarWrapper
         events={calendarEvent }
@@ -503,38 +752,72 @@ useEffect(() => {
         onMultipleEventUpdate={handleMultipleEventUpdate}
         openCreateForm={openCreateForm}
       />
-      {isCreateFormVisible && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:p-6">
+       {/* TaskPage Modal - Always Rendered */}
     <div
-      className="relative bg-white p-4 sm:p-5 md:p-6 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl 
-      max-h-[90vh] overflow-y-auto my-4 sm:my-6"
+      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${
+        showTaskPage ? 'block' : 'hidden'
+      }`}
     >
-      <button
-        type="button"
-        onClick={closeModal}
-        className="absolute top-3 right-3 text-red-700 hover:text-red-900 text-xl sm:text-2xl font-bold transition-transform duration-200 transform hover:scale-110"
-        aria-label="Close"
-      >
-        ✕
-      </button>
-      <TaskPage onEventCreate={handleEventCreate} event={selectedEvent} onClose={closeModal} isOffset={true} />
+     <div className="relative bg-white p-4 sm:p-5 md:p-6 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl max-h-[90vh] overflow-y-auto my-4 sm:my-6">
+     <button
+          type="button"
+          onClick={() => setShowTaskPage(false)}
+          className="absolute top-3 right-3 text-red-700 hover:text-red-900 text-xl sm:text-2xl font-bold transition-transform duration-200 transform hover:scale-110"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+  <TaskPage
+    onEventCreate={handleEventCreate}
+    onClose={() => setShowTaskPage(false)}
+    isOffset={true}
+  />
+</div>
     </div>
-  </div>
-)}
 
+    {/* Create Form Modal - Always Rendered */}
+    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${
+      isCreateFormVisible ? 'block' : 'hidden'
+    }`}>
+      <div className="relative bg-white p-4 sm:p-5 md:p-6 rounded-lg w-full max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl max-h-[90vh] overflow-y-auto my-4 sm:my-6">
+        <button
+          type="button"
+          onClick={closeModal}
+          className="absolute top-3 right-3 text-red-700 hover:text-red-900 text-xl sm:text-2xl font-bold transition-transform duration-200 transform hover:scale-110"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+        <TaskPage
+          onEventCreate={handleEventCreate}
+          event={selectedEvent}
+          onClose={closeModal}
+          isOffset={true}
+        />
+      </div>
+    </div>
 
-
-      {isEditFormVisible && selectedEvent && (
+    {/* Event Details Modal - Always Rendered */}
+    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${
+      isEditFormVisible ? 'block' : 'hidden'
+    }`}>
       <EventDetailsModal
-      isVisible={isEditFormVisible}
-      closeModal={closeModal}
-      selectedEvent={selectedEvent}
-      role={user?.access_level} 
-      handleFormSubmit={handleFormSubmit} // Pass handleFormSubmit to the modal
-      handleDelete={handleDelete} 
-    />
-  )}
+        isVisible={isEditFormVisible}
+        closeModal={closeModal}
+        selectedEvent={selectedEvent}
+        role={user?.access_level}
+        handleFormSubmit={handleFormSubmit}
+        handleDelete={handleDelete}
+      />
     </div>
+
+    <button
+  className="fixed right-8 bottom-8 bg-blue-500 text-white px-3 py-2 rounded-full shadow-lg hover:bg-blue-600 transition z-50 animate-enlarge hover:scale-110"
+  onClick={handleTaskButtonClick}
+>
+  + Task
+</button>
+  </div>
   );
 };
 

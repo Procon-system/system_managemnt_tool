@@ -16,7 +16,166 @@ import Pagination from '../../Components/common/Pagination';
 import useSearchAndPagination from '../../hooks/useSearchAndPagination';
 import { toast } from 'react-toastify';
 import { io } from "socket.io-client";
-const socket = io("http://localhost:5000");
+// const socket = io("http://localhost:5000");
+const isOnline = () => navigator.onLine;
+const API_URL = 'http://localhost:5000'; // Replace with your server URL
+
+// const CreateToolPage = () => {
+//   const dispatch = useDispatch();
+//   const tools = useSelector((state) => state.tools.tools || []);
+//   const [showForm, setShowForm] = useState(false);
+//   const [editingTool, setEditingTool] = useState(null);
+
+//   // Initialize search and pagination
+//   const {
+//     searchTerm,
+//     currentPage,
+//     currentItems: currentTools,
+//     totalPages,
+//     handleSearchChange,
+//     handlePageChange,
+//     totalItems
+//   } = useSearchAndPagination(tools, 7, ['tool_name', 'certification']);
+
+//   useEffect(() => {
+//     dispatch(fetchTools());
+
+//     socket.on("toolCreated", (data) => {
+//       if (data.newTool) {
+//         dispatch(addToolFromSocket(data.newTool));
+//         toast.success("New tool added!");
+//       }
+//     });
+
+//     socket.on("toolUpdated", (updatedTool) => {
+//       dispatch(updateToolFromSocket(updatedTool));
+//       toast.success("Tool updated successfully!");
+//     });
+
+//     socket.on("toolDeleted", (toolId) => {
+//       dispatch(removeToolFromSocket(toolId));
+//       toast.success("Tool deleted successfully!");
+//     });
+
+//     return () => {
+//       socket.off("toolCreated");
+//       socket.off("toolUpdated");
+//       socket.off("toolDeleted");
+//     };
+//   }, [dispatch]);
+
+//   const handleAddClick = () => {
+//     setEditingTool(null);
+//     setShowForm(true);
+//   };
+
+//   const handleEditClick = (tool) => {
+//     setEditingTool(tool);
+//     setShowForm(true);
+//   };
+
+//   const handleDeleteClick = async (toolId) => {
+//     try {
+//       await dispatch(deleteTool(toolId)).unwrap();
+//       // Let socket handle the state update
+//     } catch (error) {
+//       toast.error("Failed to delete tool");
+//     }
+//   };
+
+//   const handleFormSubmit = async (toolData) => {
+//     try {
+//       if (editingTool) {
+//         await dispatch(updateTool({ 
+//           toolId: editingTool._id, 
+//           updatedData: { ...toolData } 
+//         })).unwrap();
+//       } else {
+//         await dispatch(createTool(toolData)).unwrap();
+//       }
+//       setShowForm(false);
+//       setEditingTool(null);
+//       // Let socket handle the state update
+//     } catch (error) {
+//       console.error("Failed to submit form:", error);
+//       toast.error("Failed to save tool");
+//     }
+//   };
+let socket;
+const eventQueue = [];
+
+// Initialize Socket.IO
+const initializeSocket = () => {
+  socket = io(API_URL, {
+    autoConnect: false, // Manually control connection
+  });
+
+  socket.on('connect', () => {
+    console.log('Socket.IO connected');
+    processQueuedEvents(); // Process any queued events when connected
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket.IO disconnected');
+  });
+
+  socket.on('connect_error', (error) => {
+    console.error('Socket.IO connection error:', error);
+    if (!isOnline()) {
+      console.log('App is offline. Socket.IO connection paused.');
+    }
+  });
+};
+
+// Connect Socket.IO only when online
+const connectSocket = () => {
+  if (isOnline()) {
+    socket.connect();
+  } else {
+    console.log('App is offline. Socket.IO connection paused.');
+  }
+};
+
+// Disconnect Socket.IO when offline
+const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+  }
+};
+
+// Queue or emit Socket.IO events
+const emitWhenOnline = (event, data) => {
+  if (isOnline()) {
+    socket.emit(event, data);
+  } else {
+    console.log('App is offline. Queuing event:', event);
+    eventQueue.push({ event, data });
+  }
+};
+
+// Process queued events when the app comes back online
+const processQueuedEvents = () => {
+  console.log('App is online. Processing queued events...');
+  while (eventQueue.length > 0) {
+    const { event, data } = eventQueue.shift();
+    socket.emit(event, data);
+  }
+};
+
+// Listen for online/offline events
+window.addEventListener('offline', () => {
+  console.log('App is offline. Pausing Socket.IO...');
+  disconnectSocket();
+});
+
+window.addEventListener('online', () => {
+  console.log('App is online. Reconnecting Socket.IO...');
+  connectSocket();
+});
+
+// Initialize and connect Socket.IO when the app starts
+initializeSocket();
+connectSocket();
 
 const CreateToolPage = () => {
   const dispatch = useDispatch();
@@ -36,29 +195,38 @@ const CreateToolPage = () => {
   } = useSearchAndPagination(tools, 7, ['tool_name', 'certification']);
 
   useEffect(() => {
+    // Fetch tools when the component mounts
     dispatch(fetchTools());
 
-    socket.on("toolCreated", (data) => {
+    // Listen for Socket.IO events
+    const handleToolCreated = (data) => {
       if (data.newTool) {
         dispatch(addToolFromSocket(data.newTool));
-        toast.success("New tool added!");
+        toast.success('New tool added!');
       }
-    });
+    };
 
-    socket.on("toolUpdated", (updatedTool) => {
+    const handleToolUpdated = (updatedTool) => {
       dispatch(updateToolFromSocket(updatedTool));
-      toast.success("Tool updated successfully!");
-    });
+      toast.success('Tool updated successfully!');
+    };
 
-    socket.on("toolDeleted", (toolId) => {
+    const handleToolDeleted = (toolId) => {
       dispatch(removeToolFromSocket(toolId));
-      toast.success("Tool deleted successfully!");
-    });
+      toast.success('Tool deleted successfully!');
+    };
 
+    if (isOnline()) {
+      socket.on('toolCreated', handleToolCreated);
+      socket.on('toolUpdated', handleToolUpdated);
+      socket.on('toolDeleted', handleToolDeleted);
+    }
+
+    // Cleanup Socket.IO listeners when the component unmounts
     return () => {
-      socket.off("toolCreated");
-      socket.off("toolUpdated");
-      socket.off("toolDeleted");
+      socket.off('toolCreated', handleToolCreated);
+      socket.off('toolUpdated', handleToolUpdated);
+      socket.off('toolDeleted', handleToolDeleted);
     };
   }, [dispatch]);
 

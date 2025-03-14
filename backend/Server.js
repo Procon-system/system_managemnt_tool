@@ -65,43 +65,6 @@ app.use('/api/tools', toolRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/users', userRoutes);
 
-// // WebSocket setup
-// WebSocket Middleware
-// io.on("connection", (socket) => {
-//   console.log(`User connected: ${socket.id}`);
-
-//   // Log received events
-//   socket.onAny((event, ...args) => {
-//     console.log(`Event received: ${event}`, args);
-//   });
-
-//   // Handle task updates with Redis cache
-//   socket.on("updateTask", async (data) => {
-//     console.log("Task update received:", data);
-
-//     // Invalidate Redis cache
-//     await redisClient.del("tasks");
-
-//     io.emit("taskUpdated", data);
-//     console.log("Task update broadcasted and cache cleared.");
-//   });
-
-//   // Handle task deletions with Redis cache
-//   socket.on("deleteTask", async (taskId) => {
-//     console.log(`Task with ID ${taskId} deleted`);
-
-//     // Invalidate Redis cache
-//     await redisClient.del("tasks");
-
-//     io.emit("taskDeleted", taskId);
-//     console.log(`Task deletion broadcasted and cache cleared.`);
-//   });
-
-//   // Handle disconnection
-//   socket.on("disconnect", () => {
-//     console.log(`User disconnected: ${socket.id}`);
-//   });
-// });
 // Start the server
 server.listen(config.port, () => {
   console.log(`Server running on port ${config.port}`);

@@ -1,15 +1,4 @@
-// import React from 'react';
-// import ReactDOM from 'react-dom';
-// import { Provider } from 'react-redux';
-// import App from './App';
-// import store from '../src/Store/store';
-// import './index.css';
-// ReactDOM.render(
-//   <Provider store={store}>
-//     <App />
-//   </Provider>,
-//   document.getElementById('root')
-// );
+
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
@@ -26,3 +15,15 @@ ReactDOM.render(
   </Provider>,
   document.getElementById('root')
 );
+// Register the service worker
+// if ('serviceWorker' in navigator) {
+//   window.addEventListener('load', () => {
+//     navigator.serviceWorker.register('/service-worker.js')
+//       .then((registration) => {
+//         console.log('Service Worker registered:', registration);
+//       })
+//       .catch((error) => {
+//         console.error('Service Worker registration failed:', error);
+//       });
+//   });
+// }

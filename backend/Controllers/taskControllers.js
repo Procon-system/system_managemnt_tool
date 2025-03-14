@@ -17,40 +17,41 @@ const crypto = require("crypto");
 let io; // Variable to hold the Socket.IO instance
 const { redisClient } = require("../redisClient");
 // Setter to allow server.js to pass the io instance
+// async function formatTaskData(taskData) {
+//   if (taskData.facility) {
+//     const facility = await Facility.findOne({ facility_name: taskData.facility });
+//     taskData.facility = facility ? facility._id : null;
+//   }
+  
+//   if (taskData.machine) {
+//     const machine = await Machine.findOne({ machine_name: taskData.machine });
+//     taskData.machine = machine ? machine._id : null;
+//   }
+
+//   if (taskData.tools && Array.isArray(taskData.tools)) {
+//     const toolIds = await Promise.all(
+//       taskData.tools.map(async (toolName) => {
+//         const tool = await Tool.findOne({ tool_name: toolName });
+//         return tool ? tool._id : null;
+//       })
+//     );
+//     taskData.tools = toolIds.filter(Boolean); // Filter out null values
+//   }
+
+//   if (taskData.materials && Array.isArray(taskData.materials)) {
+//     const materialIds = await Promise.all(
+//       taskData.materials.map(async (materialName) => {
+//         const material = await Material.findOne({ material_name: materialName });
+//         return material ? material._id : null;
+//       })
+//     );
+//     taskData.materials = materialIds.filter(Boolean); // Filter out null values
+//   }
+// }
 const setTaskSocketIoInstance = (ioInstance) => {
   io = ioInstance;
 };
-async function formatTaskData(taskData) {
-  if (taskData.facility) {
-    const facility = await Facility.findOne({ facility_name: taskData.facility });
-    taskData.facility = facility ? facility._id : null;
-  }
-  
-  if (taskData.machine) {
-    const machine = await Machine.findOne({ machine_name: taskData.machine });
-    taskData.machine = machine ? machine._id : null;
-  }
 
-  if (taskData.tools && Array.isArray(taskData.tools)) {
-    const toolIds = await Promise.all(
-      taskData.tools.map(async (toolName) => {
-        const tool = await Tool.findOne({ tool_name: toolName });
-        return tool ? tool._id : null;
-      })
-    );
-    taskData.tools = toolIds.filter(Boolean); // Filter out null values
-  }
-
-  if (taskData.materials && Array.isArray(taskData.materials)) {
-    const materialIds = await Promise.all(
-      taskData.materials.map(async (materialName) => {
-        const material = await Material.findOne({ material_name: materialName });
-        return material ? material._id : null;
-      })
-    );
-    taskData.materials = materialIds.filter(Boolean); // Filter out null values
-  }
-}
 const createTask = async (req, res) => {
   try {
     // Step 1: Extract and validate task data
@@ -283,7 +284,6 @@ const getAllTasks = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch tasks", details: error.message });
   }
 };
-
 const updateTask = async (req, res) => {
   try {
     const uuid = req.params.id;
@@ -359,6 +359,7 @@ const updateTask = async (req, res) => {
     });
     // ✅ Invalidate Redis cache for this task
     await redisClient.del(`task:${uuid}`);
+    await redisClient.del(`images:${uuid}`); 
     await redisClient.del("tasks");
 
     // ✅ Get all cached query keys
@@ -372,6 +373,10 @@ const updateTask = async (req, res) => {
 
       // ✅ Clear cache tracking set
       await redisClient.del("task_cache_keys");
+    }
+    if (io) {
+      io.emit("taskUpdated", { _id: uuid, ...updateData });
+      console.log(`🔥 Task ${uuid} updated and broadcasted via Socket.IO.`);
     }
     // res.status(200).json({ message: "Task updated successfully" });
   } catch (error) {
@@ -460,7 +465,8 @@ const deleteTask = async (req, res) => {
     const result = await taskService.deleteTask(req.params.id); // Get the deleted task result
     if (!result) {
       return res.status(404).json({ error: 'Task not found' });
-    }
+    } 
+    const taskId=req.params.id;
     // ✅ Invalidate Redis cache for this task and task list
     await redisClient.del(`task:${taskId}`);
     await redisClient.del("tasks");
@@ -476,8 +482,14 @@ const deleteTask = async (req, res) => {
       // ✅ Clear cache tracking set
       await redisClient.del("task_cache_keys");
     }
+    // ✅ Emit WebSocket event after successful deletion
+    if (io) {
+      io.emit("taskDeleted", taskId);
+      console.log(`🔥 Task ${taskId} deletion broadcasted.`);
+    }
     res.status(200).json(result); // Return both ID and message
   } catch (error) {
+ 
     res.status(500).json({ error: 'Failed to delete task', details: error.message });
   }
 };
@@ -496,7 +508,6 @@ const deleteBulkTasks = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete tasks', details: error.message });
   }
 };
-
 const generateCacheKey = (filters) => {
   return Object.entries(filters)
     .filter(([_, value]) => value) // Remove empty filters
@@ -507,72 +518,104 @@ const getFilteredTasks = async (req, res) => {
   try {
     const { status, startDate, endDate, assignedTo, facility, machine, tools, materials, limit = 50, page = 1 } = req.query;
     const filters = { status, startDate, endDate, assignedTo, facility, machine, tools, materials };
-    
+
     const taskLimit = Math.min(parseInt(limit, 10) || 50, 100);
     const skip = (parseInt(page, 10) - 1) * taskLimit;
 
-    const mainCacheKey = `tasks:${generateCacheKey(filters)}:limit${taskLimit}:page${page}`;
+    // Generate a unique cache key for the entire query
+    const cacheKey = `tasks:${generateCacheKey(filters)}:limit${taskLimit}:page${page}`;
 
     // ✅ Store the cache key so it can be invalidated later
-    await redisClient.sAdd("task_cache_keys", mainCacheKey);
+    await redisClient.sAdd("task_cache_keys", cacheKey);
 
-    // ✅ Check if full query is cached
-    const cachedTasks = await redisClient.get(mainCacheKey);
+    // ✅ Check if the query is cached
+    const cachedTasks = await redisClient.get(cacheKey);
     if (cachedTasks) {
-      console.log("✅ Returning cached tasks:", mainCacheKey);
+      console.log("✅ Returning cached tasks:", cacheKey);
       return res.status(200).json(JSON.parse(cachedTasks));
     }
 
-    // ✅ Check partial filter caches
-    let cachedResults = [];
-    let missingFilters = [];
+    // ✅ Fetch tasks from the database
+    const fetchedTasks = await taskService.getFilteredTasks(filters, taskLimit, skip);
 
-    for (const [key, value] of Object.entries(filters)) {
-      if (!value) continue;
-      const subCacheKey = `tasks:${key}:${Array.isArray(value) ? value.join(",") : value}`;
-      const cachedData = await redisClient.get(subCacheKey);
+    // ✅ Cache the fetched results
+    await redisClient.setEx(cacheKey, 300, JSON.stringify(fetchedTasks));
 
-      if (cachedData) {
-        cachedResults.push(...JSON.parse(cachedData));
-      } else {
-        missingFilters.push(key);
-      }
-
-      // ✅ Store partial cache keys for invalidation
-      await redisClient.sAdd("task_cache_keys", subCacheKey);
-    }
-
-    // ✅ Fetch missing filters from database
-    let fetchedTasks = [];
-    if (missingFilters.length > 0) {
-      console.log("🔄 Fetching missing filters from database:", missingFilters);
-      fetchedTasks = await taskService.getFilteredTasks(filters, taskLimit, skip);
-
-      // ✅ Store fetched data in individual caches
-      for (const key of missingFilters) {
-        const subCacheKey = `tasks:${key}:${filters[key]}`;
-        await redisClient.setEx(subCacheKey, 300, JSON.stringify(fetchedTasks));
-        await redisClient.sAdd("task_cache_keys", subCacheKey);
-      }
-    }
-
-    // ✅ Merge cached + fetched results
-    const mergedTasks = [...cachedResults, ...fetchedTasks].reduce((acc, task) => {
-      acc.set(task._id, task);
-      return acc;
-    }, new Map());
-
-    const finalTasks = Array.from(mergedTasks.values());
-
-    // ✅ Cache the final merged result
-    await redisClient.setEx(mainCacheKey, 300, JSON.stringify(finalTasks));
-
-    res.status(200).json(finalTasks);
+    // Return the fetched tasks
+    res.status(200).json(fetchedTasks);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch filtered tasks", details: error.message });
   }
 };
+// const getFilteredTasks = async (req, res) => {
+//   try {
+//     const { status, startDate, endDate, assignedTo, facility, machine, tools, materials, limit = 50, page = 1 } = req.query;
+//     const filters = { status, startDate, endDate, assignedTo, facility, machine, tools, materials };
+    
+//     const taskLimit = Math.min(parseInt(limit, 10) || 50, 100);
+//     const skip = (parseInt(page, 10) - 1) * taskLimit;
 
+//     const mainCacheKey = `tasks:${generateCacheKey(filters)}:limit${taskLimit}:page${page}`;
+
+//     // ✅ Store the cache key so it can be invalidated later
+//     await redisClient.sAdd("task_cache_keys", mainCacheKey);
+
+//     // ✅ Check if full query is cached
+//     const cachedTasks = await redisClient.get(mainCacheKey);
+//     if (cachedTasks) {
+//       console.log("✅ Returning cached tasks:", mainCacheKey);
+//       return res.status(200).json(JSON.parse(cachedTasks));
+//     }
+
+//     // ✅ Check partial filter caches
+//     let cachedResults = [];
+//     let missingFilters = [];
+
+//     for (const [key, value] of Object.entries(filters)) {
+//       if (!value) continue;
+//       const subCacheKey = `tasks:${key}:${Array.isArray(value) ? value.join(",") : value}`;
+//       const cachedData = await redisClient.get(subCacheKey);
+
+//       if (cachedData) {
+//         cachedResults.push(...JSON.parse(cachedData));
+//       } else {
+//         missingFilters.push(key);
+//       }
+
+//       // ✅ Store partial cache keys for invalidation
+//       await redisClient.sAdd("task_cache_keys", subCacheKey);
+//     }
+
+//     // ✅ Fetch missing filters from database
+//     let fetchedTasks = [];
+//     if (missingFilters.length > 0) {
+//       console.log("🔄 Fetching missing filters from database:", missingFilters);
+//       fetchedTasks = await taskService.getFilteredTasks(filters, taskLimit, skip);
+
+//       // ✅ Store fetched data in individual caches
+//       for (const key of missingFilters) {
+//         const subCacheKey = `tasks:${key}:${filters[key]}`;
+//         await redisClient.setEx(subCacheKey, 300, JSON.stringify(fetchedTasks));
+//         await redisClient.sAdd("task_cache_keys", subCacheKey);
+//       }
+//     }
+
+//     // ✅ Merge cached + fetched results
+//     const mergedTasks = [...cachedResults, ...fetchedTasks].reduce((acc, task) => {
+//       acc.set(task._id, task);
+//       return acc;
+//     }, new Map());
+
+//     const finalTasks = Array.from(mergedTasks.values());
+
+//     // ✅ Cache the final merged result
+//     await redisClient.setEx(mainCacheKey, 300, JSON.stringify(finalTasks));
+
+//     res.status(200).json(finalTasks);
+//   } catch (error) {
+//     res.status(500).json({ error: "Failed to fetch filtered tasks", details: error.message });
+//   }
+// };
 const createTaskFromMachine = async (req, res) => {
   try {
     const machineId = req.params.machineId;

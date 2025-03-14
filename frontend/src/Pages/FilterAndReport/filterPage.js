@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { filterTasks, resetFilteredTasks } from "../../features/taskSlice";
 import FilterForm from "../../Components/filterAndReportComponents/filterForm";

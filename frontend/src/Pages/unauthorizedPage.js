@@ -1,24 +1,4 @@
 
-// const UnauthorizedPage = () => {
-//     return (
-//       <div className="flex flex-col items-center justify-center mt-16">
-//         <div className="bg-white shadow-md rounded-lg p-8 text-center max-w-md mx-auto">
-//           <h1 className="text-2xl font-semibold text-red-800 mb-4">Unauthorized</h1>
-//           <p className="text-gray-700 mb-6">
-//             You do not have permission to access this page.
-//           </p>
-//           <a
-//             className="inline-block bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-500 transition-all duration-200"
-//             href="/home"
-//           >
-//             Go back to Home
-//           </a>
-//         </div>
-//       </div>
-//     );
-//   };
-  
-//   export default UnauthorizedPage;
 import React from "react";
 import { useLocation, Link } from "react-router-dom";
 import { ROLES } from "../accessControl/roles";

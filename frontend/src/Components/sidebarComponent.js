@@ -10,7 +10,7 @@ import DateRangeFilter from "../Components/taskComponents/datePicker"; // Import
 
 import "react-datepicker/dist/react-datepicker.css"; // Import the styles
 import { AiOutlineHome } from "react-icons/ai";
-const Sidebar = ({ onDateRangeSelect, onCalendarDateChange }) => {
+const Sidebar = ({handleEventCreate, onDateRangeSelect, onCalendarDateChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -111,13 +111,13 @@ const Sidebar = ({ onDateRangeSelect, onCalendarDateChange }) => {
         <FiClipboard className="text-blue-500 mr-3" size={24} />
         Filter and Report
       </button>
-              <button
+              {/* <button
         className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
         onClick={() => handleNavigation('/create-task')}
       >
         <FiClipboard className="text-blue-500 mr-3" size={24} />
         Task
-      </button>
+      </button> */}
       
       {/* Facility */}
       <button
