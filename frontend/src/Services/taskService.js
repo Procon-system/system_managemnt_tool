@@ -717,71 +717,6 @@ updateTask: async (taskId, updatedData, token) => {
     throw error.response?.data || error.message || new Error("Error updating task");
   }
 },
-// updateTask : async (taskId, updatedData, token) => {
- 
-//   try {
-//     // Fetch the tasks document from the local database
-//     const tasksDoc = await localDB.get('tasks').catch(() => null);
-
-//     if (!tasksDoc) {
-//       throw new Error('Tasks document not found in localDB.');
-//     }
-
-//     // Find the task to update in the data array
-//     const tasks = tasksDoc.data;
-//     const taskIndex = tasks.findIndex((task) => task._id === taskId);
-
-//     if (taskIndex === -1) {
-//       throw new Error(`Task ${taskId} not found in localDB.`);
-//     }
-
-//     let updatedTask;
-
-//     if (navigator.onLine) {
-//       // Online: Update task on the remote API
-//       const response = await axios.put(`${API_URL}/update-tasks/${taskId}`, updatedData, {
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//           "Content-Type": "multipart/form-data",
-//         },
-//       });
-
-//       // Sync the updated task with the local database
-//       updatedTask = response.data.task;
-//       updatedTask.synced = true; // Mark as synced
-//     } else {
-//      // Convert FormData to a plain object
-// const updatedDataObj = {};
-// updatedData.forEach((value, key) => {
-//   updatedDataObj[key] = value;
-// });
-
-// // Now merge properly
-// updatedTask = {
-//   ...tasks[taskIndex], // Keep existing task properties
-//   ...updatedDataObj, // Overwrite with updated data
-//   synced: false, // Mark as unsynced
-// };
-//     }
-
-//     // Update the task in the tasks array
-//     const updatedTasks = [...tasks];
-//     updatedTasks[taskIndex] = updatedTask;
-
-//     // Update the tasks document
-//     await localDB.put({
-//       _id: 'tasks',
-//       _rev: tasksDoc._rev,
-//       data: updatedTasks,
-//     });
-
-//     console.log('Task updated successfully:', updatedTask);
-//     return updatedTask;
-//   } catch (error) {
-//     console.error("Error updating task:", error.response?.data || error.message);
-//     throw error.response?.data || error.message || new Error("Error updating task");
-//   }
-// },
 deleteTask: async (taskId, token) => {
   try {
     // Fetch the tasks document from the local database
@@ -971,8 +906,7 @@ getAllDoneTasks: async (token) => {
   }
 },
 bulkUpdateTasks: async (tasksData, token) => {
-  console.log("tasksData comes", tasksData);
-  try {
+    try {
     if (navigator.onLine) {
       // Online: Send updates to the backend
       const config = {
@@ -998,8 +932,6 @@ bulkUpdateTasks: async (tasksData, token) => {
         { taskUpdates },
         config
       );
-      console.log("response", response.data);
-
       // Update local DB with the latest changes from the backend
       const tasksDoc = await localDB.get('tasks').catch(() => null);
       if (tasksDoc) {
@@ -1046,120 +978,7 @@ bulkUpdateTasks: async (tasksData, token) => {
     throw error.response?.data || error.message || new Error("Error updating tasks");
   }
 },
-//   try {
-//     if (navigator.onLine) {
-//       // Online: Fetch filtered tasks from the backend
-//       const response = await axios.get(`${API_URL}/filter`, { params: filters });
 
-//       // Sync the fetched tasks to PouchDB for offline use
-//       const tasksDoc = await localDB.get('tasks').catch(() => null);
-//       if (tasksDoc) {
-//         // Update existing tasks document
-//         tasksDoc.data = response.data;
-//         await localDB.put(tasksDoc);
-//       } else {
-//         // Create new tasks document
-//         await localDB.put({ _id: 'tasks', data: response.data });
-//       }
-
-//       return response.data;
-//     } else {
-//       // Offline: Fetch tasks from PouchDB and apply filters locally
-//       const tasksDoc = await localDB.get('tasks').catch(() => null);
-//       if (!tasksDoc) {
-//         console.log('No tasks found in PouchDB. Returning empty array.');
-//         return [];
-//       }
-
-//       console.log("tasksDoc from PouchDB:", tasksDoc);
-
-//       const tasks = tasksDoc.data; // Ensure this is an array of tasks
-//       if (!Array.isArray(tasks)) {
-//         console.error("Invalid tasks data structure in PouchDB. Expected an array.");
-//         return [];
-//       }
-
-//       console.log("Tasks from PouchDB:", tasks);
-//       console.log("Filters:", filters);
-
-//       // Apply filters locally
-//       const filteredTasks = tasks.filter((task) => {
-//         // Filter by status (allow multiple statuses)
-//         if (filters.status) {
-//           const statusArray = Array.isArray(filters.status) ? filters.status : [filters.status];
-//           if (!statusArray.includes(task.status)) {
-//             return false;
-//           }
-//         }
-
-//         // Filter by assigned_to
-//         if (filters.assignedTo) {
-//           const assignedToArray = Array.isArray(filters.assignedTo) ? filters.assignedTo : [filters.assignedTo];
-//           if (
-//             !task.assigned_to ||
-//             !Array.isArray(task.assigned_to) ||
-//             !task.assigned_to.some((user) => assignedToArray.includes(user._id))
-//           ) {
-//             return false;
-//           }
-//         }
-
-//         // Filter by facility
-//         if (filters.facility && task.facility !== filters.facility) {
-//           return false;
-//         }
-
-//         // Filter by machine
-//         if (filters.machine && task.machine !== filters.machine) {
-//           return false;
-//         }
-
-//         // Filter by tools
-//         if (filters.tools && filters.tools.length > 0) {
-//           const toolsArray = Array.isArray(filters.tools) ? filters.tools : [filters.tools];
-//           console.log("toolsArray",toolsArray);
-//           if (
-//             !task.tools ||
-//             !Array.isArray(task.tools) ||
-//             !task.tools.some((tool) => toolsArray.includes(tool._id))
-//           ) {
-//             return false;
-//           }
-//         }
-
-//         // Filter by materials
-//         if (filters.materials) {
-//           const materialsArray = Array.isArray(filters.materials) ? filters.materials : [filters.materials];
-//           if (
-//             !task.materials ||
-//             !Array.isArray(task.materials) ||
-//             !task.materials.some((material) => materialsArray.includes(material._id))
-//           ) {
-//             return false;
-//           }
-//         }
-
-//         // Filter by date range
-//         if (filters.startDate && filters.endDate) {
-//           const taskDate = new Date(task.start_time);
-//           const startDate = new Date(filters.startDate);
-//           const endDate = new Date(filters.endDate);
-//           if (taskDate < startDate || taskDate > endDate) {
-//             return false;
-//           }
-//         }
-
-//         return true;
-//       });
-
-//       console.log("Filtered tasks:", filteredTasks);
-//       return filteredTasks;
-//     }
-//   } catch (error) {
-//     console.error("Error filtering tasks:", error.response?.data || error.message);
-//     throw error.response?.data || new Error("Error filtering tasks");
-//   }
-// },
 filterTasks : async (filters) => {
   try {
     if (navigator.onLine) {

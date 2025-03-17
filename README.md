@@ -1,3 +1,59 @@
+Task Management Application
+
+A comprehensive task management system with full user access control, calendar-based task management, and offline support. This application allows users to create, update, and delete tasks across multiple views (daily, weekly, monthly, yearly, and list). It also includes advanced features like resource management, image uploads, and filtering.
+
+Key Features:
+
+User Authentication and Roles:
+
+Admin: Full access to add, delete, and update resources (facilities, machines, materials, and tools) for tasks.
+
+Other Users: Create, update, and delete tasks with restricted access to resources.
+
+Task Management:
+
+Task Creation: Create tasks by clicking empty spaces in the calendar, selecting a date range, or using dedicated buttons.
+
+Task Updates: Update tasks with details like start/end times, status, and images (for visual context).
+
+Task Deletion: Delete tasks seamlessly from all views.
+
+Calendar UI:
+
+Multiple Views: Manage tasks in daily, weekly, monthly, yearly, and list views.
+
+Drag-and-Drop: Easily reschedule tasks by dragging them across the calendar.
+
+Resource Management:
+
+Admins can manage resources (facilities, machines, materials, and tools) for each task.
+
+Users can view assigned resources but cannot modify them.
+
+Image Uploads:
+
+Attach images to tasks for better visualization and context.
+
+Images are stored and displayed within the task update field.
+
+Offline Support:
+
+Work seamlessly without an internet connection. Changes are synced when the app goes online.
+
+Filtering:
+
+Filter tasks by date, status, or resources for better organization and visibility.
+
+Technologies Used:
+
+Frontend: React, Redux, Event calender library, Tailwind css.
+
+Backend: Node.js, Express, CouchDb .
+
+Authentication: JWT (JSON Web Tokens) for secure user authentication.
+
+Offline Support: Service Workers and PouchDb.
+
 # installation guide
 
 Prerequisites

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect ,useMemo} from 'react';
+import React, { useState, useRef, useEffect ,useMemo,useCallback} from 'react';
 import EventCalendarWrapper from '../Helper/EventCalendarWrapper';
 import { io } from "socket.io-client";
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,8 +17,6 @@ import { toast } from 'react-toastify';
 import TaskPage from './Task/createTaskPage';
 import EventDetailsModal from '../Components/taskComponents/updateTaskForm';
 import getColorForStatus from '../Helper/getColorForStatus';
-
-const socket = io("http://localhost:5000"); // Replace with your server URL
 const API_URL='http://localhost:5000';
 const HomePage = () => {
   const dispatch = useDispatch();
@@ -50,7 +48,55 @@ const HomePage = () => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
-  const updateEventState = (updatedEvents = [], deletedEventId = null) => {
+  
+//   const updateEventState = useCallback((updatedEvents = [], deletedEventId = null) => {
+//     setFilteredEvents((prevEvents) => {
+//       let currentEvents = prevEvents || tasks || [];
+  
+//       // Handle deletion
+//       if (deletedEventId) {
+//         handleTaskDeletion(deletedEventId);
+//         const updatedEvents = currentEvents.filter(
+//           (event) => event._id !== deletedEventId
+//         );
+//         eventsRef.current = updatedEvents; // Sync with ref
+//         return updatedEvents; // Update state
+//       }
+  
+//       // Handle updates or additions
+//       if (updatedEvents && updatedEvents.length > 0) {
+//         const eventMap = new Map(
+//           currentEvents.map((event) => [event._id, event])
+//         );
+  
+//         updatedEvents.forEach((event) => {
+//           if (event && event._id) {
+//             eventMap.set(event._id, {
+//               ...eventMap.get(event._id),
+//               ...event,
+//             });
+//           }
+//         });
+  
+//         const finalEvents = Array.from(eventMap.values()).filter(
+//           (event) =>
+//             event._id &&
+//             event.title &&
+//             (event.start_time || event.start) &&
+//             (event.end_time || event.end)
+//         );
+//         eventsRef.current = finalEvents; // Sync with ref
+//         return finalEvents;
+//       }
+  
+//       return currentEvents;
+//     });
+//   },[] // Dependency array
+// );
+   const handleTaskDeletion = useCallback((deletedTaskId) => {
+    setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
+  },[]);
+  const updateEventState = useCallback((updatedEvents = [], deletedEventId = null) => {
     setFilteredEvents((prevEvents) => {
       let currentEvents = prevEvents || tasks || [];
   
@@ -92,127 +138,7 @@ const HomePage = () => {
   
       return currentEvents;
     });
-  };
-   const handleTaskDeletion = (deletedTaskId) => {
-    setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
-  };
-//   useEffect(() => {
-//   if (!isOnline) {
-//       console.log("Offline: WebSocket operations are paused.");
-//       toast.warn("You are offline. Please check your internet connection.");
-//       return; // Skip WebSocket operations if offline
-//     }
-
-//     // Confirm socket connection
-//       socket.on("connect", () => {
-//         console.log("Connected to WebSocket server:", socket.id);
-//     });
-
-//   socket.on("taskUpdated", (updatedTask) => {
-//     updateEventState(updatedTask);
-//     });
-
-//   socket.on("taskCreated", (broadcastData) => {
-//     const newTasks = broadcastData?.newTasks 
-//       ? broadcastData.newTasks 
-//       : broadcastData?.newTask 
-//       ? [broadcastData.newTask] 
-//       : []; // Normalize to an array
-  
-//     if (newTasks.length === 0) {
-//       console.error("Invalid task creation broadcast data:", broadcastData);
-//       return;
-//     }
-  
-//     newTasks.forEach((newTask) => {
-//       if (
-//         newTask &&
-//         newTask._id &&
-//         !filteredEvents.some((event) => event._id === newTask._id)
-//       ) {
-//         updateEventState(newTask);
-//       }
-//     });
-//   });
-  
-//   // Add the bulk update socket handler
-//   socket.on("tasksUpdated", ({ updatedTasks }) => {
-//     if (!Array.isArray(updatedTasks)) return;
-  
-//     try {
-//       // Backup the current state before making any changes
-//       const currentEvents = [...filteredEvents];  // Define currentEvents here
-  
-//       // Batch update all events at once
-//       setFilteredEvents(prevEvents => {
-//         const eventMap = new Map(prevEvents.map(event => [event._id, event]));
-  
-//         updatedTasks.forEach(task => {
-//           const taskData = task.updatedTask || task;
-  
-//           // Properly format the task data
-//           const formattedTask = {
-//             _id: taskData._id,  // Ensure _id is used for uniqueness
-//             title: taskData.title,
-//             start: taskData.start_time || taskData.start,
-//             end: taskData.end_time || taskData.end,
-//             color: taskData.color || taskData.color_code, // Fallback to color_code if color is not present
-//             status: taskData.status,
-//             notes: taskData.notes,
-//             assigned_resources: {
-//               assigned_to: taskData.assigned_to || [],
-//               tools: taskData.tools || [],
-//               materials: taskData.materials || [],
-//             },
-//           };
-  
-//           // Check if the task already exists in the map, then update or add it
-//           if (eventMap.has(formattedTask._id)) {
-//             eventMap.set(formattedTask._id, {
-//               ...eventMap.get(formattedTask._id),
-//               ...formattedTask,  // Merge the old and new task properties
-//             });
-//           } else {
-//             eventMap.set(formattedTask._id, formattedTask); // Add new task if not found
-//           }
-//         });
-  
-//         // Convert the map back to an array and return
-//         const updatedEvents = Array.from(eventMap.values());
-  
-//         // Ensure valid events before updating the state
-//         return updatedEvents.length > 0 ? updatedEvents : prevEvents; // Return prevEvents if updatedEvents is empty
-//       });
-  
-//     } catch (error) {
-//       console.error("Error processing task updates:", error);
-  
-//       // If an error occurs, restore the previous state
-//       setFilteredEvents(filteredEvents); // Restore the filteredEvents state
-  
-//       toast.error("Failed to update tasks. Please try again.");
-//     }
-//   });
-  
-  
-// socket.on("taskDeleted", (taskId) => {
-
-//   if (!taskId) {
-//     console.error("Invalid task ID received for deletion.");
-//     return;
-//   }
-
-//   updateEventState(null, taskId); // Update state for deletion
-// });
-//   // Clean up on unmount
-//   return () => {
-//     socket.off("taskUpdated");
-//     socket.off("taskCreated");
-//     socket.off("taskDeleted");
-//     socket.off("tasksUpdated");
-//     socket.disconnect();
-//   };
-// }, [isOnline]);
+  }, [tasks, handleTaskDeletion, eventsRef]); // Add dependencies
 useEffect(() => {
   if (!isOnline) {
     console.log("Offline: WebSocket operations are paused.");
@@ -239,10 +165,46 @@ useEffect(() => {
     console.log("Disconnected from WebSocket server.");
   });
 
-  // Event: Task updated
-  socket.on("taskUpdated", (updatedTask) => {
-    console.log("Task updated:", updatedTask);
-    updateEventState(updatedTask);
+  socket.on("tasksUpdated", ({ updatedTasks }) => {
+    console.log("Tasks updated:", updatedTasks);
+  
+    if (!Array.isArray(updatedTasks)) return;
+  
+    // Batch update all events at once
+    setFilteredEvents((prevEvents) => {
+      const eventMap = new Map(prevEvents.map((event) => [event._id, event]));
+  
+      updatedTasks.forEach((task) => {
+        const taskData = task.updatedTask || task;
+  
+        const formattedTask = {
+          _id: taskData._id,
+          title: taskData.title,
+          start: taskData.start_time || taskData.start,
+          end: taskData.end_time || taskData.end,
+          color: taskData.color || taskData.color_code,
+          status: taskData.status,
+          notes: taskData.notes,
+          assigned_resources: {
+            assigned_to: taskData.assigned_to || [],
+            tools: taskData.tools || [],
+            materials: taskData.materials || [],
+          },
+        };
+  
+        if (eventMap.has(formattedTask._id)) {
+          eventMap.set(formattedTask._id, {
+            ...eventMap.get(formattedTask._id),
+            ...formattedTask,
+          });
+        } else {
+          eventMap.set(formattedTask._id, formattedTask);
+        }
+      });
+  
+      const updatedEvents = Array.from(eventMap.values());
+      return updatedEvents.length > 0 ? updatedEvents : prevEvents;
+    });
   });
 
   // Event: Task created
@@ -268,57 +230,62 @@ useEffect(() => {
   });
 
   // Event: Multiple tasks updated
+  // socket.on("tasksUpdated", ({ updatedTasks }) => {
+  //   console.log("Tasks updated:", updatedTasks);
+
+  //   if (!Array.isArray(updatedTasks)) return;
+
+  //   try {
+  //     // Backup the current state before making any changes
+  //     const currentEvents = [...filteredEvents];
+
+  //     // Batch update all events at once
+  //     setFilteredEvents((prevEvents) => {
+  //       const eventMap = new Map(prevEvents.map((event) => [event._id, event]));
+
+  //       updatedTasks.forEach((task) => {
+  //         const taskData = task.updatedTask || task;
+
+  //         const formattedTask = {
+  //           _id: taskData._id,
+  //           title: taskData.title,
+  //           start: taskData.start_time || taskData.start,
+  //           end: taskData.end_time || taskData.end,
+  //           color: taskData.color || taskData.color_code,
+  //           status: taskData.status,
+  //           notes: taskData.notes,
+  //           assigned_resources: {
+  //             assigned_to: taskData.assigned_to || [],
+  //             tools: taskData.tools || [],
+  //             materials: taskData.materials || [],
+  //           },
+  //         };
+
+  //         if (eventMap.has(formattedTask._id)) {
+  //           eventMap.set(formattedTask._id, {
+  //             ...eventMap.get(formattedTask._id),
+  //             ...formattedTask,
+  //           });
+  //         } else {
+  //           eventMap.set(formattedTask._id, formattedTask);
+  //         }
+  //       });
+
+  //       const updatedEvents = Array.from(eventMap.values());
+  //       return updatedEvents.length > 0 ? updatedEvents : prevEvents;
+  //     });
+  //   } catch (error) {
+  //     console.error("Error processing task updates:", error);
+  //     setFilteredEvents(filteredEvents); // Restore the previous state
+  //     toast.error("Failed to update tasks. Please try again.");
+  //   }
+  // });
   socket.on("tasksUpdated", ({ updatedTasks }) => {
     console.log("Tasks updated:", updatedTasks);
-
+  
     if (!Array.isArray(updatedTasks)) return;
-
-    try {
-      // Backup the current state before making any changes
-      const currentEvents = [...filteredEvents];
-
-      // Batch update all events at once
-      setFilteredEvents((prevEvents) => {
-        const eventMap = new Map(prevEvents.map((event) => [event._id, event]));
-
-        updatedTasks.forEach((task) => {
-          const taskData = task.updatedTask || task;
-
-          const formattedTask = {
-            _id: taskData._id,
-            title: taskData.title,
-            start: taskData.start_time || taskData.start,
-            end: taskData.end_time || taskData.end,
-            color: taskData.color || taskData.color_code,
-            status: taskData.status,
-            notes: taskData.notes,
-            assigned_resources: {
-              assigned_to: taskData.assigned_to || [],
-              tools: taskData.tools || [],
-              materials: taskData.materials || [],
-            },
-          };
-
-          if (eventMap.has(formattedTask._id)) {
-            eventMap.set(formattedTask._id, {
-              ...eventMap.get(formattedTask._id),
-              ...formattedTask,
-            });
-          } else {
-            eventMap.set(formattedTask._id, formattedTask);
-          }
-        });
-
-        const updatedEvents = Array.from(eventMap.values());
-        return updatedEvents.length > 0 ? updatedEvents : prevEvents;
-      });
-    } catch (error) {
-      console.error("Error processing task updates:", error);
-      setFilteredEvents(filteredEvents); // Restore the previous state
-      toast.error("Failed to update tasks. Please try again.");
-    }
+    updateEventState(updatedTasks);
   });
-
   // Event: Task deleted
   socket.on("taskDeleted", (taskId) => {
     console.log("Task deleted:", taskId);
@@ -342,7 +309,7 @@ useEffect(() => {
     socket.off("taskDeleted");
     socket.disconnect();
   };
-}, [isOnline, updateEventState, filteredEvents, setFilteredEvents]); // Re-run effect when these dependencies change // Re-run effect when online status changes
+}, [isOnline, updateEventState]); // Re-run effect when these dependencies change // Re-run effect when online status changes
 
 const calendarEvents = useMemo(() => {
   return Array.isArray(tasks)
@@ -428,64 +395,8 @@ useEffect(() => {
     }
   }
 }, [calendarEvents, currentView, deletedTaskIds, user?._id]);
-
 const handleMultipleEventUpdate = (updatedEvents) => {
-  // console.log("hihi")
-  // if (!Array.isArray(updatedEvents) || updatedEvents.length === 0) {
-  //   toast.error("No valid events to update.");
-  //   return;
-  // }
-
-  // // Store current state as backup
-  // const backupEvents = [...filteredEvents];
-
-  // // Process each updated event
-  // updatedEvents.forEach((updatedEvent) => {
-  //   if (updatedEvent._id) {
-  //     if (updatedEvent.status) {
-  //       updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
-  //     }
-
-  //     // Dispatch the update for each event
-  //     dispatch(updateTask({ taskId: updatedEvent._id, updatedData: updatedEvent }))
-  //       .catch((err) => {
-  //         toast.error("Failed to update task. Please try again.");
-  //         console.error("Task update failed:", err);
-  //       });
-  //   }
-  // });
-
-  
-  // // Once all updates are dispatched, update the local state with the new tasks
-  // setFilteredEvents((prevEvents) => {
-  //   let currentEvents = prevEvents || tasks || [];
-
-  //   // Create a map of the current events by task ID
-  //   const eventMap = new Map(currentEvents.map((event) => [event._id, event]));
-
-  //   // Iterate over the updated events and update them in the event map
-  //   updatedEvents.forEach((updatedEvent) => {
-  //     if (updatedEvent._id && updatedEvent.title) {
-  //       eventMap.set(updatedEvent._id, {
-  //         ...eventMap.get(updatedEvent._id),
-  //         ...updatedEvent,
-  //       });
-  //     }
-  //   });
-
-  //   // Filter out any deleted tasks (if you have a deletedTaskIds set)
-  //   const updatedFilteredEvents = Array.from(eventMap.values()).filter(
-  //     (event) =>
-  //       !deletedTaskIds.has(event._id) && // Exclude deleted tasks
-  //       event._id && event.title && (event.start_time || event.start) && (event.end_time || event.end)
-  //   );
-
-  //   eventsRef.current = updatedFilteredEvents; // Sync with ref
-   
-  //   return updatedFilteredEvents; // Update state with the new filtered events
-  // });
-
-  // toast.success("Tasks updated successfully!");
+ 
   if (!Array.isArray(updatedEvents) || updatedEvents.length === 0) {
     toast.error("No valid events to update.");
     return;
@@ -514,30 +425,29 @@ const handleMultipleEventUpdate = (updatedEvents) => {
 
       // Update the local state with the successful updates
       setFilteredEvents((prevEvents) => {
-        let currentEvents = prevEvents || tasks || [];
+        const currentEvents = prevEvents || tasks || [];
 
-        // Create a map of the current events by task ID
+        // Create a map of the current events for quick lookup
         const eventMap = new Map(currentEvents.map((event) => [event._id, event]));
 
-        // Iterate over the successful updates and update them in the event map
+        // Update the map with the successful updates
         successfulUpdates.forEach((updatedTask) => {
           if (updatedTask._id && updatedTask.title) {
             eventMap.set(updatedTask._id, {
-              ...eventMap.get(updatedTask._id),
-              ...updatedTask,
+              ...eventMap.get(updatedTask._id), // Preserve existing properties
+              ...updatedTask, // Apply updates
             });
           }
         });
 
-        // Filter out any deleted tasks (if you have a deletedTaskIds set)
-        const updatedFilteredEvents = Array.from(eventMap.values()).filter(
-          (event) =>
-            !deletedTaskIds.has(event._id) && // Exclude deleted tasks
-            event._id && event.title && (event.start_time || event.start) && (event.end_time || event.end)
-        );
+        // Convert the map back to an array of events
+        const updatedFilteredEvents = Array.from(eventMap.values());
 
-        eventsRef.current = updatedFilteredEvents; // Sync with ref
-        return updatedFilteredEvents; // Update state with the new filtered events
+        // Sync with ref
+        eventsRef.current = updatedFilteredEvents;
+
+        // Return the updated events
+        return updatedFilteredEvents;
       });
 
       toast.success("Tasks updated successfully!");
@@ -547,70 +457,7 @@ const handleMultipleEventUpdate = (updatedEvents) => {
       toast.error("Failed to update tasks. Please try again.");
     });
 };
-// const handleMultipleEventUpdate = (updatedEvents) => {
-//   console.log("hihi");
-//   if (!Array.isArray(updatedEvents) || updatedEvents.length === 0) {
-//     toast.error("No valid events to update.");
-//     return;
-//   }
-
-//   // Prepare the updated tasks data
-//   const updatedTasksData = updatedEvents.map((updatedEvent) => {
-//     if (updatedEvent.status) {
-//       updatedEvent.color = getColorForStatus(updatedEvent.status); // Update color based on status
-//     }
-//     return {
-//       _id: updatedEvent._id,
-//       start_time: updatedEvent.start_time || updatedEvent.start,
-//       end_time: updatedEvent.end_time || updatedEvent.end,
-//       color: updatedEvent.color,
-//       title: updatedEvent.title,
-//       updated_at: new Date().toISOString(),
-//     };
-//   });
-
-//   // Dispatch the bulk update action
-//   dispatch(bulkUpdateTasks(updatedTasksData))
-//     .unwrap()
-//     .then((successfulUpdates) => {
-//       console.log("Successful updates:", successfulUpdates);
-
-//       // Update the local state with the successful updates
-//       setFilteredEvents((prevEvents) => {
-//         let currentEvents = prevEvents || tasks || [];
-
-//         // Create a map of the current events by task ID
-//         const eventMap = new Map(currentEvents.map((event) => [event._id, event]));
-
-//         // Iterate over the successful updates and update them in the event map
-//         successfulUpdates.forEach((updatedTask) => {
-//           if (updatedTask._id && updatedTask.title) {
-//             eventMap.set(updatedTask._id, {
-//               ...eventMap.get(updatedTask._id),
-//               ...updatedTask,
-//             });
-//           }
-//         });
-
-//         // Filter out any deleted tasks (if you have a deletedTaskIds set)
-//         const updatedFilteredEvents = Array.from(eventMap.values()).filter(
-//           (event) =>
-//             !deletedTaskIds.has(event._id) && // Exclude deleted tasks
-//             event._id && event.title && (event.start_time || event.start) && (event.end_time || event.end)
-//         );
-
-//         eventsRef.current = updatedFilteredEvents; // Sync with ref
-//         return updatedFilteredEvents; // Update state with the new filtered events
-//       });
-
-//       toast.success("Tasks updated successfully!");
-//     })
-//     .catch((error) => {
-//       console.error("Error updating tasks:", error);
-//       toast.error("Failed to update tasks. Please try again.");
-//     });
-// };
-  const handleEventCreate = async (newEvent) => {
+const handleEventCreate = async (newEvent) => {
     try {
       const createdTask = await dispatch(createTask(newEvent));
   
