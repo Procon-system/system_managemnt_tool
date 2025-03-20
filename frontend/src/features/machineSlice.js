@@ -1,18 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import machineService from '../Services/machineService';
-import checkTokenExpiration from "../Helper/checkTokenExpire";
-import { toast } from 'react-toastify';
-import { logout } from "../features/authSlice"; // Import logout action
-
+import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 // Async Thunks for CRUD operations
 export const createMachine = createAsyncThunk(
   'machines/createMachine',
-  async (machineData, { getState, rejectWithValue }) => {
+  async (machineData, { getState,dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await machineService.createMachine(machineData, token);
@@ -24,12 +19,10 @@ export const createMachine = createAsyncThunk(
 
 export const fetchMachines = createAsyncThunk(
   'machines/fetchMachines',
-  async (_, { getState,rejectWithValue }) => {
+  async (_, { getState,dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await machineService.fetchMachines(token);
@@ -41,12 +34,10 @@ export const fetchMachines = createAsyncThunk(
 
 export const updateMachine = createAsyncThunk(
   'machines/updateMachine',
-  async ({ machineId, updatedData }, { getState,rejectWithValue }) => {
+  async ({ machineId, updatedData }, { getState,dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await machineService.updateMachine(machineId, updatedData,token);
@@ -58,12 +49,10 @@ export const updateMachine = createAsyncThunk(
 
 export const deleteMachine = createAsyncThunk(
   'machines/deleteMachine',
-  async (machineId, { getState,rejectWithValue }) => {
+  async (machineId, { getState,dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await machineService.deleteMachine(machineId,token);

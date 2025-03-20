@@ -358,7 +358,7 @@ useEffect(() => {
     dispatch(fetchTasks()); // Fetch all tasks
   } else if (currentView === 'userTasks') {
     
-    dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user
+       dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user
   } else if (currentView === 'userDoneTasks') {
    
     dispatch(getTasksDoneByAssignedUser(user._id)); // Fetch tasks done by the user
@@ -376,17 +376,48 @@ useEffect(() => {
       setFilteredEvents(validEvents);
     } else if (currentView === 'userTasks') {
       setFilteredEvents(
-        validEvents.filter((event) =>
-          event.assigned_resources.assigned_to.includes(user?._id)
-        )
+        validEvents
+        // filter((event) => {
+        //   // Check if assigned_resources and assigned_to exist and are valid
+        //   if (
+        //     event.assigned_resources &&
+        //     Array.isArray(event.assigned_resources.assigned_to) &&
+        //     user?._id
+        //   ) {
+        //     // Extract the _id field from each object in assigned_to
+        //     const assignedUserIds = event.assigned_resources.assigned_to.map(
+        //       (user) => user._id
+        //     )
+        //     // Check if the user's ID is in the assignedUserIds array
+        //     const isUserAssigned = assignedUserIds.includes(user._id);
+            
+        //     return isUserAssigned;
+        //   }
+        //   return false; // Exclude the event if conditions are not met
+        // })
       );
     } else if (currentView === 'userDoneTasks') {
       setFilteredEvents(
-        validEvents.filter(
-          (event) =>
-            event.status === 'done' &&
-            event.assigned_resources.assigned_to.includes(user?._id)
-        )
+        validEvents
+        // .filter((event) => {
+        //   // Check if assigned_resources and assigned_to exist and are valid
+        //   if (
+        //     event.assigned_resources &&
+        //     Array.isArray(event.assigned_resources.assigned_to) &&
+        //     user?._id
+        //   ) {
+        //     // Extract the _id field from each object in assigned_to
+        //     const assignedUserIds = event.assigned_resources.assigned_to.map(
+        //       (user) => user._id
+        //     );
+
+        //     return (
+        //       event.status === 'done' &&
+        //       assignedUserIds.includes(user._id)
+        //     );
+        //   }
+        //   return false; // Exclude the event if conditions are not met
+        // })
       );
     } else if (currentView === 'allDoneTasks') {
       setFilteredEvents(

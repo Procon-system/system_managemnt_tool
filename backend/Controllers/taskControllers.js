@@ -209,7 +209,6 @@ const getDoneTasksForUser = async (req, res) => {
 const getTasksByAssignedUser = async (req, res) => {
   try {
     const { userId } = req.query;
-
     if (!userId) {
       return res.status(400).json({ error: "User ID is required" });
     }
@@ -361,6 +360,21 @@ const updateTask = async (req, res) => {
     await redisClient.del(`task:${uuid}`);
     await redisClient.del(`images:${uuid}`); 
     await redisClient.del("tasks");
+    // Invalidate cache for all assigned users
+     // Parse assigned_to if it is a string
+     let assignedUserIds = [];
+     if (typeof updateTask.assigned_to === 'string') {
+       assignedUserIds = JSON.parse(updateTask.assigned_to); // Parse the JSON string into an array
+     } else if (Array.isArray(updateTask.assigned_to)) {
+       assignedUserIds = updateTask.assigned_to.map(user => user._id); // Extract user IDs from objects
+     }
+ 
+     // Invalidate cache for all assigned users
+     for (const userId of assignedUserIds) {
+       const assignedTasksCacheKey = `assignedTasks:${userId}`;
+       await redisClient.del(assignedTasksCacheKey);
+       console.log(`✅ Invalidated cache for assigned user: ${userId}`);
+     }
 
     // ✅ Get all cached query keys
     const cachedKeys = await redisClient.sMembers("task_cache_keys");

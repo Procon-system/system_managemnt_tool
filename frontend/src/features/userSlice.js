@@ -1,9 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { getAllUsers, updateUserProfile, deleteUserAccount } from "../Services/userService";
-import checkTokenExpiration from "../Helper/checkTokenExpire";
-import { toast } from 'react-toastify';
-import { logout } from "../features/authSlice"; // Import logout action
-
+import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 // Thunks for async operations
 export const getUsers = createAsyncThunk("users/getUserAll", async (_, {getState, rejectWithValue }) => {
     const token = getState().auth.token;
@@ -15,13 +12,12 @@ export const getUsers = createAsyncThunk("users/getUserAll", async (_, {getState
 });
 export const getUsersByIds = createAsyncThunk(
   "users/getUsersByIds", 
-  async ({ userIds }, { getState, rejectWithValue }) => {
+  async ({ userIds }, { getState,dispatch, rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
-    }
+    // Check token expiration and handle logout
+   if (checkTokenAndLogout(token, dispatch)) {
+    return null; // Exit if the token is expired
+  }
     try {
       return await getUsersByIds(userIds, token); // Call the new service function
     } catch (error) {
@@ -29,13 +25,12 @@ export const getUsersByIds = createAsyncThunk(
     }
   }
 );
-export const updateUser = createAsyncThunk("users/update", async ({ id, updateData}, {getState, rejectWithValue }) => {
+export const updateUser = createAsyncThunk("users/update", async ({ id, updateData}, {getState,dispatch, rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
-    }
+    // Check token expiration and handle logout
+   if (checkTokenAndLogout(token, dispatch)) {
+    return null; // Exit if the token is expired
+  }
   try { 
     return await updateUserProfile(id, updateData, token);
   } catch (error) {
@@ -43,13 +38,12 @@ export const updateUser = createAsyncThunk("users/update", async ({ id, updateDa
   }
 });
 
-export const deleteUser = createAsyncThunk("users/delete", async ({ id }, {getState, rejectWithValue }) => {
+export const deleteUser = createAsyncThunk("users/delete", async ({ id }, {getState, dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
-    }
+    // Check token expiration and handle logout
+   if (checkTokenAndLogout(token, dispatch)) {
+    return null; // Exit if the token is expired
+  }
   try {
     return await deleteUserAccount(id, token);
   } catch (error) {

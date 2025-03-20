@@ -1,18 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import facilityService from '../Services/facilityService';
-import checkTokenExpiration from "../Helper/checkTokenExpire";
-import { toast } from 'react-toastify';
-import { logout } from "../features/authSlice"; // Import logout action
-
+import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 // Async Thunks for CRUD operations
 export const createFacility = createAsyncThunk(
   'facilities/createFacility',
-  async (facilityData, { getState, rejectWithValue }) => {
+  async (facilityData, { getState, dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await facilityService.createFacility(facilityData, token);
@@ -24,12 +19,10 @@ export const createFacility = createAsyncThunk(
 
 export const fetchFacilities = createAsyncThunk(
   'facilities/fetchFacilities',
-  async (_, {getState, rejectWithValue }) => {
+  async (_, {getState, dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await facilityService.fetchFacilities(token);
@@ -41,12 +34,10 @@ export const fetchFacilities = createAsyncThunk(
 
 export const updateFacility = createAsyncThunk(
   'facilities/updateFacility',
-  async ({ facilityId, updatedData }, {getState, rejectWithValue }) => {
+  async ({ facilityId, updatedData }, {getState,dispatch, rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await facilityService.updateFacility(facilityId, updatedData,token );
@@ -58,12 +49,10 @@ export const updateFacility = createAsyncThunk(
 
 export const deleteFacility = createAsyncThunk(
   'facilities/deleteFacility',
-  async (facilityId, { getState,rejectWithValue }) => {
+  async (facilityId, { getState,dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await facilityService.deleteFacility(facilityId,token );

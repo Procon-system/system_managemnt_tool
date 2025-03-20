@@ -1,19 +1,15 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import taskService from '../Services/taskService';
-import checkTokenExpiration from "../Helper/checkTokenExpire";
-import { toast } from 'react-toastify';
-import { logout } from "../features/authSlice"; // Import logout action
+import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 
 export const createTask = createAsyncThunk(
   'tasks/createTask',
-  async (taskData, { getState, rejectWithValue }) => {
+  async (taskData, { getState, dispatch,rejectWithValue }) => {
     try {
       // Get the token from the Redux state
       const token = getState().auth.token;
-      if (checkTokenExpiration(token)) {
-        window.Storage.dispatch(logout()); 
-        toast.error("Your session has expired. Please log in again.");
-        return null;
+      if (checkTokenAndLogout(token, dispatch)) {
+        return null; // Exit if the token is expired
       }
       // Call the taskService with taskData and token
       return await taskService.createTask(taskData, token);
@@ -24,13 +20,11 @@ export const createTask = createAsyncThunk(
 );
 export const getTasksByAssignedUser = createAsyncThunk(
   'tasks/getTasksByAssignedUser',
-  async (userId, { getState, rejectWithValue }) => {
+  async (userId, { getState,dispatch, rejectWithValue }) => {
     try {
       const token = getState().auth.token; // Get the token from Redux state
-      if (checkTokenExpiration(token)) {
-        window.Storage.dispatch(logout()); 
-        toast.error("Your session has expired. Please log in again.");
-        return null;
+      if (checkTokenAndLogout(token, dispatch)) {
+        return null; // Exit if the token is expired
       }
       return await taskService.getTasksByAssignedUser(userId, token); // Call the service function
     } catch (error) {
@@ -40,13 +34,11 @@ export const getTasksByAssignedUser = createAsyncThunk(
 );
 export const getTasksDoneByAssignedUser = createAsyncThunk(
   'tasks/getTasksDoneByAssignedUser',
-  async (userId, { getState, rejectWithValue }) => {
+  async (userId, { getState,dispatch, rejectWithValue }) => {
     try {
       const token = getState().auth.token; // Get the token from Redux state
-      if (checkTokenExpiration(token)) {
-        window.Storage.dispatch(logout()); 
-        toast.error("Your session has expired. Please log in again.");
-        return null;
+      if (checkTokenAndLogout(token, dispatch)) {
+        return null; // Exit if the token is expired
       }
       return await taskService.getTasksDoneByAssignedUser(userId, token); // Call the service function
     } catch (error) {
@@ -79,12 +71,10 @@ export const fetchTasks = createAsyncThunk(
 );
 export const updateTask = createAsyncThunk(
   'tasks/updateTask',
-  async ({ taskId, updatedData }, { getState, rejectWithValue }) => {
+  async ({ taskId, updatedData }, { getState, dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
 
     console.log("🟢 FormData before sending to service:");
@@ -95,8 +85,7 @@ export const updateTask = createAsyncThunk(
     try {
       // return await taskService.updateTask(taskId, updatedData, token);
       const response = await taskService.updateTask(taskId, updatedData, token);
-  console.log("API Response:", response); // Verify the response
-  return response; 
+    return response; 
     } catch (error) {
       console.error('Error in updateTask:', error.response?.data || error.message);
       return rejectWithValue(error.response?.data || error.message || 'Error updating task');
@@ -105,51 +94,13 @@ export const updateTask = createAsyncThunk(
 );
 
 
-// export const updateTask = createAsyncThunk(
-//   'tasks/updateTask',
-//   async ({ taskId, updatedData }, { getState, rejectWithValue }) => {
-//     const token = getState().auth.token;
-//     if (checkTokenExpiration(token)) {
-//       window.Storage.dispatch(logout()); 
-//       toast.error("Your session has expired. Please log in again.");
-//       return null;
-//     }
-//     try {
-//       // Prepare FormData
-//       const formData = new FormData();
-
-//       for (const key in updatedData) {
-//         if (updatedData[key] && key !== 'image') {
-//           if (typeof updatedData[key] === 'object' && !(updatedData[key] instanceof File)) {
-//             formData.append(key, JSON.stringify(updatedData[key])); // Flatten nested objects/arrays
-//           } else {
-//             formData.append(key, updatedData[key]);
-//           }
-//         }
-//       }
-
-//       if (updatedData.image) {
-//         formData.append('image', updatedData.image);
-//       }
-//       // Call the update service
-//       return await taskService.updateTask(taskId, formData, token);
-//     } catch (error) {
-//       console.error('Error in updateTask:', error.response?.data || error.message);
-//       return rejectWithValue(error.response?.data || error.message || 'Error updating task');
-//     }
-//   }
-// );
-
-
 // Delete Task
 export const deleteTask = createAsyncThunk(
   'tasks/deleteTask',
-  async (taskId, { getState,rejectWithValue }) => {
+  async (taskId, { getState,dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       console.log("delete",taskId,token)
@@ -162,16 +113,13 @@ export const deleteTask = createAsyncThunk(
 
 export const bulkUpdateTasks = createAsyncThunk(
   'tasks/bulkUpdateTasks',
-  async (tasksData, { getState, rejectWithValue }) => {
+  async (tasksData, { getState, dispatch,rejectWithValue }) => {
     try {
       const token = getState().auth.token;
-      if (checkTokenExpiration(token)) {
-        window.Storage.dispatch(logout()); 
-        toast.error("Your session has expired. Please log in again.");
-        return null;
+      if (checkTokenAndLogout(token, dispatch)) {
+        return null; // Exit if the token is expired
       }
       const results = await taskService.bulkUpdateTasks(tasksData, token);
-      console.log("results",results)
       // Filter successful updates
       const successfulUpdates = results.filter(result => result.status === 'success')
                                      .map(result => result.updatedTask);
@@ -185,13 +133,11 @@ export const bulkUpdateTasks = createAsyncThunk(
 );
 export const filterTasks = createAsyncThunk(
   'tasks/filterTasks',
-  async (filters, { getState, rejectWithValue }) => {
+  async (filters, { getState,dispatch, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
-      if (checkTokenExpiration(token)) {
-        window.Storage.dispatch(logout());
-        toast.error("Your session has expired. Please log in again.");
-        return null;
+      if (checkTokenAndLogout(token, dispatch)) {
+        return null; // Exit if the token is expired
       }
       return await taskService.filterTasks(filters); // ✅ Call filterTasks API
     } catch (error) {
@@ -322,6 +268,7 @@ const taskSlice = createSlice({
         state.status = 'loading';
       })
       .addCase(getTasksByAssignedUser.fulfilled, (state, action) => {
+        console.log("Fetched Tasks:", action.payload); // Log the fetched tasks
         state.status = 'succeeded';
         state.tasks = action.payload; // Set the tasks to those fetched for the assigned user
       })

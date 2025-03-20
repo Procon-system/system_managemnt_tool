@@ -396,7 +396,10 @@ const handleChange = (e) => {
                   </div>
           
                   {/* Status (Role ≥ 2) */}
-                  {role >= 2 && (
+                  
+                </div>
+              )}
+             {role >= 2 && (
                     <div>
                       <label className="block mb-1 text-sm font-medium">Status:</label>
                       <select
@@ -427,9 +430,6 @@ const handleChange = (e) => {
                       />
                     </div>
                   )}
-                </div>
-              )}
-          
               {/* Image Previews (Role ≥ 2) */}
               {role >= 2 && (
                 <div className="mt-3 p-3 border  rounded-md shadow-md grid grid-cols-2 gap-4">

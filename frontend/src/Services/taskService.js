@@ -786,7 +786,7 @@ getTasksByAssignedUser: async (userId, token) => {
         },
       });
 
-      // Sync fetched tasks with the local database
+      // // Sync fetched tasks with the local database
       const tasksDoc = await localDB.get('tasks').catch(() => null);
       if (tasksDoc) {
         const updatedTasks = tasksDoc.data.map((task) => {
@@ -800,7 +800,7 @@ getTasksByAssignedUser: async (userId, token) => {
           data: updatedTasks,
         });
       }
-
+       
       return response.data;
     } else {
       // Offline: Fetch tasks from the local database
@@ -978,7 +978,6 @@ bulkUpdateTasks: async (tasksData, token) => {
     throw error.response?.data || error.message || new Error("Error updating tasks");
   }
 },
-
 filterTasks : async (filters) => {
   try {
     if (navigator.onLine) {

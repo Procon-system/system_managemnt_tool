@@ -340,6 +340,7 @@ const getTasksByAssignedUser = async (userId) => {
         status: { $ne: 'done' },
       },
     });
+    console.log("Database Query Result:", result.docs);
     const tasks = result.docs;
 
     // Step 1: Extract unique IDs for tools and materials across all tasks

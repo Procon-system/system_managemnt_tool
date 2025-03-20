@@ -3,6 +3,8 @@ import { createSlice } from "@reduxjs/toolkit";
 import checkTokenExpiration from "../Helper/checkTokenExpire";
 import {jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
+import { resetToastFlag } from '../Helper/checkTokenExpire';
+
 const initialState = {
   user: null,
   token: null,
@@ -24,7 +26,7 @@ const authSlice = createSlice({
       state.user = user;
       state.access_level = access_level;
       state.isLoggedIn = true;
-    
+      resetToastFlag();
       const { exp } = jwtDecode(token);
       const expiresIn = exp * 1000 - Date.now();
     

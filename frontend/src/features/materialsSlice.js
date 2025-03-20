@@ -1,18 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import materialService from '../Services/materialsService';
-import checkTokenExpiration from "../Helper/checkTokenExpire";
-import { toast } from 'react-toastify';
-import { logout } from "../features/authSlice"; // Import logout action
-
+import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 // Async Thunks for CRUD operations
 export const createMaterial = createAsyncThunk(
   'materials/createMaterial',
-  async (materialData, { getState, rejectWithValue }) => {
+  async (materialData, { getState, dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await materialService.createMaterial(materialData, token);
@@ -24,12 +19,10 @@ export const createMaterial = createAsyncThunk(
 
 export const fetchMaterials = createAsyncThunk(
   'materials/fetchMaterials',
-  async (_, { getState,rejectWithValue }) => {
+  async (_, { getState, dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await materialService.fetchMaterials(token);
@@ -41,12 +34,10 @@ export const fetchMaterials = createAsyncThunk(
 
 export const updateMaterial = createAsyncThunk(
   'materials/updateMaterial',
-  async ({ materialId, updatedData }, {getState, rejectWithValue }) => {
+  async ({ materialId, updatedData }, {getState, dispatch, rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await materialService.updateMaterial(materialId, updatedData,token);
@@ -58,12 +49,10 @@ export const updateMaterial = createAsyncThunk(
 
 export const deleteMaterial = createAsyncThunk(
   'materials/deleteMaterial',
-  async (materialId, { getState,rejectWithValue }) => {
+  async (materialId, { getState, dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await materialService.deleteMaterial(materialId,token);

@@ -1,12 +1,11 @@
 /* eslint-disable array-callback-return */
 /* eslint-disable no-restricted-globals */
 const CACHE_NAME = 'my-app-cache-v1';
- // "scripts": {
-  //   "start": "react-scripts start",
-  //   "build": "GENERATE_SOURCEMAP=false react-scripts build",
-  //   "test": "react-scripts test",
-  //   "eject": "react-scripts eject"
-  // },
+// "scripts": {
+//   "start": "react-scripts start",
+//   "build": "react-scripts build",
+//   "build:dev": "GENERATE_SERVICE_WORKER=false react-scripts build"
+// },
 // Install event: Cache only essential assets initially
 self.addEventListener('install', (event) => {
   event.waitUntil(

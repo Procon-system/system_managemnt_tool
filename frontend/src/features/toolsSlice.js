@@ -1,18 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import toolService from '../Services/toolsService';
-import checkTokenExpiration from "../Helper/checkTokenExpire";
-import { toast } from 'react-toastify';
-import { logout } from "../features/authSlice"; // Import logout action
-
+import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 export const createTool = createAsyncThunk(
   'tools/createTool',
-  async (toolData, { getState, rejectWithValue }) => {
+  async (toolData, { getState, dispatch, rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
-    }
+   // Check token expiration and handle logout
+   if (checkTokenAndLogout(token, dispatch)) {
+    return null; // Exit if the token is expired
+  }
     try {
       return await toolService.createTool(toolData, token);
     } catch (error) {
@@ -23,13 +19,12 @@ export const createTool = createAsyncThunk(
 
 export const fetchTools = createAsyncThunk(
   'tools/fetchTools',
-  async (_, {getState, rejectWithValue }) => {
+  async (_, {getState,  dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
-    }
+   // Check token expiration and handle logout
+   if (checkTokenAndLogout(token, dispatch)) {
+    return null; // Exit if the token is expired
+  }
     try {
       return await toolService.fetchTools( token );
     } catch (error) {
@@ -40,13 +35,12 @@ export const fetchTools = createAsyncThunk(
 
 export const updateTool = createAsyncThunk(
   'tools/updateTool',
-  async ({ toolId, updatedData }, {getState, rejectWithValue }) => {
+  async ({ toolId, updatedData }, {getState,  dispatch,rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
-    }
+   // Check token expiration and handle logout
+   if (checkTokenAndLogout(token, dispatch)) {
+    return null; // Exit if the token is expired
+  }
     try {
       return await toolService.updateTool(toolId, updatedData, token );
     } catch (error) {
@@ -57,12 +51,11 @@ export const updateTool = createAsyncThunk(
 
 export const deleteTool = createAsyncThunk(
   'tools/deleteTool',
-  async (toolId, {getState, rejectWithValue }) => {
+  async (toolId, {getState, dispatch, rejectWithValue }) => {
     const token = getState().auth.token;
-    if (checkTokenExpiration(token)) {
-      window.Storage.dispatch(logout()); 
-      toast.error("Your session has expired. Please log in again.");
-      return null;
+    // Check token expiration and handle logout
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null; // Exit if the token is expired
     }
     try {
       return await toolService.deleteTool(toolId, token );
