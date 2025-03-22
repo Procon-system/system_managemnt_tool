@@ -53,11 +53,16 @@ services:
     ports:
       - '27017:27017' 
     volumes:
-      - mongo-data:/data/db 
+      - mongo-data:/data/db
     command: ["--bind_ip_all"]
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:  # Ensure MongoDB is ready before the app starts
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 volumes:
   mongo-data:
 networks:
