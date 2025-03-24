@@ -12,6 +12,8 @@ import { fetchMachines } from '../../features/machineSlice'; // Redux action to 
 import { getUsers } from '../../features/userSlice';
 import DOMPurify from "dompurify";
 import ImageSlider from './imageSlider';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const EventDetailsModal = ({
   isVisible,
   closeModal,
@@ -45,10 +47,9 @@ const handleChange = (e) => {
   const { machines } = useSelector((state) => state.machines);
   const [images, setImages] = useState([]);
   const [newImages, setNewImages] = useState([]); // Store new images for preview
-
   useEffect(() => {
     if (editableEvent?._id) {
-      fetch(`http://localhost:5000/api/tasks/get-images/${editableEvent._id}`)
+      fetch( `${API_BASE_URL}/tasks/get-images/${editableEvent._id}`)
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data.images)) {

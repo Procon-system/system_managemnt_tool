@@ -14,12 +14,15 @@ import Pagination from '../../Components/common/Pagination';
 import useSearchAndPagination from '../../hooks/useSearchAndPagination';
 import { toast } from 'react-toastify';
 import io from 'socket.io-client';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
+console.log("API_BASE_URL",API_BASE_URL)
 const CreateMaterialPage = () => {
   const dispatch = useDispatch();
   const materials = useSelector((state) => state.materials.materials || []);
   const [showForm, setShowForm] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState(null);
-  const socket = io("http://localhost:5000");
+  const socket = io(API_BASE_URL);
+  // const socket = io("http://localhost:5000");
   // Initialize search and pagination
   const {
     searchTerm,

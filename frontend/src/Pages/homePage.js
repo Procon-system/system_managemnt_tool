@@ -17,8 +17,8 @@ import { toast } from 'react-toastify';
 import TaskPage from './Task/createTaskPage';
 import EventDetailsModal from '../Components/taskComponents/updateTaskForm';
 import getColorForStatus from '../Helper/getColorForStatus';
-
-const socket = io("http://localhost:5000"); // Replace with your server URL
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
+const socket = io(API_BASE_URL); // Replace with your server URL
 
 const HomePage = () => {
   const dispatch = useDispatch();

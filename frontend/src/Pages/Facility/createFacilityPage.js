@@ -16,10 +16,10 @@ import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
 import SearchBar from '../../Components/common/SearchBar';
 import Pagination from '../../Components/common/Pagination';
 import useSearchAndPagination from '../../hooks/useSearchAndPagination';
-
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
 const CreateFacilityPage = () => {
   const dispatch = useDispatch();
-  const socket = io("http://localhost:5000");
+  const socket = io(API_BASE_URL);
   const facilities = useSelector((state) => state.facilities.facilities || []);
   const [showForm, setShowForm] = useState(false);
   const [editingFacility, setEditingFacility] = useState(null);

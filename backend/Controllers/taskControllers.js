@@ -461,6 +461,7 @@ const deleteTask = async (req, res) => {
     if (!result) {
       return res.status(404).json({ error: 'Task not found' });
     }
+    const taskId=req.params.id;
     // ✅ Invalidate Redis cache for this task and task list
     await redisClient.del(`task:${taskId}`);
     await redisClient.del("tasks");

@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/tools';
+const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/tools`;
 
 const toolService = {
   // Create a new tool

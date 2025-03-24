@@ -16,7 +16,9 @@ import Pagination from '../../Components/common/Pagination';
 import useSearchAndPagination from '../../hooks/useSearchAndPagination';
 import { toast } from 'react-toastify';
 import { io } from "socket.io-client";
-const socket = io("http://localhost:5000");
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
+
+const socket = io(API_BASE_URL );
 
 const CreateToolPage = () => {
   const dispatch = useDispatch();

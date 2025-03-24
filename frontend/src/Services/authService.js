@@ -1,8 +1,8 @@
 // src/services/authService.js
 import axios from 'axios';
 // import store from '../Store/store';
-const API_URL = 'http://localhost:5000/api/auth'; // Adjust based on your API setup
-
+const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/auth`; // Adjust based on your API setup
+console.log("process.env.REACT_APP_API_BASE_URL",process.env.REACT_APP_API_BASE_URL)
 export const registerUser = async (userData) => {
     try {
       // const token = store.getState().auth.token;

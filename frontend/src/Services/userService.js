@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/users'; // Adjust based on your API setup
-
-// Fetch all users
+const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/users`;
 export const getAllUsers = async (token) => {
   try {
     const response = await axios.get(`${API_URL}/get-users`, {

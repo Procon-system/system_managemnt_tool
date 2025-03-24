@@ -14,13 +14,14 @@ import SearchBar from '../../Components/common/SearchBar';
 import Pagination from '../../Components/common/Pagination';
 import useSearchAndPagination from '../../hooks/useSearchAndPagination';
 import { toast } from 'react-toastify';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
 
 const CreateMachinePage = () => {
   const dispatch = useDispatch();
   const machines = useSelector((state) => state.machines.machines || []);
   const [showForm, setShowForm] = useState(false);
   const [editingMachine, setEditingMachine] = useState(null);
-  const socket = io("http://localhost:5000"); // Replace with your server URL
+  const socket = io(API_BASE_URL); // Replace with your server URL
  
   // Initialize search and pagination
   const {
