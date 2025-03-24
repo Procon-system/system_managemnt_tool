@@ -1,5 +1,6 @@
 
 const http = require("http");
+const mongoose = require('mongoose');
 const { Server } = require("socket.io");
 const redis = require("redis");
 const authRoutes = require('./Routes/authRoutes');
@@ -29,6 +30,23 @@ const { redisClient, connectRedis } = require("./redisClient");
 (async () => {
   await connectRedis(); // ✅ Ensures Redis is only connected once
 })();
+// MongoDB Connection
+const connectDB = async () => {
+  try {
+    await mongoose.connect(config.mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 30000,
+    });
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    process.exit(1); // Exit the process if MongoDB connection fails
+  }
+};
+
+// Call the MongoDB connection function
+connectDB();
 
 // Now use redisClient normally in your code
 

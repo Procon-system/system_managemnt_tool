@@ -3,18 +3,18 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.prod   # Use a separate Dockerfile for development
+      dockerfile: Dockerfile.dev   # Use a separate Dockerfile for development
     volumes:
-      # - ./frontend:/app            # Mount code for live reloading
-      # - /app/node_modules 
-      - ./frontend/build:/usr/share/nginx/html  # Serve static files 
+      - ./frontend:/app            # Mount code for live reloading
+      - /app/node_modules 
+      # - ./frontend/build:/usr/share/nginx/html  # Serve static files 
     environment:
       - CHOKIDAR_USEPOLLING=true  # Enable polling for file changes
       - WATCHPACK_POLLING=true    # Extra polling for webpack
          # Avoid node_modules conflicts
     ports:
-      - "3000:80"                # Map directly to 3000 for development server
-    # command: ["npm", "start"]      # Use npm for hot reload
+      - "3000:3000"                # Map directly to 3000 for development server
+    command: ["npm", "start"]      # Use npm for hot reload
     depends_on:
       - app
     networks:
@@ -33,31 +33,47 @@ services:
     ports:
       - '5000:5000' 
     depends_on:
-      couchdb:
+      mongo:
           condition: service_healthy 
     networks:
       - app-network
     restart: unless-stopped
     # CouchDB service
-  couchdb:
-    image: couchdb:3.4  # Official CouchDB image
+  # couchdb:
+  #   image: couchdb:3.4  # Official CouchDB image
+  #   ports:
+  #     - "5984:5984"  # Expose CouchDB on port 5984
+  #   environment:
+  #     - COUCHDB_USER=admin  # Replace with your admin username
+  #     - COUCHDB_PASSWORD=admin123hjy  # Replace with your admin password
+  #     - COUCHDB_CLUSTER_Q=1     # Set the default `q` value to 1 for single-node setup
+  #     - COUCHDB_CLUSTER_N=1  
+  #   volumes:
+  #     - couchdb-data:/opt/couchdb/data  # Persistent storage for CouchDB
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://127.0.0.1:5984/_up"]
+  #     interval: 10s  # Check every 10 seconds
+  #     timeout: 5s    # Timeout for the check
+  #     retries: 5     # Retry up to 5 times
+    # MongoDB service
+  mongo:
+    image: mongo:8.0
     ports:
-      - "5984:5984"  # Expose CouchDB on port 5984
-    environment:
-      - COUCHDB_USER=admin  # Replace with your admin username
-      - COUCHDB_PASSWORD=admin123hjy  # Replace with your admin password
-      - COUCHDB_CLUSTER_Q=1     # Set the default `q` value to 1 for single-node setup
-      - COUCHDB_CLUSTER_N=1  
+      - '27017:27017' 
     volumes:
-      - couchdb-data:/opt/couchdb/data  # Persistent storage for CouchDB
+      - mongo-data:/data/db
+    command: ["--bind_ip_all"]
     networks:
       - app-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:5984/_up"]
-      interval: 10s  # Check every 10 seconds
-      timeout: 5s    # Timeout for the check
-      retries: 5     # Retry up to 5 times
+    healthcheck:  # Ensure MongoDB is ready before the app starts
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   redis:
     image: redis:latest
     ports:
@@ -69,7 +85,7 @@ services:
       - app-network
 
 volumes:
-  couchdb-data:
   redis_data:
+  mongo-data:
 networks:
   app-network:
