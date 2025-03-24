@@ -18,17 +18,14 @@ const authenticateUser = async (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1].trim();
-    console.log("Extracted Token:", token);
-    console.log("JWT Secret:", process.env.JWT_TOKEN_KEY);
+    
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_TOKEN_KEY);
-      console.log("Decoded Token:", decoded);
       
       req.user = decoded; // Attach user info from token to request object
       next(); // Proceed to the next middleware
     } catch (error) {
-      console.error("Token Verification Error:", error.message);
       if (error.name === "TokenExpiredError") {
         return res.status(401).json({ error: "Token expired. Please log in again." });
       }
