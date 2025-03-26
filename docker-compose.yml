@@ -70,10 +70,11 @@ services:
       - app-network
     restart: unless-stopped
     healthcheck:  # Ensure MongoDB is ready before the app starts
-      test: ["CMD", "mongosh", "--eval", "db.runCommand({ ping: 1 })"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+     test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+     interval: 10s
+     timeout: 10s  # Increased timeout
+     retries: 10   # More retries
+     start_period: 30s  # Give MongoDB time to start
   redis:
     image: redis:latest
     ports:

@@ -1,26 +1,34 @@
+
 const mongoose = require('mongoose');
-const notificationSchema=new mongoose.Schema({
-    task_id:{
-        type: mongoose.Schema.Types.ObjectId,
-        ref:'Task',
+const notificationSchema = new mongoose.Schema({
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
     },
-    notificationType:{
-        type:String,
-        enum:['email','sms'],
-        required:true,
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: true
     },
-    message:{
-        type:String,
-        required:true,
+    type: {
+      type: String,
+      enum: ['task_assignment', 'status_change', 'due_date', 'comment', 'custom']
     },
-    sent_at:{
-        type:Date,
-        default: Date.now,
+    relatedEntity: {
+      entityType: String, // 'Task', 'Resource', etc.
+      entityId: mongoose.Schema.Types.ObjectId
     },
-});
-notificationSchema.pre('save',function(next){
-    this.sent_at=Date.now();
-    next();
-});
-const Notification= mongoose.model('Notification',notificationSchema);
-module.exports = Notification;
+    message: String,
+    read: {
+      type: Boolean,
+      default: false
+    },
+    metadata: mongoose.Schema.Types.Mixed,
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  });
+  
+  const Notification = mongoose.model('Notification', notificationSchema);

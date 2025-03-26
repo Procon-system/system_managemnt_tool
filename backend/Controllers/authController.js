@@ -1,119 +1,159 @@
-
 const {
-  createUser,
-  findUserByEmail,
-  findUserByConfirmationCode,
-  updateUser,
+  registerUser,
+  loginUser,
+  logoutUser,
+  confirmEmail,
+  forgotPassword,
+  resetPassword
 } = require('../Services/authService');
-const generateToken = require('../Middleware/generateToken');
-const hashPassword = require('../Middleware/hashPassword');
-const bcrypt = require('bcryptjs');
-const {
-  sendConfirmationEmail,
-  sendWelcomeEmail,
-  sendRestPasswordLink,
-} = require('../Helper/sendEmail');
 
 const registerController = async (req, res) => {
   try {
-    const newUser = await createUser(req.body);
-    // await sendConfirmationEmail(newUser.email, newUser.confirmationCode, newUser.first_name);
-res.status(201).json({
-        success: true,
-        user:newUser,
-        message: "User registered successfully. Please verify the email.",
-      });
-    } catch (err) {
-      if (err.message === "User already exists with this email") {
-        return res.status(400).json({ error: err.message });
-      } else if (err.message === "Error hashing password" || err.message === "Error generating token") {
-        return res.status(500).json({ error: err.message });
-      } else {
-        console.log("err",err);
-        return res.status(500).json({ error:err.message });
-      }
-    }
-  };
-const loginController = async (req, res) => {
-  try {
-    const { email, password, rememberMe } = req.body;
-    const user = await findUserByEmail(email);
-    if (!user) throw new Error('User not found.');
+    const { email, password, last_name, first_name, organizationName ,personal_number,access_level} = req.body;
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    if (!isPasswordCorrect) throw new Error('Invalid credentials.');
-    const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000; // Cookie maxAge matches rememberMe
-    const tokenExpiry = rememberMe ? 30 * 24 * 60 * 60 * 1000 : '1h'; // Token expiration matches rememberMe
-    const token = await generateToken({ id: user._id, access_level: user.access_level }, tokenExpiry);
-
-    res.cookie('jwt', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: cookieMaxAge,
+    const user = await registerUser({
+      email,
+      password,
+      last_name,
+      first_name,
+      organizationName,
+      personal_number,
+      access_level
     });
-    console.log("token, user ",token, user )
-    res.status(200).json({ success: true, token, user });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+
+    res.status(201).json({
+      success: true,
+      data: user,
+      message: "User registered successfully. Please check your email to confirm."
+    });
+  } catch (err) {
+    console.error("Registration Error:", err);
+    
+    const statusCode = err.message.includes('already exists') ? 400 : 500;
+    res.status(statusCode).json({ 
+      success: false,
+      error: err.message 
+    });
   }
 };
 
+const loginController = async (req, res) => {
+  try {
+    const { email, password, rememberMe } = req.body;
+    
+    const result = await loginUser(email, password, rememberMe);
+
+    // Set cookie
+    res.cookie('jwt', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
+      path: '/'
+    });
+
+    res.json({
+      success: true,
+      data: result.user,
+      token: result.token,
+      message: 'Login successful'
+    });
+
+  } catch (error) {
+    const statusCode = error.message.includes('not found') || 
+                     error.message.includes('Incorrect') ? 401 : 400;
+    res.status(statusCode).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+};
 const confirmEmailController = async (req, res) => {
   try {
-    const { confirmationCode } = req.params;
-    const user = await findUserByConfirmationCode(confirmationCode);
-    if (!user) throw new Error('Invalid confirmation code.');
-
-    await updateUser(user._id, { isConfirmed: true, confirmationCode: null });
-    await sendWelcomeEmail(user.email, user.first_name);
-    res.status(200).json({ success: true, message: 'Email confirmed successfully.' });
+    const result = await confirmEmail(req.params.confirmationCode);
+    res.status(200).json(result);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 };
 
 const forgotPasswordController = async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await findUserByEmail(email);
-    if (!user) throw new Error('User not found.');
-
-    const token = await generateToken({ id: user._id, access_level: user.access_level });
-    await sendRestPasswordLink(user.email, token);
-    res.status(200).json({ success: true, message: 'Password reset link sent.' });
+    const result = await forgotPassword(email);
+    
+    res.status(200).json({
+      success: true,
+      message: result.message
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 };
 
 const resetPasswordController = async (req, res) => {
   try {
-    const { id, token } = req.params;
+    const { token } = req.params;
     const { password } = req.body;
+    
+    const result = await resetPassword(token, password);
 
-    const decoded = jwt.verify(token, process.env.JWT_TOKEN_KEY);
-    if (!decoded || decoded.id !== id) throw new Error('Invalid token.');
+    // Set cookie with new token
+    res.cookie('jwt', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 1000, // 1 hour
+      sameSite: 'strict',
+      path: '/'
+    });
 
-    const hashedPassword = await hashPassword(password);
-    await updateUser(id, { password: hashedPassword });
-
-    res.status(200).json({ success: true, message: 'Password reset successfully.' });
+    res.status(200).json({
+      success: true,
+      message: result.message
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error("Reset Password Error:", error);
+    res.status(400).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 };
 
 const logoutController = async (req, res) => {
-  res.clearCookie('jwt', { path: '/' });
-  res.status(200).json({ success: true, message: 'Logged out successfully.' });
+  try {
+    // Clear the JWT cookie
+    res.clearCookie('jwt', { 
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Logged out successfully' 
+    });
+  } catch (error) {
+    console.error('Logout Error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Logout failed' 
+    });
+  }
 };
 
 module.exports = {
   registerController,
   loginController,
+  logoutController,
   confirmEmailController,
   forgotPasswordController,
-  resetPasswordController,
-  logoutController,
+  resetPasswordController
 };

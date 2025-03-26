@@ -80,7 +80,48 @@ const isAdmin = (req, res, next) => {
   console.log("req user",req.user.access_level);
   return res.status(403).json({ error: "Access denied. Admin privileges required." });
 };
-
+// Role-based authorization
+const authorize = (roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.access_level)) {
+      return res.status(403).json({
+        success: false,
+        message: `User with access level ${req.user.access_level} is not authorized to access this route`
+      });
+    }
+    next();
+  };
+};
+const protect = async (req, res, next) => {
+  let token;
+  
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.cookies.token) {
+    token = req.cookies.token;
+  }
+  
+  if (!token) {
+    return next(new ErrorResponse('Not authorized to access this route', 401));
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_TOKEN_KEY);
+    const user = await User.findById(decoded._id);
+    
+    if (!user) {
+      return next(new ErrorResponse('No user found with this id', 404));
+    }
+    
+    req.user = user;
+    next();
+  } catch (err) {
+    return next(new ErrorResponse('Not authorized to access this route', 401));
+  }
+};
 module.exports = {
   authenticateUser,
   isRandomUser,
@@ -88,4 +129,6 @@ module.exports = {
   isManager,
   isFreeAccess,
   isAdmin,
+  authorize,
+  protect,
 };
