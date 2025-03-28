@@ -1,4 +1,4 @@
-const resourceService = require('../services/resourceService');
+const resourceService = require('../Services/resourceService');
 const { sendResponse } = require('../utils/responseHandler');
 
 exports.createResource = async (req, res) => {
@@ -7,13 +7,17 @@ exports.createResource = async (req, res) => {
     resourceData.organization = req.user.organization;
     resourceData.createdBy = req.user._id;
     
+    // Convert fields object to Map if needed
+    if (resourceData.fields && !(resourceData.fields instanceof Map)) {
+      resourceData.fields = new Map(Object.entries(resourceData.fields));
+    }
+    
     const resource = await resourceService.createResource(resourceData);
     sendResponse(res, 201, 'Resource created successfully', resource);
   } catch (error) {
     sendResponse(res, 500, error.message, null);
   }
 };
-
 exports.getResourceById = async (req, res) => {
   try {
     const resource = await resourceService.getResourceById(

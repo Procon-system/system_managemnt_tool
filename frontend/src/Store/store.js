@@ -9,6 +9,7 @@ import materialReducer from '../features/materialsSlice';
 import facilityReducer from '../features/facilitySlice';
 import machineReducer from '../features/machineSlice';
 import userSlice from '../features/userSlice';
+import resourceTypeReducer from '../features/resourceTypeSlice';
 import { combineReducers } from 'redux';
 
 // Define persist configuration for the auth slice
@@ -27,6 +28,7 @@ const rootReducer = combineReducers({
   facilities: facilityReducer,
   machines: machineReducer,
   users:userSlice,
+  resourceTypes: resourceTypeReducer,
 });
 
 // Wrap the root reducer with persistReducer

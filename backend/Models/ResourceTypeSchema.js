@@ -45,3 +45,4 @@ const resourceTypeSchema = new mongoose.Schema({
 });
 
 const ResourceType = mongoose.model('ResourceType', resourceTypeSchema);
+module.exports= ResourceType;

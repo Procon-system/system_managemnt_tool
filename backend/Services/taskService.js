@@ -6,15 +6,18 @@ exports.createTask = async (taskData) => {
   await validateTaskData(taskData);
   
   // Verify all referenced resources exist
-  if (taskData.relatedResources && taskData.relatedResources.length > 0) {
-    const resourceIds = taskData.relatedResources.map(r => r.resource);
+  if (taskData.resources && taskData.resources.length > 0) {
+    const resourceIds = taskData.resources.map(r => r.resource);
     const resources = await Resource.find({
       _id: { $in: resourceIds },
       organization: taskData.organization
     });
     
     if (resources.length !== resourceIds.length) {
-      throw new Error('One or more referenced resources not found');
+      throw { 
+        message: 'One or more referenced resources not found',
+        statusCode: 400
+      };
     }
   }
   
@@ -23,25 +26,42 @@ exports.createTask = async (taskData) => {
 };
 
 exports.getTaskById = async (taskId, organizationId) => {
-  return await Task.findOne({
+  const task = await Task.findOne({
     _id: taskId,
     organization: organizationId
   })
-    .populate('relatedResources.resource')
-    .populate('assignedUsers.user')
-    .populate('assignedTeams')
+    .populate('resources.resource')
+    .populate('assignments.user')
+    .populate('assignments.team')
+    .populate('dependencies.task')
     .populate('createdBy', 'first_name last_name email');
+    
+  if (!task) {
+    throw { message: 'Task not found', statusCode: 404 };
+  }
+  
+  return task;
 };
 
 exports.updateTask = async (taskId, updateData, organizationId) => {
+  // Prevent changing organization or createdBy
+  if (updateData.organization || updateData.createdBy) {
+    throw { 
+      message: 'Cannot change task organization or creator',
+      statusCode: 400
+    };
+  }
+  
   const task = await Task.findOneAndUpdate(
     { _id: taskId, organization: organizationId },
     updateData,
     { new: true, runValidators: true }
-  ).populate('relatedResources.resource');
-  
+  )
+    .populate('resources.resource')
+    .populate('assignments.user');
+    
   if (!task) {
-    throw new Error('Task not found');
+    throw { message: 'Task not found', statusCode: 404 };
   }
   
   return task;
@@ -54,28 +74,32 @@ exports.deleteTask = async (taskId, organizationId) => {
   });
   
   if (!task) {
-    throw new Error('Task not found');
+    throw { message: 'Task not found', statusCode: 404 };
   }
+  
+  // Optional: Clean up any task references
+  await Task.updateMany(
+    { 'dependencies.task': taskId },
+    { $pull: { dependencies: { task: taskId } } }
+  );
 };
 
 exports.getTasksByOrganization = async (organizationId, options = {}) => {
-  const { page, limit, status, resourceId } = options;
+  const { page = 1, limit = 10, status, resourceId, teamId, period } = options;
   
   const query = { organization: organizationId };
   
-  if (status) {
-    query['status.current'] = status;
-  }
-  
-  if (resourceId) {
-    query['relatedResources.resource'] = resourceId;
-  }
+  if (status) query.status = status;
+  if (resourceId) query['resources.resource'] = resourceId;
+  if (teamId) query['assignments.team'] = teamId;
+  if (period) query.task_period = period;
   
   const tasks = await Task.find(query)
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
-    .populate('relatedResources.resource')
-    .populate('createdBy', 'first_name last_name');
+    .populate('resources.resource')
+    .populate('assignments.user')
+    .sort({ 'schedule.start': 1 });
     
   const count = await Task.countDocuments(query);
   
@@ -91,7 +115,7 @@ exports.changeTaskStatus = async (taskId, newStatus, changedBy, notes, organizat
   const task = await Task.findOne({ _id: taskId, organization: organizationId });
   
   if (!task) {
-    throw new Error('Task not found');
+    throw { message: 'Task not found', statusCode: 404 };
   }
   
   // Add to status history

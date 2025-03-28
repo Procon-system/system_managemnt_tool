@@ -16,7 +16,6 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     login: (state, action) => {
-      console.log("action.payload",action.payload)
       const { token, user, access_level } = action.payload;
     
       if (checkTokenExpiration(token)) {

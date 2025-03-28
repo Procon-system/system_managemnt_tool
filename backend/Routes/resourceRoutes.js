@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const resourceController = require('../controllers/resourceController');
-const authMiddleware = require('../middlewares/auth');
+const resourceController = require('../Controllers/resourceController');
+const { authenticateUser, authorize } = require('../Middleware/authMiddleware');
+// Apply authentication to all routes
+router.use(authenticateUser);
 
-router.use(authMiddleware);
-
-router.post('/', resourceController.createResource);
-router.get('/type/:typeId', resourceController.getResourcesByType);
-router.get('/:id', resourceController.getResourceById);
-router.put('/:id', resourceController.updateResource);
-router.delete('/:id', resourceController.deleteResource);
+router.post('/', authorize([3, 4, 5]),resourceController.createResource);
+router.get('/type/:typeId',authorize([3, 4, 5]), resourceController.getResourcesByType);
+router.get('/:id', authorize([3, 4, 5]),resourceController.getResourceById);
+router.put('/:id',authorize([3, 4, 5]), resourceController.updateResource);
+router.delete('/:id',authorize([3, 4, 5]), resourceController.deleteResource);
 
 module.exports = router;

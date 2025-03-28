@@ -1,9 +1,9 @@
-const Resource = require('../models/Resource');
-const ResourceType = require('../models/ResourceType');
-const Task = require('../models/Task');
+const Resource = require('../Models/ResourceSchema');
+const ResourceType = require('../Models/ResourceTypeSchema');
+const Task = require('../Models/TaskSchema');
 
 exports.createResource = async (resourceData) => {
-  // Verify the resource type exists and belongs to the same organization
+  // Verify the resource type exists
   const resourceType = await ResourceType.findOne({
     _id: resourceData.type,
     organization: resourceData.organization
@@ -12,34 +12,63 @@ exports.createResource = async (resourceData) => {
   if (!resourceType) {
     throw new Error('Resource type not found');
   }
-  
-  // Validate fields against the resource type definition
-  const fieldDefinitions = resourceType.fieldDefinitions;
+
+  // Convert fields to Map if it's a plain object
+  const fieldsMap = resourceData.fields instanceof Map 
+    ? resourceData.fields 
+    : new Map(Object.entries(resourceData.fields || {}));
+
+  // Validate fields
   const fieldErrors = [];
+  const fieldDefinitions = resourceType.fieldDefinitions;
+  const allowedFields = new Set(fieldDefinitions.map(def => def.fieldName));
   
+  // Check for extra fields not in the resource type
+  for (const [fieldName] of fieldsMap) {
+    if (!allowedFields.has(fieldName)) {
+      fieldErrors.push(`Field '${fieldName}' is not defined in the resource type`);
+    }
+  }
+
+  // Validate required fields and types
   for (const def of fieldDefinitions) {
-    if (def.required && !resourceData.fields.has(def.fieldName)) {
-      fieldErrors.push(`Field ${def.fieldName} is required`);
+    const fieldValue = fieldsMap.get(def.fieldName);
+    
+    if (def.required && !fieldsMap.has(def.fieldName)) {
+      fieldErrors.push(`Field '${def.fieldName}' is required`);
+      continue;
     }
     
-    if (resourceData.fields.has(def.fieldName)) {
-      const value = resourceData.fields.get(def.fieldName);
-      const typeCheck = checkFieldType(value, def.fieldType);
-      
+    if (fieldsMap.has(def.fieldName)) {
+      const typeCheck = checkFieldType(fieldValue, def.fieldType);
       if (!typeCheck.valid) {
-        fieldErrors.push(`Field ${def.fieldName} should be ${def.fieldType}: ${typeCheck.message}`);
+        fieldErrors.push(`Field '${def.fieldName}' should be ${def.fieldType}: ${typeCheck.message}`);
       }
     }
   }
   
   if (fieldErrors.length > 0) {
-    throw new Error(`Field validation errors: ${fieldErrors.join(', ')}`);
+    throw new Error(`Validation errors: ${fieldErrors.join(', ')}`);
   }
+
+  // Filter to only include allowed fields
+  const filteredFields = new Map();
+  for (const def of fieldDefinitions) {
+    if (fieldsMap.has(def.fieldName)) {
+      filteredFields.set(def.fieldName, fieldsMap.get(def.fieldName));
+    } else if (def.defaultValue !== undefined) {
+      filteredFields.set(def.fieldName, def.defaultValue);
+    }
+  }
+
+  // Create resource with only validated fields
+  const resource = new Resource({
+    ...resourceData,
+    fields: filteredFields
+  });
   
-  const resource = new Resource(resourceData);
   return await resource.save();
 };
-
 function checkFieldType(value, expectedType) {
   switch (expectedType) {
     case 'string':

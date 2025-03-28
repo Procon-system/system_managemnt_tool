@@ -183,14 +183,11 @@ export const loginUser = async (credentials) => {
   };
 
   if (!isOnline()) {
-    console.log('App is offline. Checking stored session...');
+    
     const cachedUser = await getUserSession();
-    console.log('Cached user:', cachedUser); // Log the cached user
-    console.log('Login credentials:', credentials); // Log the login credentials
-
+   
     if (cachedUser && cachedUser.user && cachedUser.user.email === credentials.email) {
-      console.log('Using cached session:', cachedUser); // Log the cached session
-      return cachedUser; // Allow offline access
+           return cachedUser; // Allow offline access
     }
     throw new Error('You are offline and have no stored session.');
   }
@@ -198,8 +195,7 @@ export const loginUser = async (credentials) => {
   try {
     const response = await axios(request);
     await saveUserSession(response.data);
-    console.log('Login successful. Session saved:', response.data); // Log the saved session
-    return response.data;
+     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Login failed');
   }

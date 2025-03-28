@@ -31,8 +31,7 @@ const LoginForm = () => {
       const response = await loginUser(formData);
   
       if (!response) throw new Error("Invalid response from the server.");
-      const { user,token } = response;
-  
+      const { data,token } = response;
       // Decode the JWT to extract user details, including access_level
       const decodedToken = jwtDecode(token);
   
@@ -46,7 +45,7 @@ const LoginForm = () => {
       // Dispatch login action to update Redux state
       dispatch(
         login({
-          user: user, // Full user object
+          user: data, // Full user object
           token,
           access_level, // Include access level explicitly
         })

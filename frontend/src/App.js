@@ -10,11 +10,12 @@ import HomePage from './Pages/homePage';
 import ForgotPasswordPage from './Pages/Auth/forgotPasswordPage';
 import ResetPasswordPage from './Pages/Auth/resetPasswordPage';
 import ConfirmEmail from './Components/authComponents/confirmEmail';
-import CreateFacilityPage from './Pages/Facility/createFacilityPage';
 import CreateMachinePage from './Pages/Machine/createMachinePage';
 import CreateMaterialPage from './Pages/Material/createMaterialPage';
 import CreateToolPage from './Pages/Tool/createToolPage';
 import FilterPage from './Pages/FilterAndReport/filterPage';
+import CreateResourceTypePage from './Pages/ResourceType/createResourceTypePage';
+import ResourceListPage from './Pages/Resource/resourceListPage'
 import Navbar from './Components/navbarComponents';
 import ProfilePage from './Components/profileComponents';
 import { ToastContainer } from 'react-toastify';
@@ -35,6 +36,7 @@ import facilityService from './Services/facilityService';
 import machineService from './Services/machineService';
 import taskService from './Services/taskService';
 import { localDB } from './pouchDb';
+import MainLayout from './Components/layout/layoutWrapper'
 const viewAllDocuments = async () => {
   try {
     const result = await localDB.allDocs({ include_docs: true });
@@ -164,18 +166,20 @@ const App = () => {
             }
           />
           <Route
-            path="/create-facility"
+            path="/create-resource-type"
             element={
               <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
-                <CreateFacilityPage />
+                <MainLayout>
+      <CreateResourceTypePage />
+    </MainLayout>
               </ProtectedRoute>
             }
           />
           <Route
-            path="/create-machines"
+            path="/resource-types/:typeId"
             element={
               <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
-                <CreateMachinePage />
+               < ResourceListPage/>
               </ProtectedRoute>
             }
           />

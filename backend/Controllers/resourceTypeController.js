@@ -1,4 +1,4 @@
-const resourceTypeService = require('../services/resourceTypeService');
+const resourceTypeService = require('../Services/resourceTypeService');
 const { sendResponse } = require('../utils/responseHandler');
 
 exports.createResourceType = async (req, res) => {

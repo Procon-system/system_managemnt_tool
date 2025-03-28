@@ -1,5 +1,5 @@
-const ResourceType = require('../models/ResourceType');
-const Resource = require('../models/Resource');
+const ResourceType = require('../Models/ResourceTypeSchema');
+const Resource = require('../Models/ResourceSchema');
 
 exports.createResourceType = async (typeData) => {
   // Validate field definitions
