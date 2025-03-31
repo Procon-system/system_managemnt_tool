@@ -3,19 +3,23 @@ const { sendResponse } = require('../utils/responseHandler');
 
 exports.createResource = async (req, res) => {
   try {
-    const resourceData = req.body;
-    resourceData.organization = req.user.organization;
-    resourceData.createdBy = req.user._id;
+    const { type, fields, displayName } = req.body;
     
-    // Convert fields object to Map if needed
-    if (resourceData.fields && !(resourceData.fields instanceof Map)) {
-      resourceData.fields = new Map(Object.entries(resourceData.fields));
-    }
-    
+    const resourceData = {
+      type,
+      displayName, // Ensure displayName is included
+      fields,
+      organization: req.user.organization,
+      createdBy: req.user._id
+    };
+
+    console.log("Processing resource creation with data:", resourceData);
+
     const resource = await resourceService.createResource(resourceData);
     sendResponse(res, 201, 'Resource created successfully', resource);
   } catch (error) {
-    sendResponse(res, 500, error.message, null);
+    console.error('Error in createResource:', error);
+    sendResponse(res, 400, error.message, null);
   }
 };
 exports.getResourceById = async (req, res) => {

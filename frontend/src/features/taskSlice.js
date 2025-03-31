@@ -169,25 +169,7 @@ const taskSlice = createSlice({
       state.filteredTasks = [];
       state.currentView = 'allTasks'; // Reset to all tasks view
     },
-    // Add a reducer to handle bulk update success
-  //   bulkUpdateTasksSuccess: (state, action) => {
-  //     const updatedTasks = action.payload;
-  //     const taskMap = new Map(state.tasks.map((task) => [task._id, task]));
-
-  //     // Merge the updated tasks into the state
-  //     updatedTasks.forEach((updatedTask) => {
-  //       if (taskMap.has(updatedTask._id)) {
-  //         taskMap.set(updatedTask._id, {
-  //           ...taskMap.get(updatedTask._id),
-  //           ...updatedTask,
-  //         });
-  //       } else {
-  //         taskMap.set(updatedTask._id, updatedTask);
-  //       }
-  //     });
-
-  //     state.tasks = Array.from(taskMap.values());
-  //   },
+    
   },
   extraReducers: (builder) => {
     builder
@@ -302,33 +284,7 @@ const taskSlice = createSlice({
         state.status = 'loading';
         state.error = null;
       })
-      // .addCase(bulkUpdateTasks.fulfilled, (state, action) => {
-      //   const results = action.payload;
-      //   if (Array.isArray(results)) {
-      //     results.forEach((result) => {
-      //       if (result.status === 'success' && result.updatedTask) {
-      //         const index = state.tasks.findIndex((task) => task._id === result.updatedTask._id);
-      //         if (index !== -1) {
-      //           // Merge the updated fields with the existing task
-      //           state.tasks[index] = {
-      //             ...state.tasks[index], // Keep existing fields
-      //             ...result.updatedTask, // Overwrite with updated fields
-      //             start: result.updatedTask.start_time || state.tasks[index].start, // Preserve existing start if not updated
-      //             end: result.updatedTask.end_time || state.tasks[index].end, // Preserve existing end if not updated
-      //           };
-      //         } else {
-      //           // If the task doesn't exist in the state, add it
-      //           state.tasks.push({
-      //             ...result.updatedTask,
-      //             start: result.updatedTask.start_time,
-      //             end: result.updatedTask.end_time,
-      //           });
-      //         }
-      //       }
-      //     });
-      //   }
-      //   state.status = 'succeeded';
-      // })
+      
       .addCase(bulkUpdateTasks.fulfilled, (state, action) => {
         const results = action.payload;
         if (Array.isArray(results)) {

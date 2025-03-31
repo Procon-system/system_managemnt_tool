@@ -1,65 +1,140 @@
-const ResourceTable = ({ resources, resourceType, onEdit }) => {
-    return (
+import { useState } from 'react';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import ResourceEditModal from './resourceEditModal'; // We'll create this component
+
+const ResourceTable = ({ resources, resourceType, onEdit, onDelete }) => {
+  const [selectedResource, setSelectedResource] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // Safely extract the resources array from the response
+  const resourcesArray = Array.isArray(resources) 
+    ? resources 
+    : resources?.resources || [];
+
+  const handleEditClick = (resource) => {
+    setSelectedResource(resource);
+    setShowEditModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowEditModal(false);
+    setSelectedResource(null);
+  };
+
+  const handleSave = async (updatedData) => {
+    try {
+      await onEdit(selectedResource._id, updatedData);
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error updating resource:', error);
+    }
+  };
+
+  // Calculate column count for colspan
+  const columnCount = (resourceType?.fieldDefinitions?.filter(f => f.showInList)?.length || 0) + 2;
+
+  return (
+    <>
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
+                Display Name
               </th>
               {resourceType?.fieldDefinitions
-                .filter(field => field.showInList)
+                ?.filter(field => field.showInList)
                 .map(field => (
-                  <th key={field.fieldName} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th 
+                    key={field.fieldName} 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4"
+                  >
                     {field.displayName || field.fieldName}
                   </th>
                 ))}
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {resources.map(resource => (
-              <tr key={resource._id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {resource.name}
-                </td>
-                {resourceType?.fieldDefinitions
-                  .filter(field => field.showInList)
-                  .map(field => (
-                    <td key={field.fieldName} className="px-6 py-4 whitespace-nowrap">
-                      {renderFieldValue(resource[field.fieldName], field.fieldType)}
-                    </td>
-                  ))}
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button 
-                    onClick={() => onEdit(resource._id)}
-                    className="text-blue-600 hover:text-blue-900 mr-3"
-                  >
-                    Edit
-                  </button>
-                  <button className="text-red-600 hover:text-red-900">
-                    Delete
-                  </button>
+            {resourcesArray.length > 0 ? (
+              resourcesArray.map((resource, index) => (
+                <tr 
+                  key={resource._id} 
+                  className={index % 2 === 0 ? 'bg-white' : 'bg-gray-100 hover:bg-gray-200'}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {resource.displayName || '-'}
+                  </td>
+                  {resourceType?.fieldDefinitions
+                    ?.filter(field => field.showInList)
+                    .map(field => (
+                      <td key={field.fieldName} className="px-6 py-4 whitespace-nowrap">
+                        {renderFieldValue(
+                          resource.fields?.[field.fieldName] || resource[field.fieldName], 
+                          field.fieldType
+                        )}
+                      </td>
+                    ))}
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <button 
+                      onClick={() => handleEditClick(resource)}
+                      className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100 transition-colors"
+                      title="Edit"
+                    >
+                      <FiEdit2 size={18} />
+                    </button>
+                    <button 
+                      onClick={() => onDelete(resource._id)}
+                      className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100 transition-colors"
+                      title="Delete"
+                    >
+                      <FiTrash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td 
+                  colSpan={columnCount} 
+                  className="px-6 py-4 text-center text-gray-500"
+                >
+                  No resources found
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
-    );
-  };
+
+      {/* Edit Modal */}
+      {showEditModal && selectedResource && (
+        <ResourceEditModal
+          resource={selectedResource}
+          resourceType={resourceType}
+          onClose={handleCloseModal}
+          onSave={handleSave}
+        />
+      )}
+    </>
+  );
+};
+
+const renderFieldValue = (value, fieldType) => {
+  if (value === undefined || value === null) return '-';
   
-  const renderFieldValue = (value, fieldType) => {
-    switch(fieldType) {
-      case 'boolean':
-        return value ? 'Yes' : 'No';
-      case 'date':
-        return new Date(value).toLocaleDateString();
-      default:
-        return value || '-';
-    }
-  };
-  
-  export default ResourceTable;
+  switch(fieldType) {
+    case 'boolean':
+      return value ? 'Yes' : 'No';
+    case 'date':
+      return new Date(value).toLocaleDateString();
+    case 'object':
+      return JSON.stringify(value);
+    default:
+      return String(value);
+  }
+};
+
+export default ResourceTable;

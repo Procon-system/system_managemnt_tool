@@ -48,51 +48,7 @@ const HomePage = () => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
-  
-//   const updateEventState = useCallback((updatedEvents = [], deletedEventId = null) => {
-//     setFilteredEvents((prevEvents) => {
-//       let currentEvents = prevEvents || tasks || [];
-  
-//       // Handle deletion
-//       if (deletedEventId) {
-//         handleTaskDeletion(deletedEventId);
-//         const updatedEvents = currentEvents.filter(
-//           (event) => event._id !== deletedEventId
-//         );
-//         eventsRef.current = updatedEvents; // Sync with ref
-//         return updatedEvents; // Update state
-//       }
-  
-//       // Handle updates or additions
-//       if (updatedEvents && updatedEvents.length > 0) {
-//         const eventMap = new Map(
-//           currentEvents.map((event) => [event._id, event])
-//         );
-  
-//         updatedEvents.forEach((event) => {
-//           if (event && event._id) {
-//             eventMap.set(event._id, {
-//               ...eventMap.get(event._id),
-//               ...event,
-//             });
-//           }
-//         });
-  
-//         const finalEvents = Array.from(eventMap.values()).filter(
-//           (event) =>
-//             event._id &&
-//             event.title &&
-//             (event.start_time || event.start) &&
-//             (event.end_time || event.end)
-//         );
-//         eventsRef.current = finalEvents; // Sync with ref
-//         return finalEvents;
-//       }
-  
-//       return currentEvents;
-//     });
-//   },[] // Dependency array
-// );
+
    const handleTaskDeletion = useCallback((deletedTaskId) => {
     setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
   },[]);
@@ -141,9 +97,7 @@ const HomePage = () => {
   }, [tasks, handleTaskDeletion, eventsRef]); // Add dependencies
 useEffect(() => {
   if (!isOnline) {
-    console.log("Offline: WebSocket operations are paused.");
-    // toast.warn("You are offline. Please check your internet connection.");
-    return; // Skip WebSocket operations if offline
+        return; // Skip WebSocket operations if offline
   }
 
   console.log("Online: Establishing WebSocket connection...");
@@ -229,60 +183,8 @@ useEffect(() => {
     });
   });
 
-  // Event: Multiple tasks updated
-  // socket.on("tasksUpdated", ({ updatedTasks }) => {
-  //   console.log("Tasks updated:", updatedTasks);
-
-  //   if (!Array.isArray(updatedTasks)) return;
-
-  //   try {
-  //     // Backup the current state before making any changes
-  //     const currentEvents = [...filteredEvents];
-
-  //     // Batch update all events at once
-  //     setFilteredEvents((prevEvents) => {
-  //       const eventMap = new Map(prevEvents.map((event) => [event._id, event]));
-
-  //       updatedTasks.forEach((task) => {
-  //         const taskData = task.updatedTask || task;
-
-  //         const formattedTask = {
-  //           _id: taskData._id,
-  //           title: taskData.title,
-  //           start: taskData.start_time || taskData.start,
-  //           end: taskData.end_time || taskData.end,
-  //           color: taskData.color || taskData.color_code,
-  //           status: taskData.status,
-  //           notes: taskData.notes,
-  //           assigned_resources: {
-  //             assigned_to: taskData.assigned_to || [],
-  //             tools: taskData.tools || [],
-  //             materials: taskData.materials || [],
-  //           },
-  //         };
-
-  //         if (eventMap.has(formattedTask._id)) {
-  //           eventMap.set(formattedTask._id, {
-  //             ...eventMap.get(formattedTask._id),
-  //             ...formattedTask,
-  //           });
-  //         } else {
-  //           eventMap.set(formattedTask._id, formattedTask);
-  //         }
-  //       });
-
-  //       const updatedEvents = Array.from(eventMap.values());
-  //       return updatedEvents.length > 0 ? updatedEvents : prevEvents;
-  //     });
-  //   } catch (error) {
-  //     console.error("Error processing task updates:", error);
-  //     setFilteredEvents(filteredEvents); // Restore the previous state
-  //     toast.error("Failed to update tasks. Please try again.");
-  //   }
-  // });
-  socket.on("tasksUpdated", ({ updatedTasks }) => {
-    console.log("Tasks updated:", updatedTasks);
-  
+    socket.on("tasksUpdated", ({ updatedTasks }) => {
+    
     if (!Array.isArray(updatedTasks)) return;
     updateEventState(updatedTasks);
   });
@@ -355,7 +257,7 @@ useEffect(() => {
 useEffect(() => {
   if (currentView === 'allTasks') {
    
-    dispatch(fetchTasks()); // Fetch all tasks
+    // dispatch(fetchTasks()); // Fetch all tasks
   } else if (currentView === 'userTasks') {
     
        dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user
@@ -377,47 +279,12 @@ useEffect(() => {
     } else if (currentView === 'userTasks') {
       setFilteredEvents(
         validEvents
-        // filter((event) => {
-        //   // Check if assigned_resources and assigned_to exist and are valid
-        //   if (
-        //     event.assigned_resources &&
-        //     Array.isArray(event.assigned_resources.assigned_to) &&
-        //     user?._id
-        //   ) {
-        //     // Extract the _id field from each object in assigned_to
-        //     const assignedUserIds = event.assigned_resources.assigned_to.map(
-        //       (user) => user._id
-        //     )
-        //     // Check if the user's ID is in the assignedUserIds array
-        //     const isUserAssigned = assignedUserIds.includes(user._id);
-            
-        //     return isUserAssigned;
-        //   }
-        //   return false; // Exclude the event if conditions are not met
-        // })
+        
       );
     } else if (currentView === 'userDoneTasks') {
       setFilteredEvents(
         validEvents
-        // .filter((event) => {
-        //   // Check if assigned_resources and assigned_to exist and are valid
-        //   if (
-        //     event.assigned_resources &&
-        //     Array.isArray(event.assigned_resources.assigned_to) &&
-        //     user?._id
-        //   ) {
-        //     // Extract the _id field from each object in assigned_to
-        //     const assignedUserIds = event.assigned_resources.assigned_to.map(
-        //       (user) => user._id
-        //     );
-
-        //     return (
-        //       event.status === 'done' &&
-        //       assignedUserIds.includes(user._id)
-        //     );
-        //   }
-        //   return false; // Exclude the event if conditions are not met
-        // })
+        
       );
     } else if (currentView === 'allDoneTasks') {
       setFilteredEvents(
@@ -452,8 +319,6 @@ const handleMultipleEventUpdate = (updatedEvents) => {
   dispatch(bulkUpdateTasks(updatedTasksData))
     .unwrap()
     .then((successfulUpdates) => {
-      console.log("Successful updates:", successfulUpdates);
-
       // Update the local state with the successful updates
       setFilteredEvents((prevEvents) => {
         const currentEvents = prevEvents || tasks || [];

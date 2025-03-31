@@ -12,7 +12,7 @@ const resourceSchema = new mongoose.Schema({
   },
   displayName: {
     type: String,
-    required: true
+    required: false
   },
   fields: {
     type: Map,

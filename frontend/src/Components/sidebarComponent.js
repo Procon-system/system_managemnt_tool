@@ -3,8 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaPlus } from 'react-icons/fa';
 import { setTaskView } from '../features/taskSlice';
-import { FiList, FiCheckCircle, FiArchive, FiClipboard, FiTool, FiUsers, FiUserPlus, FiSettings, FiPackage } from "react-icons/fi";
-import { FaUser } from "react-icons/fa";
+import {FiChevronDown } from 'react-icons/fi';
+import { FiList, FiCheckCircle, FiArchive, FiClipboard, FiTool, FiUser,FiUsers, FiUserPlus, FiSettings, FiPackage } from "react-icons/fi";
 import DateRangeFilter from "../Components/taskComponents/datePicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { AiOutlineHome } from "react-icons/ai";
@@ -13,6 +13,10 @@ import { fetchResourceTypes } from '../features/resourceTypeSlice';
 const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showAddOptions, setShowAddOptions] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState({
+    teams: false,
+    resources: false
+  });
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -25,18 +29,33 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
       dispatch(fetchResourceTypes());
     }
   }, [dispatch, access_level]);
-  // Define the icon rendering function inside the component
+  // Categorize resources
+  const categorizedResources = resourceTypes?.reduce((acc, type) => {
+    const category = type.category === 'team' ? 'teams' : 'resources';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(type);
+    return acc;
+  }, {});
+
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
   const renderDynamicIcon = (iconName) => {
     const iconComponents = {
-      wrench: <FiTool size={16} />,
-      FiTool: <FiTool size={16} />,
-      settings: <FiSettings size={16} />,
-      package: <FiPackage size={16} />,
+      wrench: <FiTool size={20} />,
+      FiTool: <FiTool size={20} />,
+      settings: <FiSettings size={20} />,
+      package: <FiPackage size={20} />,
+      users: <FiUsers size={20} />,
+      user: <FiUser size={20} />,
       // Add more icon mappings as needed
     };
     
-    return iconComponents[iconName] || 
-      <span className="text-sm">{iconName}</span>; // Fallback for unknown icons
+    return iconComponents[iconName] || <span className="text-sm">{iconName}</span>;
   };
   const toggleSidebar = () => setIsOpen(!isOpen);
 
@@ -134,7 +153,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
               </button>
             )}
   
-            {access_level >= 4 && (
+            {/* {access_level >= 4 && (
               <button
                 className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
                 onClick={() => handleNavigation('/user')}
@@ -143,7 +162,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
                 User List
               </button>
             )}
-  
+   */}
             <button
               className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
               onClick={handleViewAllDoneTasksClick}
@@ -154,88 +173,161 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
           </div>
   
           {/* Resource Types Section */}
-          {access_level >= 3 && resourceTypes?.length > 0 && (
-            <div className="mt-4 flex-1 min-h-0">
-              <h3 className="px-4 py-2 text-sm font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-10">
-                Resource Types
-              </h3>
-              <div className="overflow-y-auto max-h-[200px]">
-                <div className="space-y-1 pr-2">
-                  {resourceTypes.map((type) => (
-                    <button
-                      key={type._id}
-                      onClick={() => navigate(`/resource-types/${type._id}`)}
-                      className="w-full flex items-center text-left hover:bg-gray-100 px-4 py-2 rounded-md transition-colors duration-200"
-                      style={{ color: type.color || '#3b82f6' }}
-                    >
-                      {type.icon && (
-                        <span className="mr-3 flex-shrink-0" style={{ color: type.color }}>
-                          {renderDynamicIcon(type.icon)}
-                        </span>
-                      )}
-                      <span className="truncate flex-1 min-w-0">{type.name}</span>
-                    </button>
-                  ))}
+          {access_level >= 3 && categorizedResources && (
+            <div className="mt-4">
+              
+              {/* Teams Dropdown */}
+              {categorizedResources.teams && (
+                <div className="mb-2">
+                  <button
+                    onClick={() => toggleCategory('teams')}
+                    className="w-full flex items-center justify-between px-4 py-2 text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-all"
+                  >
+                    <div className="flex items-center">
+                      <FiUsers className="mr-3 text-blue-500" size={18} />
+                      <span>Teams</span>
+                    </div>
+                    <FiChevronDown 
+                      className={`transition-transform duration-200 ${expandedCategories.teams ? 'transform rotate-180' : ''}`} 
+                      size={16} 
+                    />
+                  </button>
+                  
+                  <div 
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      expandedCategories.teams ? 'max-h-96' : 'max-h-0'
+                    }`}
+                  >
+                    <div className="ml-8 mt-1 space-y-1">
+                      {categorizedResources.teams.map(type => (
+                        <button
+                          key={type._id}
+                          onClick={() => navigate(`/resource-types/${type._id}`)}
+                          className="w-full flex items-center text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
+                        >
+                          {type.icon && (
+                            <span className="mr-2" style={{ color: type.color || '#1f2937' }}>
+                              {renderDynamicIcon(type.icon)}
+                            </span>
+                          )}
+                          <span className="truncate">{type.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
+              
+              {/* Resources Dropdown */}
+              {categorizedResources.resources && (
+                <div className="mb-2">
+                  <button
+                    onClick={() => toggleCategory('resources')}
+                    className="w-full flex items-center justify-between px-4 py-2 text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-all"
+                  >
+                    <div className="flex items-center">
+                      <FiPackage className="mr-3 text-blue-500" size={24} />
+                      <span>Resources</span>
+                    </div>
+                    <FiChevronDown 
+                      className={`transition-transform duration-200 ${expandedCategories.resources ? 'transform rotate-180' : ''}`} 
+                      size={24} 
+                    />
+                  </button>
+                  
+                  <div 
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      expandedCategories.resources ? 'max-h-96' : 'max-h-0'
+                    }`}
+                  >
+                    <div className="ml-8 mt-1 space-y-1">
+                      {categorizedResources.resources.map(type => (
+                        <button
+                          key={type._id}
+                          onClick={() => navigate(`/resource-types/${type._id}`)}
+                          className="w-full flex items-center text-left px-3 py-2 rounded-md  hover:bg-blue-100 text-gray-700 transition-colors"
+                        >
+                          {type.icon && (
+                            <span className="mr-2" style={{ color: type.color || '#1f2937' }}>
+                              {renderDynamicIcon(type.icon)}
+                            </span>
+                          )}
+                          <span className="truncate">{type.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
         </div>
-  
+          )}
+          </div>
         {/* Add Button (Sticky Bottom) */}
         {access_level >= 4 && (
-          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 pt-2 pb-4">
-            <div 
-              className="relative flex justify-end pr-4"
-              onMouseEnter={() => setShowAddOptions(true)}
-              onMouseLeave={() => setShowAddOptions(false)}
-            >
-              <div className="relative">
-                <button 
-                  className="bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-110"
-                  aria-label="Add options"
-                >
-                  <FaPlus size={18} />
-                </button>
-  
-                <div className={`absolute bottom-full right-0 mb-2 flex flex-col space-y-1 transition-all duration-300 ${
-                  showAddOptions ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
-                }`}>
-                  <button 
-                    className="bg-blue-400 text-white p-2 rounded-full shadow-md hover:bg-blue-500 transition-transform duration-200 transform hover:-translate-y-1 flex items-center justify-center"
-                    onClick={() => {
-                      handleNavigation('/add-team');
-                      setShowAddOptions(false);
-                    }}
-                    aria-label="Add team"
-                  >
-                    <FiUsers size={16} />
-                  </button>
-                  <button 
-                    className="bg-blue-400 text-white p-2 rounded-full shadow-md hover:bg-blue-500 transition-transform duration-200 transform hover:-translate-y-1 flex items-center justify-center"
-                    onClick={() => {
-                      handleNavigation('/create-resource-type');
-                      setShowAddOptions(false);
-                    }}
-                    aria-label="Add resource"
-                  >
-                    <FiTool size={16} />
-                  </button>
-                  <button 
-                    className="bg-blue-400 text-white p-2 rounded-full shadow-md hover:bg-blue-500 transition-transform duration-200 transform hover:-translate-y-1 flex items-center justify-center"
-                    onClick={() => {
-                      handleNavigation('/add-user');
-                      setShowAddOptions(false);
-                    }}
-                    aria-label="Add user"
-                  >
-                    <FiUserPlus size={16} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+  <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 pt-2 pb-4">
+    <div 
+      className="relative flex justify-end pr-4"
+      onMouseEnter={() => setShowAddOptions(true)}
+      onMouseLeave={() => setShowAddOptions(false)}
+      onTouchStart={() => setShowAddOptions(!showAddOptions)} // Toggle on touch
+    >
+      <div className="relative">
+        <button 
+          className="bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+          aria-label="Add options"
+          onClick={() => setShowAddOptions(!showAddOptions)} // Toggle on click for touch devices
+        >
+          <FaPlus size={18} />
+        </button>
+
+        {/* Options panel */}
+        <div className={`absolute bottom-full right-0 mb-2 flex flex-col space-y-2 transition-all duration-300 ease-in-out ${
+          showAddOptions ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
+        }`}>
+          <button 
+            className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
+            onClick={() => {
+              handleNavigation('/add-team');
+              setShowAddOptions(false);
+            }}
+            aria-label="Add team"
+          >
+            <FiUsers size={18} />
+            <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              Add Team
+            </span>
+          </button>
+          <button 
+            className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
+            onClick={() => {
+              handleNavigation('/create-resource-type');
+              setShowAddOptions(false);
+            }}
+            aria-label="Add resource"
+          >
+            <FiTool size={18} />
+            <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              Add Resource
+            </span>
+          </button>
+          <button 
+            className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
+            onClick={() => {
+              handleNavigation('/add-user');
+              setShowAddOptions(false);
+            }}
+            aria-label="Add user"
+          >
+            <FiUserPlus size={18} />
+            <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              Add User
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       </aside>
   
       {/* Mobile Overlay */}

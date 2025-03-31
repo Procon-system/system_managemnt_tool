@@ -179,7 +179,9 @@ const App = () => {
             path="/resource-types/:typeId"
             element={
               <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+                 <MainLayout>
                < ResourceListPage/>
+               </MainLayout>
               </ProtectedRoute>
             }
           />

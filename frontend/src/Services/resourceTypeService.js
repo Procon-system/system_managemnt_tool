@@ -75,21 +75,21 @@ const resourceTypeService = {
         });
         
         // Cache data locally
-        try {
-          const existingDoc = await localDB.get('resourceTypes').catch(() => null);
-          const dataToStore = {
-            _id: 'resourceTypes',
-            data: response.data.map(item => ({ ...item, synced: true }))
-          };
+        // try {
+        //   const existingDoc = await localDB.get('resourceTypes').catch(() => null);
+        //   const dataToStore = {
+        //     _id: 'resourceTypes',
+        //     data: response.data.map(item => ({ ...item, synced: true }))
+        //   };
           
-          if (existingDoc) {
-            dataToStore._rev = existingDoc._rev;
-          }
+        //   if (existingDoc) {
+        //     dataToStore._rev = existingDoc._rev;
+        //   }
           
-          await localDB.put(dataToStore);
-        } catch (dbError) {
-          console.error('Local DB sync error:', dbError);
-        }
+        //   await localDB.put(dataToStore);
+        // } catch (dbError) {
+        //   console.error('Local DB sync error:', dbError);
+        // }
         
         return response.data;
       } else {

@@ -1,26 +1,33 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import TaskForm from '../../Components/taskComponents/taskForm';
 import { toast } from 'react-toastify';
-const TaskPage = ({ onClose, onEventCreate,event ,isOffset = false}) => {
- 
-  // const { loading, error } = useSelector((state) => state.tasks);
+
+const TaskPage = ({ onClose, onEventCreate, event, isOffset = false }) => {
+  // Get all resource types from Redux store
+  const { resourceTypes } = useSelector((state) => state.resourceTypes);
+  
   const initialTaskData = {
     title: event?.title || "",
     start_time: event?.start_time || "",
     end_time: event?.end_time || "",
     color_code: event?.color_code || "",
+    // Initialize arrays for multiple resources
+    assignedResources: event?.assignedResources || [],
+    requiredTools: event?.requiredTools || [],
+    materials: event?.materials || [],
+    // Other default values
   };
+
   const handleTaskSubmit = async (taskData) => {
     try {
       if (onEventCreate) {
-        await onEventCreate(taskData); // Ensure it's awaited if necessary
+        await onEventCreate(taskData);
       }
       if (onClose) {
         onClose();
       }
-     
     } catch (error) {
-      // Display error toast if an error occurs
       const errorMessage = 
         error?.message || "An unknown error occurred while creating the task.";
       toast.error(`Error: ${errorMessage}`);
@@ -29,8 +36,13 @@ const TaskPage = ({ onClose, onEventCreate,event ,isOffset = false}) => {
 
   return (
     <div className={`mt-3 ${isOffset ? '' : 'lg:ml-96'}`}>
-      <TaskForm onSubmit={handleTaskSubmit} initialData={initialTaskData} />
+      <TaskForm 
+        onSubmit={handleTaskSubmit} 
+        initialData={initialTaskData}
+        resourceTypes={resourceTypes} // Pass all resource types
+      />
     </div>
   );
 };
+
 export default TaskPage;

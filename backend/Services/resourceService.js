@@ -7,65 +7,56 @@ exports.createResource = async (resourceData) => {
   const resourceType = await ResourceType.findOne({
     _id: resourceData.type,
     organization: resourceData.organization
-  });
-  
+  }).lean();
+
   if (!resourceType) {
-    throw new Error('Resource type not found');
+    throw new Error(`Resource type with ID ${resourceData.type} not found`);
   }
 
-  // Convert fields to Map if it's a plain object
+  // Convert fields to Map
   const fieldsMap = resourceData.fields instanceof Map 
     ? resourceData.fields 
     : new Map(Object.entries(resourceData.fields || {}));
 
   // Validate fields
   const fieldErrors = [];
-  const fieldDefinitions = resourceType.fieldDefinitions;
+  const fieldDefinitions = resourceType.fieldDefinitions || [];
   const allowedFields = new Set(fieldDefinitions.map(def => def.fieldName));
-  
-  // Check for extra fields not in the resource type
-  for (const [fieldName] of fieldsMap) {
-    if (!allowedFields.has(fieldName)) {
-      fieldErrors.push(`Field '${fieldName}' is not defined in the resource type`);
-    }
-  }
 
   // Validate required fields and types
   for (const def of fieldDefinitions) {
     const fieldValue = fieldsMap.get(def.fieldName);
     
-    if (def.required && !fieldsMap.has(def.fieldName)) {
+    if (def.required && (fieldValue === undefined || fieldValue === null || fieldValue === '')) {
       fieldErrors.push(`Field '${def.fieldName}' is required`);
       continue;
     }
     
-    if (fieldsMap.has(def.fieldName)) {
+    if (fieldValue !== undefined && fieldValue !== null) {
       const typeCheck = checkFieldType(fieldValue, def.fieldType);
       if (!typeCheck.valid) {
         fieldErrors.push(`Field '${def.fieldName}' should be ${def.fieldType}: ${typeCheck.message}`);
       }
     }
   }
-  
+
   if (fieldErrors.length > 0) {
     throw new Error(`Validation errors: ${fieldErrors.join(', ')}`);
   }
 
-  // Filter to only include allowed fields
-  const filteredFields = new Map();
-  for (const def of fieldDefinitions) {
-    if (fieldsMap.has(def.fieldName)) {
-      filteredFields.set(def.fieldName, fieldsMap.get(def.fieldName));
-    } else if (def.defaultValue !== undefined) {
-      filteredFields.set(def.fieldName, def.defaultValue);
-    }
-  }
-
-  // Create resource with only validated fields
+  // Create resource with explicit field mapping
   const resource = new Resource({
-    ...resourceData,
-    fields: filteredFields
+    displayName: resourceData.displayName, // Explicitly include
+    type: resourceData.type,
+    organization: resourceData.organization,
+    createdBy: resourceData.createdBy,
+    fields: fieldsMap,
+    // Initialize other required fields
+    status: 'active', // Add default status if needed
+    tags: [] // Initialize empty array if needed
   });
+
+  console.log('Final resource before save:', resource); // Debug log
   
   return await resource.save();
 };

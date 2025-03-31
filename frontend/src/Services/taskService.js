@@ -95,8 +95,6 @@ const syncLocalDataWithBackend = async (token) => {
             _rev: latestDoc._rev,
             data: updatedTasks,
           });
-
-          console.log('New task synced and updated in localDB.');
         } catch (error) {
           console.error(`Error syncing new task ${task._id}:`, error.response?.data || error.message);
           // Mark the task as synced to prevent infinite retries
@@ -111,62 +109,7 @@ const syncLocalDataWithBackend = async (token) => {
         }
       }
 
-      // Sync updated tasks (non-bulk)
-      // for (const task of updatedTasks) {
-      //   try {
-      //     console.log('Syncing updated task:', task._id);
-
-      //     // Fetch the latest version of the task from the server
-      //     const latestTask = await axios.get(`${API_URL}/get-tasks-id/${task._id}`, {
-      //       headers: {
-      //         Authorization: `Bearer ${token}`,
-      //       },
-      //     });
-
-      //     // Merge the local changes with the latest version from the server
-      //     const mergedTask = {
-      //       ...latestTask.data, // Start with the server's version
-      //       ...task, // Overwrite with local changes
-      //       _rev: latestTask.data._rev, // Use the latest _rev from the server
-      //     };
-
-      //     // Log the merged task to verify the updated values
-      //     console.log('Merged task payload:', mergedTask);
-
-      //     // Update the task on the server
-      //     await axios.put(`${API_URL}/update-tasks/${task._id}`, mergedTask, {
-      //       headers: {
-      //         Authorization: `Bearer ${token}`,
-      //       },
-      //     });
-
-      //     // Mark the task as synced in the local database
-      //     const updatedTasks = tasks.map((t) =>
-      //       t._id === task._id ? { ...t, synced: true } : t
-      //     );
-
-      //     // Fetch the latest revision to avoid conflicts
-      //     const latestDoc = await localDB.get('tasks');
-      //     await localDB.put({
-      //       _id: 'tasks',
-      //       _rev: latestDoc._rev,
-      //       data: updatedTasks,
-      //     });
-
-      //     console.log('Updated task synced and marked as synced in localDB.');
-      //   } catch (error) {
-      //     console.error(`Error syncing updated task ${task._id}:`, error.response?.data || error.message);
-      //     // Mark the task as synced to prevent infinite retries
-      //     const updatedTasks = tasks.map((t) =>
-      //       t._id === task._id ? { ...t, synced: true } : t
-      //     );
-      //     await localDB.put({
-      //       _id: 'tasks',
-      //       _rev: tasksDoc._rev,
-      //       data: updatedTasks,
-      //     });
-      //   }
-      // }
+     
 // Sync updated tasks (non-bulk)
 for (const task of updatedTasks) {
   try {
@@ -442,43 +385,7 @@ createTask : async (taskData, token) => {
           }
         }
       }
-      // else {
-        // const taskId = `task:${uuidv4()}`; // Generate a task:<UUID> _id
-        // const newTask = {
-        //   _id: taskId,
-        //   type: 'task',
-        //   ...taskData,
-        //   synced: false, // Mark as unsynced
-        //   isNew: true, // Mark as new task
-        // };
-  
-        // // Fetch the existing tasks document
-        // const existingDoc = await localDB.get('tasks').catch(() => null);
-  
-        // if (existingDoc) {
-        //   // Add the new task to the data array
-        //   const updatedTasks = [...existingDoc.data, newTask];
-  
-        //   // Update the document with the new tasks array
-        //   await localDB.put({
-        //     _id: 'tasks',
-        //     _rev: existingDoc._rev,
-        //     data: updatedTasks,
-        //   });
-  
-        //   console.log('Task saved locally:', newTask);
-        // } else {
-        //   // Create a new tasks document if it doesn't exist
-        //   await localDB.put({
-        //     _id: 'tasks',
-        //     data: [newTask],
-        //   });
-  
-        //   console.log('New tasks document created in localDB:', newTask);
-        // }
-  
-        // return { taskData: newTask }; // Wrap the task in a taskData field
-      // }
+     
       
     } catch (error) {
       console.error('Error creating task:', error.response?.data || error.message);
@@ -496,8 +403,6 @@ fetchTasks: async (token) => {
       });
       tasks = response.data;
 
-      console.log("Fetched tasks from server:", tasks);
-
       // Save tasks to local PouchDB for offline use
       try {
         const existingDoc = await localDB.get("tasks").catch(() => null);
@@ -512,8 +417,7 @@ fetchTasks: async (token) => {
         }
 
         await localDB.put(docToSave);
-        console.log("Tasks saved to PouchDB successfully.");
-
+       
         // Save images as attachments in PouchDB
         for (const task of tasks) {
           if (task.images && task.images.length > 0) {
@@ -583,7 +487,6 @@ fetchTasks: async (token) => {
             }
           }
         }
-        console.log("Images saved to PouchDB successfully.");
       } catch (err) {
         if (err.name === "conflict") {
           console.log("Document conflict detected. Retrying...");
@@ -593,7 +496,6 @@ fetchTasks: async (token) => {
             _rev: latestDoc._rev,
             data: tasks.map((task) => ({ ...task, synced: true, isNew: false })),
           });
-          console.log("Tasks updated in PouchDB successfully.");
         } else {
           console.error("Error saving tasks to PouchDB:", err);
           throw err;
@@ -601,11 +503,8 @@ fetchTasks: async (token) => {
       }
 
       return tasks;
-    } else {
-      console.log("App is offline. Fetching tasks from PouchDB...");
-      const localData = await localDB.get("tasks").catch(() => ({ data: [] }));
-      console.log("Fetched tasks from PouchDB:", localData.data);
-      return localData.data;
+    } else {      const localData = await localDB.get("tasks").catch(() => ({ data: [] }));
+            return localData.data;
     }
   } catch (error) {
     console.error("Failed to fetch tasks:", error);

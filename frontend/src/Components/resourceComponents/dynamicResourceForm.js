@@ -1,23 +1,80 @@
 import { useForm } from 'react-hook-form';
-// import { createResource } from '../redux/slices/resourceSlice';
+import { createResource } from '../../features/resourceSlice';
 import { useDispatch } from 'react-redux';
 import React, { useState } from 'react';
+
 const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
   const dispatch = useDispatch();
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, formState: { errors }, setError } = useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (formData) => {
     setIsSubmitting(true);
-    // try {
-    //   await dispatch(createResource({
-    //     typeId: resourceType._id,
-    //     data
-    //   })).unwrap();
-    //   onSuccess();
-    // } finally {
-    //   setIsSubmitting(false);
-    // }
+    try {
+      // Convert field values to their proper types
+      const processedFields = {};
+      
+      resourceType.fieldDefinitions.forEach(field => {
+        const value = formData[field.fieldName];
+        
+        if (value === undefined || value === null) {
+          if (field.required) {
+            throw new Error(`Field '${field.fieldName}' is required`);
+          }
+          return;
+        }
+
+        switch(field.fieldType) {
+          case 'number':
+            processedFields[field.fieldName] = Number(value);
+            if (isNaN(processedFields[field.fieldName])) {
+              throw new Error(`Field '${field.fieldName}' must be a valid number`);
+            }
+            break;
+          case 'boolean':
+            processedFields[field.fieldName] = Boolean(value);
+            break;
+          case 'date':
+            processedFields[field.fieldName] = new Date(value).toISOString();
+            break;
+          default:
+            processedFields[field.fieldName] = value;
+        }
+      });
+
+      const payload = {
+        type: resourceType._id,
+        organization: resourceType.organization,
+        displayName: formData.name || `New ${resourceType.name}`,
+        fields: {
+          ...processedFields,
+          // Ensure these fields are included even if not in fieldDefinitions
+          name: formData.name,
+          model: formData.model || '',
+          purchaseDate: formData.purchaseDate || new Date().toISOString()
+        }
+      };
+
+      console.log('Submitting payload:', payload);
+      
+      await dispatch(createResource(payload)).unwrap();
+      onSuccess();
+    } catch (error) {
+      console.error('Error creating resource:', error);
+      
+      // Set form errors if they're validation errors
+      if (error.message.includes('Field')) {
+        const fieldName = error.message.match(/Field '(.+?)'/)?.[1];
+        if (fieldName) {
+          setError(fieldName, {
+            type: 'manual',
+            message: error.message
+          });
+        }
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -32,10 +89,12 @@ const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
             </label>
             <input
               type="text"
-              {...register('name', { required: true })}
+              {...register('name', { required: 'Name is required' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
-            {errors.name && <span className="text-red-500 text-sm">This field is required</span>}
+            {errors.name && (
+              <span className="text-red-500 text-sm">{errors.name.message}</span>
+            )}
           </div>
 
           {/* Dynamic fields based on resource type */}
@@ -45,9 +104,11 @@ const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
                 {field.displayName || field.fieldName}
                 {field.required && <span className="text-red-500">*</span>}
               </label>
-              {renderFieldInput(field, register)}
+              {renderFieldInput(field, register, errors)}
               {errors[field.fieldName] && (
-                <span className="text-red-500 text-sm">This field is required</span>
+                <span className="text-red-500 text-sm">
+                  {errors[field.fieldName].message || 'This field is required'}
+                </span>
               )}
             </div>
           ))}
@@ -74,9 +135,23 @@ const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
   );
 };
 
-const renderFieldInput = (field, register) => {
+const renderFieldInput = (field, register, errors) => {
   const validation = {
-    required: field.required ? 'This field is required' : false
+    required: field.required ? `${field.displayName || field.fieldName} is required` : false,
+    validate: (value) => {
+      if (!field.required && (value === undefined || value === null || value === '')) {
+        return true;
+      }
+      
+      switch(field.fieldType) {
+        case 'number':
+          return !isNaN(Number(value)) || 'Must be a valid number';
+        case 'date':
+          return !isNaN(new Date(value).getTime()) || 'Must be a valid date';
+        default:
+          return true;
+      }
+    }
   };
 
   switch(field.fieldType) {
@@ -93,6 +168,7 @@ const renderFieldInput = (field, register) => {
       return (
         <input
           type="number"
+          step="any"
           {...register(field.fieldName, validation)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           defaultValue={field.defaultValue}
