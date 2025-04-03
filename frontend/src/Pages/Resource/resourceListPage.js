@@ -4,10 +4,9 @@ import { fetchResourcesByType, updateResource, deleteResource } from '../../feat
 import ResourceTable from '../../Components/resourceComponents/resourceTable';
 import DynamicResourceForm from '../../Components/resourceComponents/dynamicResourceForm';
 import React, { useState, useEffect } from 'react';
-import { FiTool, FiSettings, FiPackage } from "react-icons/fi";
 import LoadingSpinner from '../../Components/common/LoadingSpinner';
 import ErrorAlert from '../../Components/common/ErrorAlert';
-
+import RenderDynamicIcon from '../../Components/common/RenderDynamicIcon';
 const ResourceListPage = () => {
   const { typeId } = useParams();
   const dispatch = useDispatch();
@@ -37,17 +36,7 @@ const ResourceListPage = () => {
     }
   };
 
-  const renderDynamicIcon = (iconName) => {
-    const iconComponents = {
-      wrench: <FiTool size={16} />,
-      FiTool: <FiTool size={16} />,
-      settings: <FiSettings size={16} />,
-      package: <FiPackage size={16} />,
-    };
-    
-    return iconComponents[iconName] || 
-      <span className="text-sm">{iconName}</span>;
-  };
+  
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorAlert message={error} />;
@@ -56,12 +45,12 @@ const ResourceListPage = () => {
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold flex items-center">
-          {resourceType?.icon && (
-            <span className="mr-2" style={{ color: resourceType.color }}>
-              {renderDynamicIcon(resourceType.icon)}
-            </span>
-          )}
-          {resourceType?.name || 'Resources'}
+        {resourceType?.icon && (
+    <span className="mr-2" style={{ color: resourceType.color }}>
+      {RenderDynamicIcon(resourceType.icon, 20, "text-blue-500")}
+    </span>
+  )}
+  {resourceType?.name || 'Resources'}
         </h1>
         <button 
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"

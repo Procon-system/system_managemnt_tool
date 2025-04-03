@@ -118,7 +118,8 @@ const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 rounded-md text-white bg-red-500 hover:bg-red-600"
+
           >
             Cancel
           </button>

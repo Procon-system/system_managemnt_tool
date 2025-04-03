@@ -4,12 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaPlus } from 'react-icons/fa';
 import { setTaskView } from '../features/taskSlice';
 import {FiChevronDown } from 'react-icons/fi';
-import { FiList, FiCheckCircle, FiArchive, FiClipboard, FiTool, FiUser,FiUsers, FiUserPlus, FiSettings, FiPackage } from "react-icons/fi";
+import { FiList, FiCheckCircle, FiArchive, FiClipboard, FiTool, FiUsers, FiUserPlus,  FiPackage } from "react-icons/fi";
 import DateRangeFilter from "../Components/taskComponents/datePicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { AiOutlineHome } from "react-icons/ai";
 import { fetchResourceTypes } from '../features/resourceTypeSlice';
-
+import RenderDynamicIcon from './common/RenderDynamicIcon';
 const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showAddOptions, setShowAddOptions] = useState(false);
@@ -44,19 +44,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
     }));
   };
 
-  const renderDynamicIcon = (iconName) => {
-    const iconComponents = {
-      wrench: <FiTool size={20} />,
-      FiTool: <FiTool size={20} />,
-      settings: <FiSettings size={20} />,
-      package: <FiPackage size={20} />,
-      users: <FiUsers size={20} />,
-      user: <FiUser size={20} />,
-      // Add more icon mappings as needed
-    };
-    
-    return iconComponents[iconName] || <span className="text-sm">{iconName}</span>;
-  };
+
   const toggleSidebar = () => setIsOpen(!isOpen);
 
   const handleNavigation = (path) => {
@@ -104,10 +92,10 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
           isOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 lg:mt-16 transition-transform duration-300 ease-in-out z-40 flex flex-col`}
       >
-        {/* Main Scrollable Content */}
-        <div className="flex-1 overflow-y-auto py-4 pl-4 pr-1 flex flex-col">
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto pb-4">
           {/* Date Picker */}
-          <div className="mt-3">
+          <div className="mt-3 px-4">
             <DateRangeFilter
               onDateRangeSelect={onDateRangeSelect}
               onCalendarDateChange={onCalendarDateChange}
@@ -115,7 +103,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
           </div>
   
           {/* Navigation Buttons */}
-          <div className="space-y-2 mt-4">
+          <div className="space-y-2 mt-4 px-4">
             <button
               className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
               onClick={handleHomeClick}
@@ -153,16 +141,6 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
               </button>
             )}
   
-            {/* {access_level >= 4 && (
-              <button
-                className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
-                onClick={() => handleNavigation('/user')}
-              >
-                <FaUser className="text-blue-500 mr-3" size={24} />
-                User List
-              </button>
-            )}
-   */}
             <button
               className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
               onClick={handleViewAllDoneTasksClick}
@@ -173,9 +151,9 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
           </div>
   
           {/* Resource Types Section */}
+          {/* Resource Types Section */}
           {access_level >= 3 && categorizedResources && (
-            <div className="mt-4">
-              
+            <div className="py-2 pl-4 pr-1 mr-3 border-t border-gray-200">
               {/* Teams Dropdown */}
               {categorizedResources.teams && (
                 <div className="mb-2">
@@ -194,8 +172,8 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
                   </button>
                   
                   <div 
-                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                      expandedCategories.teams ? 'max-h-96' : 'max-h-0'
+                    className={`overflow-y-auto transition-all duration-300 ease-in-out ${
+                      expandedCategories.teams ? 'max-h-[300px]' : 'max-h-0'
                     }`}
                   >
                     <div className="ml-8 mt-1 space-y-1">
@@ -207,7 +185,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
                         >
                           {type.icon && (
                             <span className="mr-2" style={{ color: type.color || '#1f2937' }}>
-                              {renderDynamicIcon(type.icon)}
+                              {RenderDynamicIcon(type.icon,20)}
                             </span>
                           )}
                           <span className="truncate">{type.name}</span>
@@ -223,7 +201,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
                 <div className="mb-2">
                   <button
                     onClick={() => toggleCategory('resources')}
-                    className="w-full flex items-center justify-between px-4 py-2 text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-all"
+                    className="w-full flex items-center justify-between px-2 py-2 text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-all"
                   >
                     <div className="flex items-center">
                       <FiPackage className="mr-3 text-blue-500" size={24} />
@@ -236,8 +214,8 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
                   </button>
                   
                   <div 
-                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                      expandedCategories.resources ? 'max-h-96' : 'max-h-0'
+                    className={`overflow-y-auto transition-all duration-300 ease-in-out ${
+                      expandedCategories.resources ? 'max-h-[300px]' : 'max-h-0'
                     }`}
                   >
                     <div className="ml-8 mt-1 space-y-1">
@@ -245,11 +223,11 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
                         <button
                           key={type._id}
                           onClick={() => navigate(`/resource-types/${type._id}`)}
-                          className="w-full flex items-center text-left px-3 py-2 rounded-md  hover:bg-blue-100 text-gray-700 transition-colors"
+                          className="w-full flex items-center text-left px-3 py-2 rounded-md bg-blue-100 hover:bg-blue-200 text-gray-700 transition-colors"
                         >
                           {type.icon && (
                             <span className="mr-2" style={{ color: type.color || '#1f2937' }}>
-                              {renderDynamicIcon(type.icon)}
+                              {RenderDynamicIcon(type.icon,20)}
                             </span>
                           )}
                           <span className="truncate">{type.name}</span>
@@ -259,75 +237,77 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
                   </div>
                 </div>
               )}
-        </div>
+            </div>
           )}
-          </div>
-        {/* Add Button (Sticky Bottom) */}
-        {access_level >= 4 && (
-  <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 pt-2 pb-4">
-    <div 
-      className="relative flex justify-end pr-4"
-      onMouseEnter={() => setShowAddOptions(true)}
-      onMouseLeave={() => setShowAddOptions(false)}
-      onTouchStart={() => setShowAddOptions(!showAddOptions)} // Toggle on touch
-    >
-      <div className="relative">
-        <button 
-          className="bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
-          aria-label="Add options"
-          onClick={() => setShowAddOptions(!showAddOptions)} // Toggle on click for touch devices
-        >
-          <FaPlus size={18} />
-        </button>
-
-        {/* Options panel */}
-        <div className={`absolute bottom-full right-0 mb-2 flex flex-col space-y-2 transition-all duration-300 ease-in-out ${
-          showAddOptions ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
-        }`}>
-          <button 
-            className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
-            onClick={() => {
-              handleNavigation('/add-team');
-              setShowAddOptions(false);
-            }}
-            aria-label="Add team"
-          >
-            <FiUsers size={18} />
-            <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              Add Team
-            </span>
-          </button>
-          <button 
-            className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
-            onClick={() => {
-              handleNavigation('/create-resource-type');
-              setShowAddOptions(false);
-            }}
-            aria-label="Add resource"
-          >
-            <FiTool size={18} />
-            <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              Add Resource
-            </span>
-          </button>
-          <button 
-            className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
-            onClick={() => {
-              handleNavigation('/add-user');
-              setShowAddOptions(false);
-            }}
-            aria-label="Add user"
-          >
-            <FiUserPlus size={18} />
-            <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              Add User
-            </span>
-          </button>
+        
         </div>
-      </div>
-    </div>
-  </div>
-)}
+  
+        {/* Add Button - Now properly positioned at bottom */}
+        {access_level >= 4 && (
+          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 pt-2 pb-4 px-4 z-10">
+            <div 
+              className="relative flex justify-end"
+              onMouseEnter={() => setShowAddOptions(true)}
+              onMouseLeave={() => setShowAddOptions(false)}
+              onTouchStart={() => setShowAddOptions(!showAddOptions)}
+            >
+              <div className="relative">
+                <button 
+                  className="bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                  aria-label="Add options"
+                  onClick={() => setShowAddOptions(!showAddOptions)}
+                >
+                  <FaPlus size={18} />
+                </button>
+  
+                {/* Options panel */}
+                <div className={`absolute bottom-full right-0 mb-2 flex flex-col space-y-2 transition-all duration-300 ease-in-out ${
+                  showAddOptions ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
+                }`}>
+                  <button 
+                    className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    onClick={() => {
+                      handleNavigation('/add-team');
+                      setShowAddOptions(false);
+                    }}
+                    aria-label="Add team"
+                  >
+                    <FiUsers size={18} />
+                    <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      Add Team
+                    </span>
+                  </button>
+                  <button 
+                    className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    onClick={() => {
+                      handleNavigation('/create-resource-type');
+                      setShowAddOptions(false);
+                    }}
+                    aria-label="Add resource"
+                  >
+                    <FiTool size={18} />
+                    <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      Add Resource
+                    </span>
+                  </button>
+                  <button 
+                    className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    onClick={() => {
+                      handleNavigation('/add-user');
+                      setShowAddOptions(false);
+                    }}
+                    aria-label="Add user"
+                  >
+                    <FiUserPlus size={18} />
+                    <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      Add User
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </aside>
   
       {/* Mobile Overlay */}
