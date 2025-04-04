@@ -14,6 +14,7 @@ const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const config = require('./config/config');
+const { db } = require('./config/couchdb');
 const { setSocketIoInstance } = require('./Controllers/materialControllers');
 const {setTaskSocketIoInstance }= require('./Controllers/taskControllers');
 const {setMachineSocketIoInstance} = require('./Controllers/machineControllers')
