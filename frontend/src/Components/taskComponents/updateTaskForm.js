@@ -49,7 +49,7 @@ const handleChange = (e) => {
   const [newImages, setNewImages] = useState([]); // Store new images for preview
   useEffect(() => {
     if (editableEvent?._id) {
-      fetch( `${API_BASE_URL}/tasks/get-images/${editableEvent._id}`)
+      fetch( `${API_BASE_URL}/api/tasks/get-images/${editableEvent._id}`)
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data.images)) {

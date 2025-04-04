@@ -64,44 +64,54 @@ app.use('/api/material', materialsRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/users', userRoutes);
+async function syncUsersFromExternalAPI() {
+  try {
+    const response = await axios.get('http://SERVER_IP_HERE:8000/api/users/');
+    const users = response.data.users;
 
-// // WebSocket setup
-// WebSocket Middleware
-// io.on("connection", (socket) => {
-//   console.log(`User connected: ${socket.id}`);
+    for (const user of users) {
+      try {
+        // Check if user already exists in CouchDB
+        const existingUser = await db.find({
+          selector: {
+            type: 'user',
+            email: user.email,
+          },
+        });
 
-//   // Log received events
-//   socket.onAny((event, ...args) => {
-//     console.log(`Event received: ${event}`, args);
-//   });
+        if (existingUser.docs.length > 0) {
+          console.log(`User already exists (skipping): ${user.email}`);
+          continue;
+        }
 
-//   // Handle task updates with Redis cache
-//   socket.on("updateTask", async (data) => {
-//     console.log("Task update received:", data);
+        // Map the external API user to your CouchDB schema
+        const newUser = {
+          _id: `user:${Date.now()}`,
+          type: 'user', // Ensure this matches your user model
+          email: user.email,
+          password: user.password, // Assumes password is pre-encrypted
+          first_name: user.name?.split(' ')[0] || '',
+          last_name: user.name?.split(' ')[1] || '',
+          personal_number: user.telephone,
+          access_level: Number(user.access_level) || 1, // Default to 1 if missing
+          confirmationCode: generateConfirmationCode(), // Optional
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
 
-//     // Invalidate Redis cache
-//     await redisClient.del("tasks");
+        await db.insert(newUser);
+        console.log(`Synced user: ${user.email}`);
+      } catch (err) {
+        console.error(`Error syncing user ${user.email}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch users from external API:', err.message);
+  }
+}
 
-//     io.emit("taskUpdated", data);
-//     console.log("Task update broadcasted and cache cleared.");
-//   });
+  syncUsersFromExternalAPI();
 
-//   // Handle task deletions with Redis cache
-//   socket.on("deleteTask", async (taskId) => {
-//     console.log(`Task with ID ${taskId} deleted`);
-
-//     // Invalidate Redis cache
-//     await redisClient.del("tasks");
-
-//     io.emit("taskDeleted", taskId);
-//     console.log(`Task deletion broadcasted and cache cleared.`);
-//   });
-
-//   // Handle disconnection
-//   socket.on("disconnect", () => {
-//     console.log(`User disconnected: ${socket.id}`);
-//   });
-// });
 // Start the server
 server.listen(config.port, () => {
   console.log(`Server running on port ${config.port}`);
