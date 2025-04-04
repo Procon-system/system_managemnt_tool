@@ -64,9 +64,12 @@ app.use('/api/material', materialsRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/users', userRoutes);
+const EXTERNAL_API_URL = process.env.EXTERNAL_API_URL || 'http://SERVER_IP_HERE:8000/api/users/';
+
+
 async function syncUsersFromExternalAPI() {
   try {
-    const response = await axios.get('http://SERVER_IP_HERE:8000/api/users/');
+    const response = await axios.get(EXTERNAL_API_URL);
     const users = response.data.users;
 
     for (const user of users) {
