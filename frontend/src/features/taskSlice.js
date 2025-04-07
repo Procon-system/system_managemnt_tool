@@ -26,7 +26,7 @@ export const getTasksByAssignedUser = createAsyncThunk(
       if (checkTokenAndLogout(token, dispatch)) {
         return null; // Exit if the token is expired
       }
-      return await taskService.getTasksByAssignedUser(userId, token); // Call the service function
+      // return await taskService.getTasksByAssignedUser(userId, token); // Call the service function
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error fetching tasks for assigned user');
     }
@@ -40,7 +40,7 @@ export const getTasksDoneByAssignedUser = createAsyncThunk(
       if (checkTokenAndLogout(token, dispatch)) {
         return null; // Exit if the token is expired
       }
-      return await taskService.getTasksDoneByAssignedUser(userId, token); // Call the service function
+      // return await taskService.getTasksDoneByAssignedUser(userId, token); // Call the service function
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error fetching tasks for assigned user');
     }
@@ -51,21 +51,27 @@ export const getAllDoneTasks = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     
     try {
-      return await taskService.getAllDoneTasks();
+      // return await taskService.getAllDoneTasks();
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error fetching tasks');
     }
   }
 );
 // Fetch Tasks
-export const fetchTasks = createAsyncThunk(
-  'tasks/fetchTasks',
-  async (_, { rejectWithValue }) => {
-    
-    try {
-      return await taskService.fetchTasks( );
+export const fetchOrganizationTasks = createAsyncThunk(
+  'tasks/fetchOrganizationTasks',
+  async ({ page = 1, limit = 10 }, { rejectWithValue, dispatch, getState }) =>{
+      try {
+        const token = getState().auth.token; // Get the token from Redux state
+        if (checkTokenAndLogout(token, dispatch)) {
+          return null; // Exit if the token is expired
+        }
+        return await taskService.getOrganizationTasks(
+          { page, limit },
+          token
+        );
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Error fetching tasks');
+      return rejectWithValue(error.response?.data || error.message);
     }
   }
 );
@@ -216,14 +222,14 @@ const taskSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
-      .addCase(fetchTasks.pending, (state) => {
+      .addCase(fetchOrganizationTasks.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(fetchTasks.fulfilled, (state, action) => {
+      .addCase(fetchOrganizationTasks.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.tasks = action.payload;
       })
-      .addCase(fetchTasks.rejected, (state, action) => {
+      .addCase(fetchOrganizationTasks.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       })

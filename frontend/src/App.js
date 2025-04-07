@@ -10,9 +10,6 @@ import HomePage from './Pages/homePage';
 import ForgotPasswordPage from './Pages/Auth/forgotPasswordPage';
 import ResetPasswordPage from './Pages/Auth/resetPasswordPage';
 import ConfirmEmail from './Components/authComponents/confirmEmail';
-import CreateMachinePage from './Pages/Machine/createMachinePage';
-import CreateMaterialPage from './Pages/Material/createMaterialPage';
-import CreateToolPage from './Pages/Tool/createToolPage';
 import FilterPage from './Pages/FilterAndReport/filterPage';
 import CreateResourceTypePage from './Pages/ResourceType/createResourceTypePage';
 import ResourceListPage from './Pages/Resource/resourceListPage'
@@ -25,16 +22,6 @@ import { ROLES } from "./accessControl/roles";
 import UnauthorizedPage from "./Pages/unauthorizedPage";
 import UserManagementPage from "./Pages/User/userPage";
 import { useDispatch, useSelector } from 'react-redux';
-import { getUsers } from "./features/userSlice";
-import { fetchMaterials } from "./features/materialsSlice";
-import { fetchTools } from "./features/toolsSlice";
-import { fetchMachines } from "./features/machineSlice";
-import { fetchFacilities } from "./features/facilitySlice";
-import materialService from './Services/materialsService';
-import toolService from './Services/toolsService';
-import facilityService from './Services/facilityService';
-import machineService from './Services/machineService';
-import taskService from './Services/taskService';
 import { localDB } from './pouchDb';
 import MainLayout from './Components/layout/layoutWrapper'
 const viewAllDocuments = async () => {
@@ -78,41 +65,41 @@ const App = () => {
   const dispatch = useDispatch();
 
   // Fetch shared data when the app loads
-  useEffect(() => {
-    dispatch(getUsers());
-    dispatch(fetchMaterials());
-    dispatch(fetchTools());
-    dispatch(fetchMachines());
-    dispatch(fetchFacilities());
-  }, [dispatch]);
+  // useEffect(() => {
+  //   dispatch(getUsers());
+  //   dispatch(fetchMaterials());
+  //   dispatch(fetchTools());
+  //   dispatch(fetchMachines());
+  //   dispatch(fetchFacilities());
+  // }, [dispatch]);
 
-  // Sync local data with the backend when the app loads or comes back online
-  useEffect(() => {
-    const handleOnline = () => {
-      const token = localStorage.getItem('token'); // Get the token from storage
-      if (token) {
-        materialService.syncLocalChanges(token);
-        toolService.syncLocalChanges(token);
-        facilityService.syncLocalChanges(token);
-        machineService.syncLocalChanges(token);
-        taskService.checkAndSync(token);
+  // // Sync local data with the backend when the app loads or comes back online
+  // useEffect(() => {
+  //   const handleOnline = () => {
+  //     const token = localStorage.getItem('token'); // Get the token from storage
+  //     if (token) {
+  //       materialService.syncLocalChanges(token);
+  //       toolService.syncLocalChanges(token);
+  //       facilityService.syncLocalChanges(token);
+  //       machineService.syncLocalChanges(token);
+  //       taskService.checkAndSync(token);
 
-      }
-    };
+  //     }
+  //   };
 
     // Sync data when the app loads (if online)
-    if (navigator.onLine) {
-      handleOnline();
-    }
+  //   if (navigator.onLine) {
+  //     handleOnline();
+  //   }
 
-    // Listen for online event
-    window.addEventListener('online', handleOnline);
+  //   // Listen for online event
+  //   window.addEventListener('online', handleOnline);
 
-    // Cleanup event listener
-    return () => {
-      window.removeEventListener('online', handleOnline);
-    };
-  }, []);
+  //   // Cleanup event listener
+  //   return () => {
+  //     window.removeEventListener('online', handleOnline);
+  //   };
+  // }, []);
 
   return (
     <Router>
@@ -185,22 +172,7 @@ const App = () => {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/create-materials"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.FREE}>
-                <CreateMaterialPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/create-tools"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.FREE}>
-                <CreateToolPage />
-              </ProtectedRoute>
-            }
-          />
+          
         </Routes>
       </div>
     </Router>

@@ -6,7 +6,7 @@ import Sidebar from '../Components/sidebarComponent';
 import { 
   createTask, 
   updateTask, 
-  fetchTasks,
+  fetchOrganizationTasks,
   getTasksByAssignedUser,
   getAllDoneTasks, 
   deleteTask,
@@ -213,38 +213,155 @@ useEffect(() => {
   };
 }, [isOnline, updateEventState]); // Re-run effect when these dependencies change // Re-run effect when online status changes
 
-const calendarEvents = useMemo(() => {
-  return Array.isArray(tasks)
-    ? tasks
-        .filter((task) => !deletedTaskIds.has(task._id)) // Exclude deleted tasks
-        .map((task) => ({
-          _id: task._id,
-          title: task.title || 'No Title',
-          start: task.start_time,
-          end: task.end_time,
-          color: task.color_code,
-          images: task.images || [],
-          task_period:task.task_period,
-          repeat_frequency:task.repeat_frequency,
-          created_by:task.created_by,
-          machine:task.machine || null,
-          facility:task.facility || null,
-          notes: task.notes || 'No Notes',
-          status: task.status || null,
-          assigned_resources: {
-            assigned_to: task.assigned_to || [],
-            tools: task.tools || [],
-            materials: task.materials || [],
-          },
-          resourceIds: [
-            ...(task.assigned_to || []),
-            ...(task.tools || []),
-            ...(task.materials || []),
-          ],
-        }))
-    : [];
-}, [tasks, deletedTaskIds]); // Recompute when tasks or deletedTaskIds change
 
+//   return Array.isArray(tasks)
+//     ? tasks
+//         .filter((task) => !deletedTaskIds.has(task._id)) // Exclude deleted tasks
+//         .map((task) => ({
+//           _id: task._id,
+//           title: task.title || 'No Title',
+//           start: task.start_time,
+//           end: task.end_time,
+//           color: task.color_code,
+//           images: task.images || [],
+//           task_period:task.task_period,
+//           repeat_frequency:task.repeat_frequency,
+//           created_by:task.created_by,
+//           machine:task.machine || null,
+//           facility:task.facility || null,
+//           notes: task.notes || 'No Notes',
+//           status: task.status || null,
+//           assigned_resources: {
+//             assigned_to: task.assigned_to || [],
+//             tools: task.tools || [],
+//             materials: task.materials || [],
+//           },
+//           resourceIds: [
+//             ...(task.assigned_to || []),
+//             ...(task.tools || []),
+//             ...(task.materials || []),
+//           ],
+//         }))
+//     : [];
+// }, [tasks, deletedTaskIds]); // Recompute when tasks or deletedTaskIds change
+// const calendarEvents  = useMemo(() => {
+//   return Array.isArray(tasks?.data?.tasks)
+//     ? tasks.data.tasks
+//         .filter((task) => !deletedTaskIds.has(task._id))
+//         .map((task) => ({
+//           _id: task._id,
+//           title: task.title || 'No Title',
+//           start: task.schedule?.start,
+//           end: task.schedule?.end,
+//           timezone: task.schedule?.timezone || 'UTC',
+//           color: task.color || '#fbbf24',
+//           images: task.attachments || [],
+//           task_period: task.task_period,
+//           repeat_frequency: task.repeat_frequency,
+//           created_by: task.createdBy ? {
+//             id: task.createdBy._id,
+//             name: task.createdBy.full_name || `${task.createdBy.first_name} ${task.createdBy.last_name}`,
+//             email: task.createdBy.email
+//           } : null,
+//           priority: task.priority,
+//           visibility: task.visibility,
+//           status: task.status,
+//           organization: task.organization,
+//           assigned_resources: {
+//             assigned_to: task.assignments?.map(assignment => ({
+//               user: {
+//                 id: assignment.user?._id,
+//                 name: assignment.user?.full_name || 
+//                       `${assignment.user?.first_name} ${assignment.user?.last_name}`,
+//                 email: assignment.user?.email
+//               },
+//               team: assignment.team,
+//               role: assignment.role
+//             })) || [],
+//             resources: task.resources?.map(resource => ({
+//               resourceId: resource.resource?._id,
+//               relationshipType: resource.relationshipType,
+//               required: resource.required
+//             })) || []
+//           },
+//           resourceIds: [
+//             ...(task.assignments?.map(a => a.user?._id).filter(Boolean) || []),
+//             ...(task.resources?.map(r => r.resource?._id).filter(Boolean) || [])
+//           ],
+//           dependencies: task.dependencies || [],
+//           tags: task.tags || [],
+//           notes: '', // Your API response doesn't show notes field
+//           createdAt: task.createdAt,
+//           updatedAt: task.updatedAt
+//         }))
+//     : [];
+// }, [tasks, deletedTaskIds]);
+const calendarEvents = useMemo(() => {
+  return Array.isArray(tasks?.data?.tasks)
+    ? tasks.data.tasks
+        .filter((task) => !deletedTaskIds.has(task._id))
+        .map((task) => {
+          // Format assigned resources with full details
+          const assignedResources = {
+            assigned_to: task.assignments?.map(assignment => ({
+              _id: assignment._id,
+              user: assignment.user ? {
+                id: assignment.user._id,
+                name: assignment.user.full_name || 
+                      `${assignment.user.first_name} ${assignment.user.last_name}`,
+                email: assignment.user.email
+              } : null,
+              team: assignment.team,
+              role: assignment.role
+            })) || [],
+            resources: task.resources?.map(resource => ({
+              _id: resource._id,
+              relationshipType: resource.relationshipType,
+              required: resource.required,
+              resource: resource.resource ? {
+                _id: resource.resource._id,
+                type: resource.resource.type,
+                displayName: resource.resource.displayName,
+                fields: resource.resource.fields,
+                status: resource.resource.status
+              } : null
+            })) || []
+          };
+
+          return {
+            _id: task._id,
+            title: task.title || 'No Title',
+            start: task.schedule?.start,
+            end: task.schedule?.end,
+            timezone: task.schedule?.timezone || 'UTC',
+            color: task.color_code || '#fbbf24',
+            images: task.attachments || [],
+            task_period: task.task_period,
+            repeat_frequency: task.repeat_frequency,
+            created_by: task.createdBy ? {
+              id: task.createdBy._id,
+              name: task.createdBy.full_name || 
+                    `${task.createdBy.first_name} ${task.createdBy.last_name}`,
+              email: task.createdBy.email
+            } : null,
+            priority: task.priority,
+            visibility: task.visibility,
+            status: task.status,
+            organization: task.organization,
+            assigned_resources: assignedResources, // Only keep this one
+            resourceIds: [
+                          ...(task.assignments?.map(a => a.user?._id).filter(Boolean) || []),
+                          ...(task.resources?.map(r => r.resource?._id).filter(Boolean) || [])
+                        ],
+            dependencies: task.dependencies || [],
+            tags: task.tags || [],
+            notes: '',
+            createdAt: task.createdAt,
+            updatedAt: task.updatedAt
+          };
+        })
+    : [];
+}, [tasks, deletedTaskIds]);
 useEffect(() => {
   if (!isInitialized && calendarEvents.length > 0) {
     
@@ -257,7 +374,7 @@ useEffect(() => {
 useEffect(() => {
   if (currentView === 'allTasks') {
    
-    // dispatch(fetchTasks()); // Fetch all tasks
+    dispatch(fetchOrganizationTasks({page :1, limit :10})); // Fetch all tasks
   } else if (currentView === 'userTasks') {
     
        dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user

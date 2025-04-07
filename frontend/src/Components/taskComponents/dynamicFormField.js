@@ -64,6 +64,9 @@ const DateTimeWithAdjust = ({ label, name, value, onChange }) => {
       );
     };
 const DynamicFormField = ({ field, value, onChange, options }) => {
+ 
+  const selectOptions = options || field.options || [];
+  
     switch (field.fieldType) {
       case 'text':
         return (
@@ -76,13 +79,19 @@ const DynamicFormField = ({ field, value, onChange, options }) => {
           />
         );
       case 'select':
+        console.log('Select field props:', {
+          label: field.displayName,
+          value,
+          options: selectOptions,
+          isMulti: field.multiple
+        });
         return (
           <SelectInput
             label={field.displayName}
             name={field.fieldName}
             value={value}
             onChange={onChange}
-            options={options}
+            options={selectOptions}
             isMulti={field.multiple}
             required={field.required}
           />

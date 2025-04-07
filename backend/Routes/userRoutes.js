@@ -1,20 +1,16 @@
-// const express = require('express');
-// const { getUsers,  getUsersByIds, updateUserProfile, deleteUserAccount } = require('../Controllers/userController');
-// const {
-//     authenticateUser
-//   } = require('../Middleware/authMiddleware');
-  
-// const router = express.Router();
+const express = require('express');
+const router = express.Router();
+const userController = require('../Controllers/userController');
+const { protect, authorize } = require('../Middleware/authMiddleware');
 
-// // Route to fetch all users
-// router.get('/get-users',getUsers);
-// // Route to fetch users by IDs
-// router.post('/get-users-by-ids', authenticateUser, getUsersByIds);
+// All routes protected
+router.use(protect);
 
-// // Route to update user profile
-// router.put('/update-profile/:id',authenticateUser, updateUserProfile);
+// User management routes
+router.get('/', authorize([3, 4, 5]), userController.getAllUsers); // Only managers and above can view all users
+router.get('/:id', userController.getUser); // Users can view their own profile
+router.put('/:id', userController.updateUser); // Users can update their own profile
+router.put('/:id/admin', authorize([4, 5]), userController.adminUpdateUser); // Admins can update any user
+router.delete('/:id', authorize([5]), userController.deleteUser); // Only super admins can delete users
 
-// // Route to delete user account
-// router.delete('/delete-account/:id',authenticateUser, deleteUserAccount);
-
-// module.exports = router;
+module.exports = router;

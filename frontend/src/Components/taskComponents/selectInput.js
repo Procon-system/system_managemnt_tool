@@ -13,20 +13,23 @@ const getSelectedOptions = (items, options) => {
 };
 
 
-const SelectInput = ({ label, name, value = [], onChange, options, isMulti = false }) => {
-  // Ensure multi-select displays selected values correctly
-  const selectedOption = isMulti 
-    ? getSelectedOptions(value, options) // Convert IDs to full objects
-    : options?.find(option => option.value === value) || null; // Handle single select
+const SelectInput = ({ label, name, value = [], onChange, options = [], isMulti = false }) => {
+  // Convert value to array if needed and filter valid options
+  const selectedValues = Array.isArray(value) ? value : [value];
+  const selectedOptions = options.filter(opt => selectedValues.includes(opt.value));
 
-  const handleSelectChange = (selectedOption) => {
+  const handleChange = (selected) => {
     const newValue = isMulti
-      ? selectedOption.map(option => option.value) // Convert objects to an array of IDs
-      : selectedOption ? selectedOption.value : ""; // Convert single select to a single ID
+      ? selected ? selected.map(opt => opt.value) : []
+      : selected ? selected.value : null;
 
-   
-
-    onChange({ target: { name, value: newValue } });
+    // Create a synthetic event to match standard input behavior
+    onChange({
+      target: {
+        name,
+        value: newValue
+      }
+    });
   };
 
   return (
@@ -34,8 +37,8 @@ const SelectInput = ({ label, name, value = [], onChange, options, isMulti = fal
       <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
       <Select
         name={name}
-        value={selectedOption} // Ensure selected value is mapped correctly
-        onChange={handleSelectChange}
+        value={isMulti ? selectedOptions : selectedOptions[0] || null}
+        onChange={handleChange}
         options={options}
         isClearable
         placeholder={`Select ${label}`}
@@ -48,14 +51,15 @@ const SelectInput = ({ label, name, value = [], onChange, options, isMulti = fal
             backgroundColor: 'rgb(249 250 251)',
             padding: '4px 8px',
             borderColor: 'rgb(209 213 219)',
+            minHeight: '40px'
           }),
           placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
         }}
       />
+     
     </div>
   );
 };
-
 // Options for time period (days, weeks, months, years)
 const periodOptions = [
     { value: 'day', label: 'Day' },

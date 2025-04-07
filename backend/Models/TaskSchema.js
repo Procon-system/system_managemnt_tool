@@ -62,7 +62,7 @@ const taskSchema = new mongoose.Schema({
   },
   task_period: {
     type: String,
-    enum: ['', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly'],
+    // enum: ['', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly'],
     default: ''
   },
   repeat_frequency: {  // e.g., "every 2 weeks"

@@ -2,7 +2,86 @@ const Task = require('../Models/TaskSchema');
 const Resource = require('../Models/ResourceSchema');
 const { validateTaskData } = require('../utils/validators');
 
+const generateRecurringInstances = (baseTask, frequency, endDate) => {
+  const tasks = [];
+  let currentStart = new Date(baseTask.schedule.start);
+  let currentEnd = new Date(baseTask.schedule.end);
+  const periodEnd = new Date(endDate);
+  
+  // Calculate duration of the original task
+  const durationMs = currentEnd - currentStart;
+  
+  while (currentStart <= periodEnd) {
+    if (currentStart > new Date(baseTask.schedule.start)) {
+      const taskClone = {
+        ...baseTask,
+        _id: undefined, // Let MongoDB generate new IDs
+        schedule: {
+          start: new Date(currentStart),
+          end: new Date(currentEnd),
+          timezone: baseTask.schedule.timezone
+        },
+        isRecurringInstance: true,
+        rootTask: baseTask._id || null
+      };
+      tasks.push(taskClone);
+    }
+    
+    // Increment dates based on frequency
+    switch (frequency.toLowerCase()) {
+      case 'daily':
+        currentStart.setDate(currentStart.getDate() + 1);
+        currentEnd = new Date(currentStart.getTime() + durationMs);
+        break;
+      case 'weekly':
+        currentStart.setDate(currentStart.getDate() + 7);
+        currentEnd = new Date(currentStart.getTime() + durationMs);
+        break;
+      case 'monthly':
+        currentStart.setMonth(currentStart.getMonth() + 1);
+        currentEnd = new Date(currentStart.getTime() + durationMs);
+        break;
+      case 'yearly':
+        currentStart.setFullYear(currentStart.getFullYear() + 1);
+        currentEnd = new Date(currentStart.getTime() + durationMs);
+        break;
+      default:
+        // Handle custom intervals like "every 2 weeks"
+        const interval = parseInt(frequency.match(/\d+/)?.[0]) || 1;
+        if (frequency.includes('week')) {
+          currentStart.setDate(currentStart.getDate() + 7 * interval);
+        } else if (frequency.includes('month')) {
+          currentStart.setMonth(currentStart.getMonth() + interval);
+        }
+        currentEnd = new Date(currentStart.getTime() + durationMs);
+    }
+  }
+  
+  return tasks;
+};
+
+exports.createRecurringTasks = async ({ baseTask, frequency, endDate }) => {
+  // First create the root task
+  const rootTask = await this.createTask({
+    ...baseTask,
+    isRecurringRoot: true
+  });
+  
+  // Generate recurring instances
+  const recurringInstances = generateRecurringInstances(
+    { ...baseTask, _id: rootTask._id },
+    frequency,
+    endDate
+  );
+  
+  // Save all instances
+  const createdInstances = await Task.insertMany(recurringInstances);
+  
+  return [rootTask, ...createdInstances];
+};
+
 exports.createTask = async (taskData) => {
+  // Validate task data
   await validateTaskData(taskData);
   
   // Verify all referenced resources exist
@@ -24,6 +103,29 @@ exports.createTask = async (taskData) => {
   const task = new Task(taskData);
   return await task.save();
 };
+
+// exports.createTask = async (taskData) => {
+//   await validateTaskData(taskData);
+  
+//   // Verify all referenced resources exist
+//   if (taskData.resources && taskData.resources.length > 0) {
+//     const resourceIds = taskData.resources.map(r => r.resource);
+//     const resources = await Resource.find({
+//       _id: { $in: resourceIds },
+//       organization: taskData.organization
+//     });
+    
+//     if (resources.length !== resourceIds.length) {
+//       throw { 
+//         message: 'One or more referenced resources not found',
+//         statusCode: 400
+//       };
+//     }
+//   }
+  
+//   const task = new Task(taskData);
+//   return await task.save();
+// };
 
 exports.getTaskById = async (taskId, organizationId) => {
   const task = await Task.findOne({
@@ -85,23 +187,16 @@ exports.deleteTask = async (taskId, organizationId) => {
 };
 
 exports.getTasksByOrganization = async (organizationId, options = {}) => {
-  const { page = 1, limit = 10, status, resourceId, teamId, period } = options;
+  const { page = 1, limit = 10 } = options; // Only get pagination
   
-  const query = { organization: organizationId };
-  
-  if (status) query.status = status;
-  if (resourceId) query['resources.resource'] = resourceId;
-  if (teamId) query['assignments.team'] = teamId;
-  if (period) query.task_period = period;
-  
-  const tasks = await Task.find(query)
+  const tasks = await Task.find({ organization: organizationId })
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
     .populate('resources.resource')
     .populate('assignments.user')
     .sort({ 'schedule.start': 1 });
     
-  const count = await Task.countDocuments(query);
+  const count = await Task.countDocuments({ organization: organizationId });
   
   return {
     tasks,

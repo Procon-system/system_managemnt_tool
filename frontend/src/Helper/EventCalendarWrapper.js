@@ -53,133 +53,103 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
     } catch (err) {
       console.error("Error in handleDateChange:", err);
     }
-  }; console.log("mappped",events)
+  }; 
+  console.log("mappped",events)
+ 
   const mappedEvents = events.map(event => ({
     _id: event._id,
-    start: event.start_time || event.start || new Date(),
-    end: event.end_time || event.end || new Date(),
+    start: event.start || new Date(),
+    end: event.end || new Date(),
     title: event.title || 'Untitled Event',
-    color: event.color || event.color_code || '#cccccc', // Default color
-    allDay: event.allDay,
-    // resourceIds: [
-    //   ...(event.assigned_resources?.assigned_to || [])
-    //     .filter(user => user?._id) // Filter out invalid resources
-    //     .map(user => user._id),
-    //   ...(event.assigned_resources?.tools || [])
-    //     .filter(tool => tool?._id)
-    //     .map(tool => tool._id),
-    //   ...(event.assigned_resources?.materials || [])
-    //     .filter(material => material?._id)
-    //     .map(material => material._id),
-    // ],
-    resourceIds : [
-      ...(Array.isArray(event.assigned_resources?.assigned_to) 
-        ? event.assigned_resources.assigned_to.filter(user => user?._id).map(user => user._id) 
-        : []),
-      ...(Array.isArray(event.assigned_resources?.tools) 
-        ? event.assigned_resources.tools.filter(tool => tool?._id).map(tool => tool._id) 
-        : []),
-      ...(Array.isArray(event.assigned_resources?.materials) 
-        ? event.assigned_resources.materials.filter(material => material?._id).map(material => material._id) 
-        : []),
+    color: event.color || '#fbbf24',
+    allDay: false,
+    
+    resourceIds: [
+      ...(event.assigned_resources?.assigned_to?.map(a => a.user.id).filter(Boolean) || []), // Changed to a.id
+      ...(event.assigned_resources?.resources?.map(r => r.resource?._id).filter(Boolean) || [])
     ],
+    
     extendedProps: {
-      _id: event._id,
-      images: event.images || [],
-      notes: event.notes,
-      status: event.status,
-      repeat_frequency:event.repeat_frequency,
-      task_period:event.task_period,
-      machine: event.machine,
-      facility: event.facility,
-      created_by: event.created_by,
+      ...event,
+      created_by: event.createdBy ? {
+        id: event.createdBy._id,
+        name: event.createdBy.full_name || 
+              `${event.createdBy.first_name} ${event.createdBy.last_name}`,
+        email: event.createdBy.email
+      } : null,
       assigned_resources: {
-        assigned_to: event.assigned_resources?.assigned_to || [],
-        tools: event.assigned_resources?.tools || [],
-        materials: event.assigned_resources?.materials || [],
-      },
-    },
+        assigned_to: event.assigned_resources?.assigned_to?.map(assignment => ({
+          _id: assignment._id,
+          role: assignment.role,
+          team: assignment.team,
+          // Directly use the root level properties
+          id: assignment.user.id,
+          name: assignment.user.name,
+          email: assignment.user.email
+        })) || [],
+        resources: event.assigned_resources?.resources?.map(resource => ({
+          _id: resource._id,
+          relationshipType: resource.relationshipType,
+          required: resource.required,
+          resource: resource.resource ? {
+            _id: resource.resource._id,
+            type: resource.resource.type,
+            displayName: resource.resource.displayName,
+            fields: resource.resource.fields,
+            status: resource.resource.status
+          } : null
+        })) || []
+      }
+    }
   }));
+ 
   const groupedAssignedResources = useMemo(() => {
-    // Create Sets to track unique IDs
-    const uniqueUserIds = new Set();
-    const uniqueToolIds = new Set();
-    const uniqueMaterialIds = new Set();
-
-    // Helper function to add unique resources
-    const addUniqueResources = (resources, idSet) => {
-      const uniqueResources = [];
-      if (Array.isArray(resources)) {
-      resources.forEach(resource => {
-        if (resource?._id && !idSet.has(resource._id)) {
-          idSet.add(resource._id);
-          uniqueResources.push(resource);
+    const uniqueUsers = new Map();
+    const uniqueResources = new Map();
+   
+    mappedEvents.forEach(event => {
+      // Process assigned users
+      event.extendedProps.assigned_resources?.assigned_to?.forEach(assignment => {
+        const user = assignment; // Get the user object
+        if (user?.id && !uniqueUsers.has(user.id)) {
+          uniqueUsers.set(user.id, {
+            id: user.id,
+            title: user.name, // Now properly accessing the name
+            email: user.email,
+            role: assignment.role,
+            parent: 'assignedUsers'
+          });
         }
       });
-      }
-      return uniqueResources;
-    };
-
-    // Get all unique resources across all events
-    const uniqueUsers = [];
-    const uniqueTools = [];
-    const uniqueMaterials = [];
-
-    events.forEach(event => {
-      if (event.assigned_resources) {
-        // Add unique users
-        const users = addUniqueResources(
-          event.assigned_resources.assigned_to || [],
-          uniqueUserIds
-        );
-        uniqueUsers.push(...users);
-
-        // Add unique tools
-        const tools = addUniqueResources(
-          event.assigned_resources.tools || [],
-          uniqueToolIds
-        );
-        uniqueTools.push(...tools);
-
-        // Add unique materials
-        const materials = addUniqueResources(
-          event.assigned_resources.materials || [],
-          uniqueMaterialIds
-        );
-        uniqueMaterials.push(...materials);
-      }
+  
+      // Process resources
+      event.extendedProps.assigned_resources.resources.forEach(resource => {
+        if (resource.resource?._id && !uniqueResources.has(resource.resource._id)) {
+          uniqueResources.set(resource.resource._id, {
+            id: resource.resource._id,
+            title: resource.resource.displayName || 'Unknown Resource',
+            type: resource.resource.type,
+            relationshipType: resource.relationshipType,
+            required: resource.required,
+            parent: 'resources'
+          });
+        }
+      });
     });
-
+  
     return [
       {
         id: 'assignedUsers',
         title: 'Assigned Users',
-        children: uniqueUsers.map(user => ({
-          id: user._id,
-          title: `${user.first_name || 'Unknown'} ${user.last_name || 'Unknown'}`,
-          parent: 'assignedUsers',
-        })),
+        children: Array.from(uniqueUsers.values())
       },
       {
-        id: 'tools',
-        title: 'Tools',
-        children: uniqueTools.map(tool => ({
-          id: tool._id,
-          title: tool.tool_name || 'Unknown Tool',
-          parent: 'tools',
-        })),
-      },
-      {
-        id: 'materials',
-        title: 'Materials',
-        children: uniqueMaterials.map(material => ({
-          id: material._id,
-          title: material.material_name || 'Unknown Material',
-          parent: 'materials',
-        })),
-      },
+        id: 'resources',
+        title: 'Resources',
+        children: Array.from(uniqueResources.values())
+      }
     ];
-  }, [events]);
+  }, [mappedEvents]);// Changed dependency to mappedEvents
   // Memoize assigned_resources to prevent unnecessary re-renders
   const assigned_resources = useMemo(() => [...groupedAssignedResources], [groupedAssignedResources]);
   const getTimezoneFromDate = (date) => {
@@ -220,9 +190,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
       return null;
     }
   };
-  
-  
-  
   // Add this function to update event appearance
   const updateEventAppearance = (eventId, isSelected) => {
     const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
@@ -239,13 +206,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   const handleViewChange = (view) => {
     setChangedView(view);
   };
-
-  useEffect(() => {
-    if (calendarRef.current) {
-     
-    }
-  }, [mappedEvents]);
-
   const preserveCalendarView = useCallback(() => {
     const calendarApi = calendarRef.current?.getView();
     if (calendarApi) {

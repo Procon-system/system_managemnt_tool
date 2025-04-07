@@ -1,38 +1,91 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import React, { useState} from 'react';
 import DynamicFormField from './dynamicFormField';
 import {SelectInput,SelectTaskPeriodInput} from './selectInput';
 import RichTextEditor from './richTextEditor';
+import { useResources } from '../../hooks/useResources';
+import { useUsers } from '../../hooks/useUsers';
 
 const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
-  const dispatch = useDispatch();
-  const [formData, setFormData] = useState(initialData);
-  const [loadingOptions, setLoadingOptions] = useState({});
+const [formData, setFormData] = useState(initialData);
+const typeIds = resourceTypes?.map(type => type._id) || [];
+const { getResourcesByType, loading: resourcesLoading } = useResources(typeIds);
+const { users, loading: usersLoading } = useUsers();
 
-  // Categorize resources by type
-  const categorizedResources = resourceTypes?.reduce((acc, type) => {
-    const category = type.category || 'other';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(type);
-    return acc;
-  }, {});
+const handleResourceSelect = (resourceTypeId, event) => {
+  const selectedResources = event.target.value;
+  
+  setFormData(prev => ({
+    ...prev,
+    resources: {
+      ...prev.resources,
+      [resourceTypeId]: Array.isArray(selectedResources) 
+        ? selectedResources 
+        : [selectedResources].filter(Boolean)
+    }
+  }));
+};
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+const renderResourceFields = () => {
+  if (!resourceTypes?.length) return null;
 
-  const handleResourceSelect = (resourceType, selectedResources) => {
-    setFormData(prev => ({
-      ...prev,
-      [resourceType.fieldName]: selectedResources
-    }));
-  };
+  return Object.entries(
+    resourceTypes.reduce((acc, type) => {
+      const category = type.category || 'other';
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(type);
+      return acc;
+    }, {})
+  ).map(([category, types]) => (
+    <div key={category} className="space-y-4">
+      <h2 className="text-lg font-semibold capitalize">{category}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {types.map(type => {
+          const resources = getResourcesByType(type._id);
+          const isLoading = !resources.length && resourcesLoading;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
+          return (
+            <div key={type._id} className="border rounded-lg p-4 bg-white">
+              {isLoading ? (
+                <div>Loading {type.name} resources...</div>
+              ) : (
+                <DynamicFormField
+                  field={{
+                    fieldName: `resources.${type._id}`,
+                    displayName: type.name,
+                    fieldType: 'select',
+                    multiple: true,
+                    options: resources.map(res => ({
+                      label: res.displayName || res.name,
+                      value: res._id
+                    }))
+                  }}
+                  value={formData.resources?.[type._id] || []}
+                  onChange={(selected) => handleResourceSelect(type._id, selected)}
+                />
+              )}
+              {type.description && (
+                <p className="text-xs text-gray-500 mt-2">{type.description}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  ));
+};
+
+const handleSubmit = (e) => {
+  e.preventDefault();
+  onSubmit(formData);
+};
+
+const handleChange = (e) => {
+  const { name, value } = e.target;
+  setFormData(prev => ({ ...prev, [name]: value }));
+};
+const handleNotesChange = (value) => {
+  setFormData({ ...formData, notes: value });
+};
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 p-4 mt-7 md:px-6 bg-blue-50 shadow-md rounded-md max-w-full lg:max-w-6xl lg:mr-4">
@@ -57,14 +110,23 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
       />
     </div>
     <div>
-      <SelectInput
-        label="Assign To"
-        name="assigned_to"
-        value={formData.assigned_to}
-        onChange={handleChange}
-        isMulti
-        required
-      />
+    <div>
+  <DynamicFormField
+    field={{
+      fieldName: "assigned_to",
+      displayName: "Assign To",
+      fieldType: "select",
+      multiple: true,
+      options: users.map(user => ({
+        label: user.name || user.email,
+        value: user._id
+      }))
+    }}
+    value={formData.assigned_to || []}
+    onChange={handleChange}
+    isLoading={usersLoading}
+  />
+</div>
     </div>
   </div>
 
@@ -140,37 +202,14 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
   </div>
 </div>
 
-      {/* Resource Selection */}
-      {categorizedResources && Object.entries(categorizedResources).map(([category, resources]) => (
-        <div key={category} className="space-y-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {resources.map(resourceType => (
-              <div key={resourceType._id} className="border rounded-lg p-4">
-                <DynamicFormField
-                  field={{
-                    fieldName: `resources.${resourceType._id}`,
-                    displayName: resourceType.name,
-                    fieldType: 'select',
-                    multiple: true,
-                    options: resourceType.availableResources?.map(res => ({
-                      label: res.name,
-                      value: res._id
-                    })) || []
-                  }}
-                  value={formData.resources?.[resourceType._id] || []}
-                  onChange={(e) => handleResourceSelect(resourceType, e.target.value)}
-                />
-                {resourceType.description && (
-                  <p className="text-sm text-gray-500 mt-2">{resourceType.description}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+<div className="space-y-4">
+
+ {renderResourceFields()}
+      </div>
+
  <div className="mt-6">
       <label className="block mb-1 text-sm font-medium text-gray-600">Notes</label>
-      <RichTextEditor value={formData.notes} onChange={handleChange} />
+      <RichTextEditor value={formData.notes} onChange={handleNotesChange} />
     </div>
       <button
         type="submit"
