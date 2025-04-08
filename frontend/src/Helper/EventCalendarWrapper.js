@@ -486,10 +486,14 @@ const updatedEvent = {
   // Process assigned resources
   assigned_resources: {
     assigned_to: Array.isArray(extendedProps?.assigned_resources?.assigned_to)
-      ? extendedProps.assigned_resources.assigned_to.map(user => 
-          typeof user === 'object' ? user._id || user.id : user
-        )
-      : [],
+    ? extendedProps.assigned_resources.assigned_to.map(user => 
+        typeof user === 'object' ? {
+          // Include full user object if available
+          ...user,
+          _id: user._id || user.id
+        } : user
+      )
+    : [],
     
     resources: processResourceArray(extendedProps?.assigned_resources?.resources)
   },

@@ -104,29 +104,6 @@ exports.createTask = async (taskData) => {
   return await task.save();
 };
 
-// exports.createTask = async (taskData) => {
-//   await validateTaskData(taskData);
-  
-//   // Verify all referenced resources exist
-//   if (taskData.resources && taskData.resources.length > 0) {
-//     const resourceIds = taskData.resources.map(r => r.resource);
-//     const resources = await Resource.find({
-//       _id: { $in: resourceIds },
-//       organization: taskData.organization
-//     });
-    
-//     if (resources.length !== resourceIds.length) {
-//       throw { 
-//         message: 'One or more referenced resources not found',
-//         statusCode: 400
-//       };
-//     }
-//   }
-  
-//   const task = new Task(taskData);
-//   return await task.save();
-// };
-
 exports.getTaskById = async (taskId, organizationId) => {
   const task = await Task.findOne({
     _id: taskId,
@@ -192,7 +169,14 @@ exports.getTasksByOrganization = async (organizationId, options = {}) => {
   const tasks = await Task.find({ organization: organizationId })
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
-    .populate('resources.resource')
+    .populate({
+      path: 'resources.resource',
+      populate: {
+        path: 'type',
+        model: 'ResourceType',
+        select: 'name icon color' // Only include these fields
+      }
+    })
     .populate('assignments.user')
     .sort({ 'schedule.start': 1 });
     

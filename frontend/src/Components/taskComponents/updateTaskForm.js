@@ -1,7 +1,15 @@
 
 
 import { useState, useEffect } from 'react';
-import { FaClock, FaStickyNote, FaCheckCircle, FaSyncAlt, FaCalendarAlt, FaUserAlt  } from 'react-icons/fa';
+import { 
+  FaClock, 
+  FaCheckCircle, 
+  FaStickyNote, 
+  FaSyncAlt, 
+  FaCalendarAlt, 
+  FaUserAlt,
+  FaBox
+} from 'react-icons/fa';
 import { useDispatch,useSelector } from 'react-redux';
 import RichTextEditor from './richTextEditor';
 import {SelectInput,SelectTaskPeriodInput} from './selectInput';
@@ -82,19 +90,7 @@ const handleChange = (e) => {
     fetchImages(); // Call the async function inside useEffect
   }, [editableEvent?._id]); // Dependency array
 
-  const getUserNames = (usersArray) =>
-    usersArray
-      ?.map((user) => {
-        // If user is an object, use its properties; otherwise, find it by ID
-        if (typeof user === "object") {
-          return `${user.first_name} ${user.last_name}`;
-        }
-        const foundUser = users.find((u) => u._id === user);
-        return foundUser ? `${foundUser.first_name} ${foundUser.last_name}` : "Unknown User";
-      })
-      .join(", ") || "Not set";
   
- 
       const userOptions = users?.map(user => ({
         label: `${user.first_name} ${user.last_name}`, // Use backticks
         value: user._id
@@ -130,8 +126,15 @@ const handleChange = (e) => {
       newImages, 
     });
   };
+  const chunkArray = (array, size) => {
+    const result = [];
+    for (let i = 0; i < array.length; i += size) {
+      result.push(array.slice(i, i + size));
+    }
+    return result;
+  };
   
- 
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="relative bg-white p-6 rounded-lg max-w-5xl w-full">
@@ -146,9 +149,10 @@ const handleChange = (e) => {
 
         <form onSubmit={onSubmit} className="space-y-4 mt-6">
           <div className="flex justify-between items-center">
-            <h3 className="font-semibold bg-blue-400 text-white px-5 py-1 rounded-md hover:bg-blue-400">
-              Event Information
-            </h3>
+          <h3 className="font-semibold bg-blue-200 text-gray-800 px-5 py-1 rounded-md hover:bg-blue-300 border-y-2 border-blue-400">
+  Event Information
+</h3>
+
             <div className='space-x-2'>
             {role >= 3 && (
               <button
@@ -162,7 +166,7 @@ const handleChange = (e) => {
             <button
               type="button"
               onClick={toggleEditMode}
-              className="bg-blue-400 text-white px-5 py-1 mr-2 rounded-md hover:bg-blue-600 transition"
+              className="mr-2  bg-blue-200 text-gray-800 px-5 py-1 rounded-md hover:bg-blue-300 border-y-2 border-blue-400 transition"
             >
               {isEditMode ? 'Cancel' : 'Edit'}
             </button>
@@ -358,58 +362,77 @@ const handleChange = (e) => {
               )}
             </>
           ): (
-            <div className="grid grid-cols-2 gap-4">
-  <div className="flex items-center justify-center col-span-2">
-    <p className="text-center font-bold ">{editableEvent?.title}</p>
-  </div>
-
- <div className=" col-span-2 flex justify-center ">
- <ImageSlider images={images} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 bg-gray-50">
+            {/* Title */}
+            {editableEvent?.title && (
+              <div className="col-span-full flex justify-center">
+                <p className="text-2xl font-bold text-gray-800">{editableEvent.title}</p>
+              </div>
+            )}
+          
+            {/* Image Slider */}
+            {editableEvent?.images?.length > 0 && (
+              <div className="col-span-full flex justify-center">
+                <ImageSlider images={editableEvent.images} />
+              </div>
+            )}
+          
+            {/* Start, End, Status */}
+            <div className="bg-blue-100 shadow-md rounded-xl p-4 transform rotate-[-1deg] space-y-2">
+              <p className="font-bold text-lg text-gray-800">🕒 Event Timing</p>
+              <p><strong>Start:</strong> {new Date(editableEvent?.start).toLocaleString()}</p>
+              <p><strong>End:</strong> {new Date(editableEvent?.end).toLocaleString()}</p>
+              <p><strong>Status:</strong> {editableEvent?.status || 'pending'}</p>
+            </div>
+          
+            {/* Repeat + Assigned To */}
+            <div className="bg-gray-200 shadow-md rounded-xl p-4 transform rotate-[1deg] space-y-2">
+              <p className="font-bold text-lg text-gray-800">🔁 Assignment</p>
+              <p><strong>Repeat:</strong> {editableEvent?.repeat_frequency || 'none'}</p>
+              <div>
+                <p className="font-semibold">Assigned To:</p>
+                {editableEvent?.assigned_resources?.assigned_to?.map(user => (
+                  <div key={user._id} className="text-sm">
+                    {user.name || user.email} {user.role && `(${user.role})`}
+                  </div>
+                ))}
+              </div>
+            </div>
+          
+            {/* Resources */}
+            {editableEvent?.assigned_resources?.resources?.length > 0 &&
+  chunkArray(editableEvent.assigned_resources.resources, 3).map((chunk, index) => (
+    <div
+      key={index}
+      className={`bg-blue-100 shadow-md rounded-xl p-4 space-y-2 transform ${
+        index % 2 === 0 ? 'rotate-[-2deg]' : 'rotate-[1deg]'
+      }`}
+    >
+      <p className="font-bold text-lg text-gray-800">
+        📦 Resources {chunk.length < 3 ? '' : `(# ${index + 1})`}
+      </p>
+      {chunk.map(resource => (
+        <div key={resource._id} className="text-sm">
+          <strong>{resource.resource?.type?.name || 'Type'}:</strong>{' '}
+          {resource.resource?.displayName || 'Unnamed'}
+          {resource.required && (
+            <span className="text-xs text-red-600 ml-2">(required)</span>
+          )}
+        </div>
+      ))}
     </div>
+  ))}
 
-
-  <div className="flex items-center gap-2">
-    <FaClock className="text-blue-500" />
-    <p><strong>Start Time:</strong> {new Date(editableEvent?.start).toLocaleString()}</p>
-  </div>
-
-  <div className="flex items-center gap-2">
-    <FaClock className="text-blue-500" />
-    <p><strong>End Time:</strong> {new Date(editableEvent?.end).toLocaleString()}</p>
-  </div>
-
-  <div className="flex items-center gap-2">
-    <FaCheckCircle className="text-blue-500" />
-    <p><strong>Status:</strong> {editableEvent?.status || 'Not set'}</p>
-  </div>
-
-  <div className="flex items-center gap-2">
-  <FaStickyNote className="text-blue-500" />
-  <p><strong>Notes:</strong></p>
-  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(editableEvent?.notes || 'No notes available') }} />
-</div>
-  
-      <div className="flex items-center gap-2">
-        <FaSyncAlt className="text-blue-500" />
-        <p>
-          <strong>Repeat:</strong> {editableEvent?.repeat_frequency || 'Not set'}
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <FaCalendarAlt className="text-blue-500" />
-        <p>
-          <strong>Task Period:</strong> {editableEvent?.task_period || 'Not set'}
-        </p>
-      </div>
-
-
-      <div className="flex items-center gap-2">
-        <FaUserAlt className="text-blue-500" />
-        <p><strong>Assigned to:</strong> {getUserNames(editableEvent?.assigned_to)}</p>
-      </div>
-</div>
-
+          
+            {/* Notes */}
+            <div className="bg-gray-200 shadow-md rounded-xl p-4 transform rotate-[2deg] space-y-2 col-span-full">
+              <p className="font-bold text-lg text-gray-900">📝 Notes</p>
+              <div className="rounded text-sm min-h-[40px]">
+                {editableEvent?.notes || 'No notes available'}
+              </div>
+            </div>
+          </div>
+          
          )}
 
       <div className="flex justify-between mt-6">
