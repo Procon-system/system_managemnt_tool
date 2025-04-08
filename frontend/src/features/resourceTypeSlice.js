@@ -66,14 +66,27 @@ export const deleteResourceType = createAsyncThunk(
 
 const resourceTypeSlice = createSlice({
   name: 'resourceTypes',
-  initialState: { 
-    resourceTypes: [], 
-    status: 'idle', 
+  initialState: {
+    resourceTypes: [],
+    status: 'idle',
+    loading: false,
     error: null,
-    loading: false
+    lastSocketUpdate: null
   },
   reducers: {
-    // Optional manual reducers if needed
+    // Add this new reducer for socket updates
+   
+    addResourceTypeFromSocket: (state, action) => {
+      const newResourceType = action.payload;
+      // Check if resource type already exists
+      const exists = state.resourceTypes.some(rt => rt._id === newResourceType._id);
+      if (!exists) {
+        // Create new array reference to ensure React detects the change
+        state.resourceTypes = [...state.resourceTypes, newResourceType];
+        state.lastSocketUpdate = new Date().toISOString();
+      }
+    },
+    // Keep your existing reducers
     resourceTypeAdded: (state, action) => {
       state.resourceTypes.push(action.payload);
     },
@@ -90,12 +103,11 @@ const resourceTypeSlice = createSlice({
         rt => rt._id !== action.payload
       );
     },
-    // Add a reducer to reset the state if needed
     resetResourceTypeState: (state) => {
       state.resourceTypes = [];
       state.status = 'idle';
-      state.error = null;
       state.loading = false;
+      state.error = null;
     }
   },
   extraReducers: (builder) => {
@@ -110,6 +122,7 @@ const resourceTypeSlice = createSlice({
         state.status = 'succeeded';
         state.loading = false;
         if (action.payload) {
+          // Optimistically add to local state immediately
           state.resourceTypes.push(action.payload);
         }
       })
@@ -128,7 +141,13 @@ const resourceTypeSlice = createSlice({
       .addCase(fetchResourceTypes.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.loading = false;
-        state.resourceTypes = action.payload.data || [];
+        // Merge with existing resource types, avoiding duplicates
+        const newResourceTypes = action.payload.data || [];
+        const existingIds = new Set(state.resourceTypes.map(rt => rt._id));
+        const uniqueNewTypes = newResourceTypes.filter(
+          rt => !existingIds.has(rt._id)
+        );
+        state.resourceTypes = [...state.resourceTypes, ...uniqueNewTypes];
       })
       .addCase(fetchResourceTypes.rejected, (state, action) => {
         state.status = 'failed';
@@ -151,6 +170,9 @@ const resourceTypeSlice = createSlice({
           );
           if (index !== -1) {
             state.resourceTypes[index] = action.payload;
+          } else {
+            // If not found, add it (could come from socket)
+            state.resourceTypes.push(action.payload);
           }
         }
       })
@@ -182,6 +204,7 @@ const resourceTypeSlice = createSlice({
 });
 
 export const { 
+  addResourceTypeFromSocket, // Export the new action
   resourceTypeAdded, 
   resourceTypeUpdated, 
   resourceTypeDeleted,

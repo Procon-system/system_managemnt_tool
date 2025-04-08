@@ -3,9 +3,6 @@ const http = require("http");
 const mongoose = require('mongoose');
 const { Server } = require("socket.io");
 const redis = require("redis");
-// const authRoutes = require('./Routes/authRoutes');
-// const tasksRoutes = require('./Routes/taskRoutes');
-// const userRoutes = require('./Routes/userRoutes');
 const routes = require('./Routes/index');
 const errorHandler = require('./Middleware/errorHandler');
 const express = require("express");
@@ -13,8 +10,8 @@ const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const config = require('./config/config');
-// const { setSocketIoInstance } = require('./Controllers/materialControllers');
-// const {setTaskSocketIoInstance }= require('./Controllers/taskControllers');
+const {setTaskSocketIoInstance }= require('./Controllers/taskControllers');
+const {setResourceTypeSocketIoInstance}=require('./Controllers/resourceTypeController')
 require('dotenv').config(); // Load environment variables
 
 const app = express();
@@ -51,13 +48,35 @@ const io = new Server(server, {
     methods: ["GET", "POST","DELETE","PUT"], // Allow specific methods
   },
 });
-// Pass the io instance to the material controller after initializing io
-// setSocketIoInstance(io);  // Pass the io instance to the materials controller
-// setTaskSocketIoInstance (io);
-// setMachineSocketIoInstance(io);
-// setToolSocketIoInstance(io);
-// setFacilitySocketIoInstance(io);
-// Middleware setup
+// Add this right after creating the io instance
+io.on('connection', (socket) => {
+  console.log(`Client connected: ${socket.id}`);
+
+  // Handle room joining
+  socket.on('joinRoom', (roomId, callback) => {
+    socket.join(roomId);
+    console.log(`Client ${socket.id} joined room ${roomId}`);
+    if (callback) {
+      callback({ status: 'success', room: roomId });
+    }
+  });
+
+  // Handle room leaving
+  socket.on('leaveRoom', (roomId, callback) => {
+    socket.leave(roomId);
+    console.log(`Client ${socket.id} left room ${roomId}`);
+    if (callback) {
+      callback({ status: 'success', room: roomId });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`Client disconnected: ${socket.id}`);
+  });
+});
+setTaskSocketIoInstance (io);
+setResourceTypeSocketIoInstance(io);
+
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

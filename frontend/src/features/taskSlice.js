@@ -2,19 +2,39 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import taskService from '../Services/taskService';
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 
+// export const createTask = createAsyncThunk(
+//   'tasks/createTask',
+//   async (taskData, { getState, dispatch,rejectWithValue }) => {
+//     try {
+//       // Get the token from the Redux state
+//       const token = getState().auth.token;
+//       if (checkTokenAndLogout(token, dispatch)) {
+//         return null; // Exit if the token is expired
+//       }
+//       // Call the taskService with taskData and token
+//       return await taskService.createTask(taskData, token);
+//     } catch (error) {
+//       return rejectWithValue(error.details || 'Error creating task');
+//     }
+//   }
+// );
 export const createTask = createAsyncThunk(
   'tasks/createTask',
-  async (taskData, { getState, dispatch,rejectWithValue }) => {
+  async (taskData, { getState, dispatch, rejectWithValue }) => {
     try {
-      // Get the token from the Redux state
       const token = getState().auth.token;
       if (checkTokenAndLogout(token, dispatch)) {
-        return null; // Exit if the token is expired
+        return rejectWithValue('Session expired');
       }
-      // Call the taskService with taskData and token
-      return await taskService.createTask(taskData, token);
+      
+      const response = await taskService.createTask(taskData, token);
+      
+      // Ensure consistent response format
+      return Array.isArray(response) 
+        ? { data: response } 
+        : response;
     } catch (error) {
-      return rejectWithValue(error.details || 'Error creating task');
+      return rejectWithValue(error.response?.data?.message || 'Error creating task');
     }
   }
 );
@@ -164,11 +184,31 @@ const taskSlice = createSlice({
     setTaskView: (state, action) => {
       state.currentView = action.payload; // Update the view (e.g., 'allTasks' or 'userTasks')
     },
-    addTaskFromSocket: (state, action) => {
-      console.log("addTaskFromSocket",action.payload)   
-      const newTask = action.payload;
-      if (!state.tasks.find(task => task._id === newTask._id)) {
-        state.tasks.push(newTask);
+    
+    addMultipleTasksFromSocket: (state, action) => {
+      // Ensure state.tasks is always an array
+      if (!Array.isArray(state.tasks)) {
+        state.tasks = [];
+      }
+      
+      // Ensure payload is an array
+      const newTasks = Array.isArray(action.payload) ? action.payload : [action.payload].filter(Boolean);
+      
+      // Create Set of existing IDs (safe even if state.tasks is empty)
+      const existingIds = new Set(
+        Array.isArray(state.tasks) 
+          ? state.tasks.map(t => t._id) 
+          : []
+      );
+      
+      // Filter out duplicates and invalid tasks
+      const uniqueNewTasks = newTasks.filter(
+        task => task?._id && !existingIds.has(task._id)
+      );
+      
+      // Safely add new tasks
+      if (uniqueNewTasks.length > 0) {
+        state.tasks = [...state.tasks, ...uniqueNewTasks];
       }
     },
     resetFilteredTasks: (state) => {
@@ -182,30 +222,31 @@ const taskSlice = createSlice({
       .addCase(createTask.pending, (state) => {
         state.status = 'loading';
       })
-      
-      .addCase(createTask.fulfilled, (state, action) => {
-        console.log("Payload received in fulfilled case:", action.payload);
-      
-        state.status = 'succeeded';
-      
-        // Ensure action.payload is an array of messages and taskData
-        const payloadArray = Array.isArray(action.payload) ? action.payload : [action.payload];
-      
-        payloadArray.forEach((payload) => {
-         
-          const task = payload?.taskData; // Extract taskData from each payload item
-          if (task && task._id) { // Ensure the task is valid
-            // Avoid duplicating tasks in the state
-            if (!state.tasks.some((existingTask) => existingTask._id === task._id)) {
-              state.tasks.push(task);
-            }
-          } else {
-            console.error("Invalid task received in payload:", payload);
-          }
-        });
-      })
-      
-      
+    
+      // In your taskSlice.js
+.addCase(createTask.fulfilled, (state, action) => {
+  state.status = 'succeeded';
+  
+  // Process payload into array of tasks
+  const receivedTasks = Array.isArray(action.payload) 
+    ? action.payload 
+    : action.payload?.data 
+      ? Array.isArray(action.payload.data) 
+        ? action.payload.data 
+        : [action.payload.data]
+      : [action.payload].filter(Boolean);
+  
+  // Create Set of existing task IDs for quick lookup
+  const existingIds = new Set(state.tasks.map(t => t._id));
+  
+  // Filter out duplicates and invalid tasks
+  const uniqueNewTasks = receivedTasks.filter(
+    task => task?._id && !existingIds.has(task._id)
+  );
+  
+  // Merge new tasks with existing ones (IMPORTANT: Use Immer's mutable syntax)
+  state.tasks.push(...uniqueNewTasks);
+})
       .addCase(createTask.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
@@ -324,6 +365,6 @@ const taskSlice = createSlice({
       })
   },
 });
-export const { setTaskView,addTaskFromSocket ,resetFilteredTasks} = taskSlice.actions;
+export const { setTaskView,addMultipleTasksFromSocket ,resetFilteredTasks} = taskSlice.actions;
 
 export default taskSlice.reducer;

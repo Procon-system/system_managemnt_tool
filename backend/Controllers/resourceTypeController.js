@@ -1,18 +1,52 @@
 const resourceTypeService = require('../Services/resourceTypeService');
 const { sendResponse } = require('../utils/responseHandler');
+exports.setResourceTypeSocketIoInstance = (ioInstance) => {
+  io = ioInstance;
+};
 
+// exports.createResourceType = async (req, res) => {
+//   try {
+//     const typeData = req.body;
+//     typeData.organization = req.user.organization;
+//     const resourceType = await resourceTypeService.createResourceType(typeData);
+//     sendResponse(res, 201, 'Resource type created successfully', resourceType);
+//   } catch (error) {
+//     sendResponse(res, 500, error.message, null);
+//   }
+// };
 exports.createResourceType = async (req, res) => {
   try {
     const typeData = req.body;
     typeData.organization = req.user.organization;
     
+    // Validate field definitions
+    if (!typeData.fieldDefinitions || typeData.fieldDefinitions.length === 0) {
+      throw new Error('At least one field definition is required');
+    }
+    
+    const fieldNames = typeData.fieldDefinitions.map(f => f.fieldName);
+    if (new Set(fieldNames).size !== fieldNames.length) {
+      throw new Error('Field names must be unique within a resource type');
+    }
+
     const resourceType = await resourceTypeService.createResourceType(typeData);
+    
+    // Emit socket event to organization room
+    if (io) {
+      const roomId = req.user.organization.toString();
+      io.to(roomId).emit('resourceType:created', {
+        resourceType,
+        message: 'New resource type created',
+        createdBy: req.user._id
+      });
+      console.log(`[Socket] Emitted resourceType:created to room ${roomId}`);
+    }
+
     sendResponse(res, 201, 'Resource type created successfully', resourceType);
   } catch (error) {
-    sendResponse(res, 500, error.message, null);
+    sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
-
 exports.getResourceTypes = async (req, res) => {
   try {
     const resourceTypes = await resourceTypeService.getResourceTypesByOrganization(

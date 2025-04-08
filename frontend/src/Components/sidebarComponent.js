@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState,useEffect,useMemo} from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaPlus } from 'react-icons/fa';
@@ -8,8 +8,10 @@ import { FiList, FiCheckCircle, FiArchive, FiClipboard, FiTool, FiUsers, FiUserP
 import DateRangeFilter from "../Components/taskComponents/datePicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { AiOutlineHome } from "react-icons/ai";
-import { fetchResourceTypes } from '../features/resourceTypeSlice';
+import { fetchResourceTypes,addResourceTypeFromSocket } from '../features/resourceTypeSlice';
 import RenderDynamicIcon from './common/RenderDynamicIcon';
+import { io } from 'socket.io-client';
+
 const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showAddOptions, setShowAddOptions] = useState(false);
@@ -19,23 +21,48 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
   });
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const API_URL = process.env.REACT_APP_API_URL;
 
-  // Access logged-in user's data from Redux store
-    const { access_level } = useSelector((state) => state.auth.user) || 1;
-  const { resourceTypes } = useSelector((state) => state.resourceTypes);
-   
+  const { access_level } = useSelector((state) => state.auth.user) || {};
+  const { user } = useSelector((state) => state.auth);
+  const resourceTypes = useSelector((state) => 
+    state.resourceTypes.resourceTypes || []
+  );
+
   useEffect(() => {
-    if (access_level >= 3) { // Only fetch if user has permission
+    if (!user?.organization) return;
+  
+    // Initial fetch
+    if (access_level >= 3) {
       dispatch(fetchResourceTypes());
     }
-  }, [dispatch, access_level]);
+  
+    const socket = io(API_URL, {
+      query: { organizationId: user.organization }
+    });
+    console.log("Socket connection initialized with organization ID:", user.organization);
+
+    socket.on('resourceType:created', (data) => {
+      console.log("Received new resource type via socket:", data);
+      dispatch(addResourceTypeFromSocket(data.resourceType));
+    });
+  
+    return () => {
+      console.log("Cleaning up socket connection.");
+      socket.off('resourceType:created');
+      socket.disconnect();
+    };
+  }, [user,user?.organization, dispatch, access_level, API_URL]);
+  
   // Categorize resources
-  const categorizedResources = resourceTypes?.reduce((acc, type) => {
-    const category = type.category === 'team' ? 'teams' : 'resources';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(type);
-    return acc;
-  }, {});
+  const categorizedResources = useMemo(() => {
+    return resourceTypes.reduce((acc, type) => {
+      const category = type.category === 'team' ? 'teams' : 'resources';
+      acc[category] = acc[category] || [];
+      acc[category].push(type);
+      return acc;
+    }, {});
+  }, [resourceTypes]); // Only recalculate when resourceTypes changes
 
   const toggleCategory = (category) => {
     setExpandedCategories(prev => ({
@@ -55,7 +82,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
   const handleHomeClick = () => {
     dispatch(setTaskView('allTasks'));
     navigate('/home');
-    setIsOpen(false);
+    // setIsOpen(false);
   };
 
   const handleViewYourTasksClick = () => {
@@ -150,7 +177,6 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
             </button>
           </div>
   
-          {/* Resource Types Section */}
           {/* Resource Types Section */}
           {access_level >= 3 && categorizedResources && (
             <div className="py-2 pl-4 pr-1 mr-3 border-t border-gray-200">
@@ -253,7 +279,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
             >
               <div className="relative">
                 <button 
-                  className="bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                  className="bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
                   aria-label="Add options"
                   onClick={() => setShowAddOptions(!showAddOptions)}
                 >
@@ -261,7 +287,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
                 </button>
   
                 {/* Options panel */}
-                <div className={`absolute bottom-full right-0 mb-2 flex flex-col space-y-2 transition-all duration-300 ease-in-out ${
+                <div className={`absolute bottom-full right-0 mb-2 flex flex-col space-y-1 transition-all duration-300 ease-in-out ${
                   showAddOptions ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
                 }`}>
                   <button 

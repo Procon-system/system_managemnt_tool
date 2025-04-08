@@ -79,12 +79,7 @@ const DynamicFormField = ({ field, value, onChange, options }) => {
           />
         );
       case 'select':
-        console.log('Select field props:', {
-          label: field.displayName,
-          value,
-          options: selectOptions,
-          isMulti: field.multiple
-        });
+        
         return (
           <SelectInput
             label={field.displayName}

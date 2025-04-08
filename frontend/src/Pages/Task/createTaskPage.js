@@ -14,8 +14,8 @@ const TaskPage = ({ onClose, onEventCreate, event, isOffset = false }) => {
     color_code: event?.color_code || "",
     // Initialize arrays for multiple resources
     assignedResources: event?.assignedResources || [],
-    requiredTools: event?.requiredTools || [],
-    materials: event?.materials || [],
+    // requiredTools: event?.requiredTools || [],
+    // materials: event?.materials || [],
     // Other default values
   };
 

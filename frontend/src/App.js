@@ -24,6 +24,7 @@ import UserManagementPage from "./Pages/User/userPage";
 import { useDispatch, useSelector } from 'react-redux';
 import { localDB } from './pouchDb';
 import MainLayout from './Components/layout/layoutWrapper'
+import ResourceTypesPage from './Pages/ResourceType/showResourceTypePage';
 const viewAllDocuments = async () => {
   try {
     const result = await localDB.allDocs({ include_docs: true });
@@ -63,44 +64,6 @@ const ConditionalNavBar = () => {
 const App = () => {
   const { isLoggedIn } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
-
-  // Fetch shared data when the app loads
-  // useEffect(() => {
-  //   dispatch(getUsers());
-  //   dispatch(fetchMaterials());
-  //   dispatch(fetchTools());
-  //   dispatch(fetchMachines());
-  //   dispatch(fetchFacilities());
-  // }, [dispatch]);
-
-  // // Sync local data with the backend when the app loads or comes back online
-  // useEffect(() => {
-  //   const handleOnline = () => {
-  //     const token = localStorage.getItem('token'); // Get the token from storage
-  //     if (token) {
-  //       materialService.syncLocalChanges(token);
-  //       toolService.syncLocalChanges(token);
-  //       facilityService.syncLocalChanges(token);
-  //       machineService.syncLocalChanges(token);
-  //       taskService.checkAndSync(token);
-
-  //     }
-  //   };
-
-    // Sync data when the app loads (if online)
-  //   if (navigator.onLine) {
-  //     handleOnline();
-  //   }
-
-  //   // Listen for online event
-  //   window.addEventListener('online', handleOnline);
-
-  //   // Cleanup event listener
-  //   return () => {
-  //     window.removeEventListener('online', handleOnline);
-  //   };
-  // }, []);
-
   return (
     <Router>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar closeOnClick pauseOnFocusLoss pauseOnHover />
@@ -158,6 +121,16 @@ const App = () => {
               <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
                 <MainLayout>
       <CreateResourceTypePage />
+    </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+           <Route
+            path="/show-resource-type"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+                <MainLayout>
+      <ResourceTypesPage/>
     </MainLayout>
               </ProtectedRoute>
             }

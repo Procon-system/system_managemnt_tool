@@ -1,10 +1,10 @@
 
 
 import { useState, useEffect } from 'react';
-import { FaClock, FaStickyNote, FaCheckCircle, FaSyncAlt, FaCalendarAlt, FaCogs, FaBuilding, FaWrench, FaBoxOpen, FaUserAlt  } from 'react-icons/fa';
+import { FaClock, FaStickyNote, FaCheckCircle, FaSyncAlt, FaCalendarAlt, FaUserAlt  } from 'react-icons/fa';
 import { useDispatch,useSelector } from 'react-redux';
 import RichTextEditor from './richTextEditor';
-import {SelectInput,getSelectedOptions,SelectTaskPeriodInput} from './selectInput';
+import {SelectInput,SelectTaskPeriodInput} from './selectInput';
 import { getUsers } from '../../features/userSlice';
 import DOMPurify from "dompurify";
 import ImageSlider from './imageSlider';
@@ -19,7 +19,7 @@ const EventDetailsModal = ({
 }) => {
   const dispatch = useDispatch();
   const [editableEvent, setEditableEvent] = useState(selectedEvent || {});
-
+console.log("selectedEvent",selectedEvent)
 useEffect(() => {
   setEditableEvent(selectedEvent || {});
 }, [selectedEvent]);
@@ -39,19 +39,6 @@ const handleChange = (e) => {
    const [images, setImages] = useState([]);
   const [newImages, setNewImages] = useState([]); // Store new images for preview
 
-  // useEffect(() => {
-  //   if (editableEvent?._id) {
-  //     fetch(`http://localhost:5000/api/tasks/get-images/${editableEvent._id}`)
-  //       .then((res) => res.json())
-  //       .then((data) => {
-  //         console.log("data",data)
-  //         if (Array.isArray(data.images)) {
-  //           setImages(data.images); // Store the image URLs array
-  //         }
-  //       })
-  //       .catch((error) => console.error("Error fetching images:", error));
-  //   }
-  // }, [editableEvent?._id]);
   useEffect(() => {
     const fetchImages = async () => {
       if (editableEvent?._id) {
@@ -107,58 +94,7 @@ const handleChange = (e) => {
       })
       .join(", ") || "Not set";
   
-  // const getToolNames = (toolsArray) =>
-  //   toolsArray
-  //     ?.map((tool) => {
-  //       if (typeof tool === "object") {
-  //         return tool.tool_name;
-  //       }
-  //       const foundTool = tools?.find((t) => t._id === tool);
-  //       return foundTool ? foundTool.tool_name : "Unknown Tool";
-  //     })
-  //     .join(", ") || "Not set";
-  
-  //     const getMaterialNames = (materialsArray) =>
-  //       materialsArray
-  //         ?.map((material) => {
-  //           // If material is an object, use its properties; otherwise, find it by ID
-  //           if (typeof material === "object") {
-  //             return material.material_name;
-  //           }
-  //           const foundMaterial = materials?.find((m) => m._id === material);
-  //           return foundMaterial ? foundMaterial.material_name : "Unknown Material";
-  //         })
-  //         .join(", ") || "Not set";
-      
-  // const getFacilityName = (id) => {
-  //       const facility = facilities?.find((f) => f._id === id);
-  //       return facility ? facility.facility_name : 'Unknown Facility';
-  //     };
-    
-  // const getMachineName = (id) => {
-  //       const machine = machines?.find((m) => m._id === id);
-  //       return machine ? machine.machine_name : 'Unknown Machine';
-  //     };
-  //     const machineOptions = machines?.map(machine => ({
-  //       label: machine.machine_name,
-  //       value: machine._id
-  //     }));
-      
-  //     const facilityOptions = facilities?.map(facility => ({
-  //       label: facility.facility_name,
-  //       value: facility._id
-  //     }));
-      
-      
-  //     const toolOptions = tools?.map(tool => ({
-  //       label: tool.tool_name,
-  //       value: tool._id
-  //     }));
-      
-  //     const materialOptions = materials?.map(material => ({
-  //       label: material.material_name,
-  //       value: material._id
-  //     }));
+ 
       const userOptions = users?.map(user => ({
         label: `${user.first_name} ${user.last_name}`, // Use backticks
         value: user._id
@@ -319,27 +255,6 @@ const handleChange = (e) => {
                     />
                   </div>
           
-                  {/* Machine */}
-                  {/* <div>
-                    <SelectInput
-                      label="Machine"
-                      name="machine"
-                      value={editableEvent?.machine}
-                      onChange={handleChange}
-                      options={machineOptions}
-                    />
-                  </div>
-          
-                  {/* Facility */}
-                  {/* <div>
-                    <SelectInput
-                      label="Facility"
-                      name="facility"
-                      value={editableEvent?.facility}
-                      onChange={handleChange}
-                      options={facilityOptions}
-                    />
-                  </div>  */}
           
                   {/* Assigned To */}
                   <div>
@@ -353,32 +268,6 @@ const handleChange = (e) => {
                     />
                   </div>
           
-                  {/* Tools */}
-                  {/* <div>
-                    <SelectInput
-                      label="Tools"
-                      name="tools"
-                      value={editableEvent?.tools || []}
-                      onChange={handleChange}
-                      options={toolOptions}
-                      isMulti={true}
-                    />
-                  </div>
-          
-                  {/* Materials */}
-                  {/* <div>
-                    <SelectInput
-                      label="Materials"
-                      name="materials"
-                      value={editableEvent?.materials || []}
-                      onChange={handleChange}
-                      options={materialOptions}
-                      isMulti={true}
-                    />
-                  </div> */}
-          
-                  {/* Status (Role ≥ 2) */}
-                  
                 </div>
               )}
              {role >= 2 && (
@@ -514,25 +403,6 @@ const handleChange = (e) => {
         </p>
       </div>
 
-      {/* <div className="flex items-center gap-2">
-        <FaCogs className="text-blue-500" />
-        <p><strong>Machine:</strong> {getMachineName(editableEvent?.machine )}</p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <FaBuilding className="text-blue-500" />
-        <p><strong>Facility:</strong> {getFacilityName(editableEvent?.facility)}</p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <FaBoxOpen className="text-blue-500" />
-        <p><strong>Materials:</strong> {getMaterialNames(editableEvent?.materials)}</p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <FaWrench className="text-blue-500" />
-        <p><strong>Tools:</strong> {getToolNames(editableEvent?.tools)}</p>
-      </div> */}
 
       <div className="flex items-center gap-2">
         <FaUserAlt className="text-blue-500" />

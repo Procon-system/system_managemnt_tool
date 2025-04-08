@@ -53,14 +53,14 @@ const CreateResourceTypePage = ({ onCancel }) => {
     e.preventDefault();
     try {
       await dispatch(createResourceType(resourceType)).unwrap();
-      navigate('/resource-types');
+      navigate('/show-resource-type');
     } catch (error) {
       // Error is already handled in the slice
     }
   };
 
   const handleCancel = () => {
-    navigate('/resource-types');
+    navigate('/show-resource-type');
   };
 
   return (

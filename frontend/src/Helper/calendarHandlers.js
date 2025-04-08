@@ -9,10 +9,8 @@ export const handleEventDuplication = async ({
 }) => {
   try {
     // Deep copy the event data to avoid unintended mutations
-    console.log("info.event",info.event)
-    const eventData = JSON.parse(JSON.stringify(info.event));
-    console.log("Event duplication initiated:", eventData);
-
+        const eventData = JSON.parse(JSON.stringify(info.event));
+   
     const eventTimezone = getTimezoneFromDate(eventData.start);
     const extendedProps = eventData.extendedProps || {};
     const assignedResources = extendedProps.assigned_resources || {
@@ -20,8 +18,7 @@ export const handleEventDuplication = async ({
       materials: [],
       tools: []
     };
-  console.log("assignedResources",assignedResources)
-    // Prepare the new event object
+     // Prepare the new event object
     const newEvent = {
       start_time: adjustTimeForBackend(eventData.start, eventTimezone),
       end_time: adjustTimeForBackend(eventData.end, eventTimezone),

@@ -443,49 +443,65 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
               const { event } = info;
               const { extendedProps } = event;
                console.log("event",info)
-// Construct the updatedEvent object with a flat structure for assigned resources
-const updatedEvent = {
-_id: eventId,
-title: event.title || 'Untitled Event',
-start: event.start || new Date(),
-end: event.end || new Date(),
-color: event.backgroundColor || '#cccccc',
-images: extendedProps?.images || [],
-notes: extendedProps?.notes || 'No notes available',
-status: extendedProps?.status || null,
-repeat_frequency: extendedProps?.repeat_frequency || null,
-task_period: extendedProps?.task_period || null,
-machine: extendedProps?.machine || null,
-facility: extendedProps?.facility || null,
-created_by: extendedProps?.created_by || null,
-// Flattened assigned resources
-// Flattened assigned resources with only IDs
-// assigned_to: extendedProps?.assigned_resources?.assigned_to?.map(user => user?._id || user?.id) || assigned_to|| [],
-// tools: extendedProps?.assigned_resources?.tools?.map(tool => tool?._id || tool?.id) || [],
-// materials: extendedProps?.assigned_resources?.materials?.map(material => material?._id || material?.id) || [],
-assigned_to:Array.isArray(extendedProps?.assigned_resources?.assigned_to)
-  ? extendedProps.assigned_resources.assigned_to.map(user => 
-      typeof user === 'object' ? user?._id || user?.id : user
-    ) 
-    : JSON.parse(extendedProps?.assigned_resources?.assigned_to || "[]"), 
-
-
-tools :Array.isArray(extendedProps?.assigned_resources?.tools)
-  ? extendedProps.assigned_resources.tools.map(tool => 
-      typeof tool === 'object' ? tool?._id || tool?.id : tool
-    ) 
-    : JSON.parse(extendedProps?.assigned_resources?.tools || "[]"),
-
- materials:Array.isArray(extendedProps?.assigned_resources?.materials)
-  ? extendedProps.assigned_resources.materials.map(material => 
-      typeof material === 'object' ? material?._id || material?.id : material
-    ) 
-    : JSON.parse(extendedProps?.assigned_resources?.materials || "[]"),
+// Helper function to process resource arrays
+const processResourceArray = (resources) => {
+  if (!resources) return [];
+  
+  return resources.map(resource => {
+    if (typeof resource === 'string') return resource;
+    
+    // Handle both direct IDs and resource objects
+    return {
+      _id: resource._id || resource.id,
+      relationshipType: resource.relationshipType || 'requires',
+      required: resource.required || false,
+      resource: resource.resource ? {
+        _id: resource.resource._id,
+        displayName: resource.resource.displayName,
+        fields: resource.resource.fields || {},
+        status: resource.resource.status,
+        type: resource.resource.type
+      } : null
+    };
+  });
 };
-console.log("upadted",updatedEvent)
-              openForm(updatedEvent);
-            }
-          },
+
+// Construct the updatedEvent object with proper resource handling
+const updatedEvent = {
+  _id: event._id || eventId,
+  title: event.title || 'Untitled Event',
+  start: event.start || new Date(),
+  end: event.end || new Date(),
+  color: event.backgroundColor || extendedProps?.color || '#cccccc',
+  images: extendedProps?.images || [],
+  notes: extendedProps?.notes || '',
+  status: extendedProps?.status || 'pending',
+  repeat_frequency: extendedProps?.repeat_frequency || 'none',
+  task_period: extendedProps?.task_period || '1 week',
+  priority: extendedProps?.priority || 'medium',
+  timezone: extendedProps?.timezone || 'UTC',
+  visibility: extendedProps?.visibility || 'team',
+  created_by: extendedProps?.created_by || null,
+  
+  // Process assigned resources
+  assigned_resources: {
+    assigned_to: Array.isArray(extendedProps?.assigned_resources?.assigned_to)
+      ? extendedProps.assigned_resources.assigned_to.map(user => 
+          typeof user === 'object' ? user._id || user.id : user
+        )
+      : [],
+    
+    resources: processResourceArray(extendedProps?.assigned_resources?.resources)
+  },
+  
+  // Include all resource IDs in a flat array
+  resourceIds: extendedProps?.resourceIds || []
+};
+
+console.log("updatedEvent", updatedEvent);
+openForm(updatedEvent);
+          }
+        },
           // Add this to ensure events have unique identifiers
           eventDidMount: (info) => {
             const eventElement = info.el;

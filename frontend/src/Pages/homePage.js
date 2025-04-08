@@ -10,6 +10,7 @@ import {
   getTasksByAssignedUser,
   getAllDoneTasks, 
   deleteTask,
+  addMultipleTasksFromSocket,
   getTasksDoneByAssignedUser ,
   bulkUpdateTasks
 } from '../features/taskSlice';
@@ -17,7 +18,7 @@ import { toast } from 'react-toastify';
 import TaskPage from './Task/createTaskPage';
 import EventDetailsModal from '../Components/taskComponents/updateTaskForm';
 import getColorForStatus from '../Helper/getColorForStatus';
-const API_URL='http://localhost:5000';
+const API_URL=process.env.REACT_APP_API_BASE_URL;
 const HomePage = () => {
   const dispatch = useDispatch();
   const [filteredEvents, setFilteredEvents] = useState([]);
@@ -47,15 +48,17 @@ const HomePage = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  },[]);
 
-   const handleTaskDeletion = useCallback((deletedTaskId) => {
+  const handleTaskDeletion = useCallback((deletedTaskId) => {
     setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
   },[]);
+ 
   const updateEventState = useCallback((updatedEvents = [], deletedEventId = null) => {
+   
     setFilteredEvents((prevEvents) => {
       let currentEvents = prevEvents || tasks || [];
-  
+       
       // Handle deletion
       if (deletedEventId) {
         handleTaskDeletion(deletedEventId);
@@ -95,207 +98,128 @@ const HomePage = () => {
       return currentEvents;
     });
   }, [tasks, handleTaskDeletion, eventsRef]); // Add dependencies
+
+  const handleTaskCreated = useCallback((broadcastData) => {
+    console.log('Socket task received:', broadcastData);
+    
+    const tasks = broadcastData.newTasks || [broadcastData.newTask].filter(Boolean);
+    
+    // Dispatch all tasks at once for better performance
+    if (tasks.length > 0) {
+      dispatch(addMultipleTasksFromSocket(tasks));
+    }
+  }, [dispatch]);
+  
 useEffect(() => {
+  const organizationId = user?.organization?._id || user?.organization; // Handle both object and string cases
+
   if (!isOnline) {
-        return; // Skip WebSocket operations if offline
+    console.log("[Socket] Offline - skipping WebSocket setup");
+    return;
   }
 
-  console.log("Online: Establishing WebSocket connection...");
+  if (!organizationId) {
+    console.error("[Socket] No organization ID found - cannot establish connection");
+    return;
+  }
 
-  // Initialize WebSocket connection
+  console.log("[Socket] Online - establishing connection for org:", organizationId);
+
   const socket = io(API_URL, {
-    reconnection: true, // Enable reconnection
-    reconnectionAttempts: 5, // Number of reconnection attempts
-    reconnectionDelay: 1000, // Delay between reconnection attempts
-  });
-
-  // Event: Socket connected
-  socket.on("connect", () => {
-    console.log("Connected to WebSocket server:", socket.id);
-  });
-
-  // Event: Socket disconnected
-  socket.on("disconnect", () => {
-    console.log("Disconnected from WebSocket server.");
-  });
-
-  socket.on("tasksUpdated", ({ updatedTasks }) => {
-    console.log("Tasks updated:", updatedTasks);
-  
-    if (!Array.isArray(updatedTasks)) return;
-  
-    // Batch update all events at once
-    setFilteredEvents((prevEvents) => {
-      const eventMap = new Map(prevEvents.map((event) => [event._id, event]));
-  
-      updatedTasks.forEach((task) => {
-        const taskData = task.updatedTask || task;
-  
-        const formattedTask = {
-          _id: taskData._id,
-          title: taskData.title,
-          start: taskData.start_time || taskData.start,
-          end: taskData.end_time || taskData.end,
-          color: taskData.color || taskData.color_code,
-          status: taskData.status,
-          notes: taskData.notes,
-          assigned_resources: {
-            assigned_to: taskData.assigned_to || [],
-            tools: taskData.tools || [],
-            materials: taskData.materials || [],
-          },
-        };
-  
-        if (eventMap.has(formattedTask._id)) {
-          eventMap.set(formattedTask._id, {
-            ...eventMap.get(formattedTask._id),
-            ...formattedTask,
-          });
-        } else {
-          eventMap.set(formattedTask._id, formattedTask);
-        }
-      });
-  
-      const updatedEvents = Array.from(eventMap.values());
-      return updatedEvents.length > 0 ? updatedEvents : prevEvents;
-    });
-  });
-
-  // Event: Task created
-  socket.on("taskCreated", (broadcastData) => {
-    console.log("Task created:", broadcastData);
-
-    const newTasks = broadcastData?.newTasks
-      ? broadcastData.newTasks
-      : broadcastData?.newTask
-      ? [broadcastData.newTask]
-      : []; // Normalize to an array
-
-    if (newTasks.length === 0) {
-      console.error("Invalid task creation broadcast data:", broadcastData);
-      return;
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    query: {
+      organizationId: organizationId,
+      userId: user?._id // Optional: include user ID for debugging
     }
+  });
 
-    newTasks.forEach((newTask) => {
-      if (newTask && newTask._id && !filteredEvents.some((event) => event._id === newTask._id)) {
-        updateEventState(newTask);
+  // Connection events
+  socket.on("connect", () => {
+    console.log("[Socket] Connected with ID:", socket.id);
+    
+    // Join organization room upon connection
+    socket.emit("joinRoom", organizationId, (response) => {
+      if (response?.status === 'success') {
+        console.log(`[Socket] Successfully joined room: ${organizationId}`);
+      } else {
+        console.error("[Socket] Failed to join room:", response?.error);
       }
     });
   });
 
-    socket.on("tasksUpdated", ({ updatedTasks }) => {
-    
-    if (!Array.isArray(updatedTasks)) return;
-    updateEventState(updatedTasks);
-  });
-  // Event: Task deleted
-  socket.on("taskDeleted", (taskId) => {
-    console.log("Task deleted:", taskId);
-
-    if (!taskId) {
-      console.error("Invalid task ID received for deletion.");
-      return;
+  socket.on("disconnect", (reason) => {
+    console.log("[Socket] Disconnected:", reason);
+    if (reason === "io server disconnect") {
+      // Attempt to reconnect if server disconnected us
+      socket.connect();
     }
-
-    updateEventState(null, taskId); // Update state for deletion
   });
 
-  // Clean up on unmount or when `isOnline` changes
+  socket.on("connect_error", (err) => {
+    console.error("[Socket] Connection error:", err.message);
+    // Attempt to reconnect after delay
+    setTimeout(() => socket.connect(), 5000);
+  });
+
+
+  socket.on("taskCreated", handleTaskCreated);
+
+
+
   return () => {
-    console.log("Cleaning up WebSocket connection...");
+    console.log("[Socket] Cleaning up connection for org:", organizationId);
+    
+    // Leave room before disconnecting
+    if (socket.connected) {
+      socket.emit("leaveRoom", organizationId, (response) => {
+        console.log(`[Socket] Leave room response:`, response);
+      });
+    }
+    
+    // Cleanup listeners
     socket.off("connect");
     socket.off("disconnect");
-    socket.off("taskUpdated");
-    socket.off("taskCreated");
-    socket.off("tasksUpdated");
-    socket.off("taskDeleted");
-    socket.disconnect();
+    socket.off("connect_error");
+    socket.off("taskCreated", handleTaskCreated); // Important: use named function
+   
+    // Disconnect if still connected
+    if (socket.connected) {
+      socket.disconnect();
+    }
   };
-}, [isOnline, updateEventState]); // Re-run effect when these dependencies change // Re-run effect when online status changes
+}, [isOnline, updateEventState, filteredEvents, user?.organization]); // Add user.organization t
 
-
-//   return Array.isArray(tasks)
-//     ? tasks
-//         .filter((task) => !deletedTaskIds.has(task._id)) // Exclude deleted tasks
-//         .map((task) => ({
-//           _id: task._id,
-//           title: task.title || 'No Title',
-//           start: task.start_time,
-//           end: task.end_time,
-//           color: task.color_code,
-//           images: task.images || [],
-//           task_period:task.task_period,
-//           repeat_frequency:task.repeat_frequency,
-//           created_by:task.created_by,
-//           machine:task.machine || null,
-//           facility:task.facility || null,
-//           notes: task.notes || 'No Notes',
-//           status: task.status || null,
-//           assigned_resources: {
-//             assigned_to: task.assigned_to || [],
-//             tools: task.tools || [],
-//             materials: task.materials || [],
-//           },
-//           resourceIds: [
-//             ...(task.assigned_to || []),
-//             ...(task.tools || []),
-//             ...(task.materials || []),
-//           ],
-//         }))
-//     : [];
-// }, [tasks, deletedTaskIds]); // Recompute when tasks or deletedTaskIds change
-// const calendarEvents  = useMemo(() => {
-//   return Array.isArray(tasks?.data?.tasks)
-//     ? tasks.data.tasks
-//         .filter((task) => !deletedTaskIds.has(task._id))
-//         .map((task) => ({
-//           _id: task._id,
-//           title: task.title || 'No Title',
-//           start: task.schedule?.start,
-//           end: task.schedule?.end,
-//           timezone: task.schedule?.timezone || 'UTC',
-//           color: task.color || '#fbbf24',
-//           images: task.attachments || [],
-//           task_period: task.task_period,
-//           repeat_frequency: task.repeat_frequency,
-//           created_by: task.createdBy ? {
-//             id: task.createdBy._id,
-//             name: task.createdBy.full_name || `${task.createdBy.first_name} ${task.createdBy.last_name}`,
-//             email: task.createdBy.email
-//           } : null,
-//           priority: task.priority,
-//           visibility: task.visibility,
-//           status: task.status,
-//           organization: task.organization,
-//           assigned_resources: {
-//             assigned_to: task.assignments?.map(assignment => ({
-//               user: {
-//                 id: assignment.user?._id,
-//                 name: assignment.user?.full_name || 
-//                       `${assignment.user?.first_name} ${assignment.user?.last_name}`,
-//                 email: assignment.user?.email
-//               },
-//               team: assignment.team,
-//               role: assignment.role
-//             })) || [],
-//             resources: task.resources?.map(resource => ({
-//               resourceId: resource.resource?._id,
-//               relationshipType: resource.relationshipType,
-//               required: resource.required
-//             })) || []
-//           },
-//           resourceIds: [
-//             ...(task.assignments?.map(a => a.user?._id).filter(Boolean) || []),
-//             ...(task.resources?.map(r => r.resource?._id).filter(Boolean) || [])
-//           ],
-//           dependencies: task.dependencies || [],
-//           tags: task.tags || [],
-//           notes: '', // Your API response doesn't show notes field
-//           createdAt: task.createdAt,
-//           updatedAt: task.updatedAt
-//         }))
-//     : [];
-// }, [tasks, deletedTaskIds]);
+useEffect(() => {
+  // Always treat tasks as array
+  const tasksArray = Array.isArray(tasks) ? tasks : [];
+  
+  // Transform tasks to calendar events
+  const newEvents = tasksArray
+    .map(task => ({
+      ...task,
+      id: task._id, // Ensure fullCalendar gets proper ID
+      start: task.schedule?.start || task.start_time,
+      end: task.schedule?.end || task.end_time,
+      title: task.title || 'Untitled Task'
+    }))
+    .filter(event => event.start && event.end);
+  
+  // Only update if events actually changed
+  setFilteredEvents(prev => {
+    const prevIds = new Set(prev.map(e => e.id));
+    const newIds = new Set(newEvents.map(e => e.id));
+    
+    // If same events, return previous array (maintain reference equality)
+    if (prev.length === newEvents.length && 
+        newEvents.every(e => prevIds.has(e.id)) &&
+        prev.every(e => newIds.has(e.id))) {
+      return prev;
+    }
+    return newEvents;
+  });
+}, [tasks]);
 const calendarEvents = useMemo(() => {
   return Array.isArray(tasks?.data?.tasks)
     ? tasks.data.tasks
@@ -374,7 +298,7 @@ useEffect(() => {
 useEffect(() => {
   if (currentView === 'allTasks') {
    
-    dispatch(fetchOrganizationTasks({page :1, limit :10})); // Fetch all tasks
+    dispatch(fetchOrganizationTasks({page :1, limit :100})); // Fetch all tasks
   } else if (currentView === 'userTasks') {
     
        dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user
@@ -471,19 +395,21 @@ const handleMultipleEventUpdate = (updatedEvents) => {
     });
 };
 const handleEventCreate = async (newEvent) => {
-    try {
-      const createdTask = await dispatch(createTask(newEvent));
-  
-      if (createdTask.error || !createdTask.payload) {
-        throw new Error(createdTask.error || "Unknown error");
-      }
+  try {
+    const result = await dispatch(createTask(newEvent));
+    
+    if (createTask.fulfilled.match(result)) {
       toast.success("Task created successfully!");
-      return { success: true, data: createdTask.payload };
-    } catch (err) {
-      console.error("Task creation failed:", err);
-      return { success: false, error: err.message || "Unknown error" };
+      // No need to manually update state - Redux and socket will handle it
+      return { success: true };
+    } else {
+      throw new Error(result.error.message || "Failed to create task");
     }
-  };
+  } catch (err) {
+    toast.error(err.message);
+    return { success: false };
+  }
+};
   const handleDateRangeSelect = (startDate, endDate) => {
     if (!startDate || !endDate) {
       // Reset to all events when no date range is selected

@@ -33,7 +33,7 @@ const resourceTypeService = {
         //   console.error('Local DB sync error:', dbError);
         // }
         
-        return response.data;
+        return response.data.data;
     //   } else {
     //     // Offline handling
     //     const resourceTypeId = `resourceType:${uuidv4()}`;
