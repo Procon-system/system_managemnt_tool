@@ -119,6 +119,39 @@ export const updateTask = createAsyncThunk(
   }
 );
 
+// Fetch image metadata
+export const fetchImageMetadata = createAsyncThunk(
+  'tasks/fetchImageMetadata',
+  async ({ fileIds }, { getState, dispatch, rejectWithValue }) => {
+    const token = getState().auth.token;
+
+    if (checkTokenAndLogout(token, dispatch)) return null;
+
+    try {
+      const response = await taskService.fetchImageMetadata(fileIds, token);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Fetch image file
+export const fetchImageFile = createAsyncThunk(
+  'tasks/fetchImageFile',
+  async ({ fileId }, { getState, dispatch, rejectWithValue }) => {
+    const token = getState().auth.token;
+
+    if (checkTokenAndLogout(token, dispatch)) return null;
+
+    try {
+      const response = await taskService.fetchImageFile(fileId, token);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
 
 // Delete Task
 export const deleteTask = createAsyncThunk(
@@ -177,6 +210,8 @@ const taskSlice = createSlice({
     tasks: [],
     status: 'idle',
     filteredTasks: [], 
+    imageMetadata: [],
+    imageFiles: {},
     error: null,
     currentView: 'allTasks', // Default to showing all tasks
   },
@@ -219,6 +254,20 @@ const taskSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+    .addCase(fetchImageMetadata.pending, (state) => {
+      state.status = 'loading';
+    })
+    .addCase(fetchImageMetadata.fulfilled, (state, action) => {
+      state.status = 'succeeded';
+      state.imageMetadata = action.payload;
+    })
+    .addCase(fetchImageMetadata.rejected, (state, action) => {
+      state.status = 'failed';
+      state.error = action.payload;
+    })
+    .addCase(fetchImageFile.fulfilled, (state, action) => {
+      state.imageFiles[action.payload.fileId] = action.payload.blob;
+    })
       .addCase(createTask.pending, (state) => {
         state.status = 'loading';
       })

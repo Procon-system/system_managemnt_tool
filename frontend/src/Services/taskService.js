@@ -1101,7 +1101,30 @@ const taskService = {
       throw error.response?.data || error.message;
     }
   },
-
+ fetchImageMetadata: async (fileIds, token) => {
+    const response = await axios.get(`${API_URL}/images/bulk?fileIds=${fileIds.join(',')}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data.data;
+  },
+  
+ fetchImageFile: async (fileId, token) => {
+    const response = await axios.get(`${API_URL}/image/${fileId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      responseType: 'blob',
+    });
+  
+    return {
+      fileId,
+      blob: response.data,
+      contentType: response.headers['content-type'],
+    };
+  },
+  
   /**
    * Update a task
    * @param {string} taskId - Task ID to update
@@ -1110,7 +1133,9 @@ const taskService = {
    * @returns {Promise<Object>} Updated task
    */
   updateTask: async (taskId, updateData, token) => {
+
     try {
+      console.log("updateData",updateData)
       const response = await axios.put(`${API_URL}/${taskId}`, updateData, {
         headers: { Authorization: `Bearer ${token}` }
       });

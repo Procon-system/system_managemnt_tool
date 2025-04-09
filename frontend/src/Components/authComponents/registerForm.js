@@ -1,10 +1,10 @@
-// src/components/RegisterForm.js
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { registerUser } from '../../Services/authService';
 import FormInput from './inputForm';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+
 const RegisterForm = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -13,7 +13,7 @@ const RegisterForm = () => {
     first_name: '',
     last_name: '',
     personal_number: '',
-    working_group: '',
+    organizationName: '', // Add this field
     access_level: 1,
   });
   const [error, setError] = useState('');
@@ -30,13 +30,12 @@ const RegisterForm = () => {
    
     try {
       const response = await registerUser(formData);
-          console.log("res",response.user)
+      console.log("res", response.user);
+      
       if (response && response.success) {
-          setConfirmationMessage('User registered successfully. Please verify the email.');
-          toast.success('Registration successful!');
-          // Redirect to the login page or wherever necessary after registration
-          navigate('/home');
-        
+        setConfirmationMessage('User registered successfully. Please verify the email.');
+        toast.success('Registration successful!');
+        navigate('/home');
       } else {
         console.error('Unexpected response structure:', response);
         toast.error('Registration failed. Please try again.');
@@ -57,22 +56,24 @@ const RegisterForm = () => {
         Password must be at least 6 characters long and include a mix of letters and numbers.
       </p>
       <FormInput label="Personal Number" name="personal_number" type="text" value={formData.personal_number} onChange={handleChange} />
-    {/* Access Level Dropdown */}
-    <FormInput
-      label="Access Level"
-      name="access_level"
-      type="text"
-      value={formData.access_level}
-      onChange={handleChange}
-      required
-      options={[
-        { value: 1, description: '1 - Random User' },
-        { value: 2, description: '2 - Service Personnel' },
-        { value: 3, description: '3 - Manager' },
-        { value: 4, description: '4 - Free' },
-        { value: 5, description: '5 - Admin' },
-      ]}
-    />
+      <FormInput label="Organization Name" name="organizationName" type="text" value={formData.organizationName} onChange={handleChange} />
+      
+      <FormInput
+        label="Access Level"
+        name="access_level"
+        type="select" // Changed from 'text' to 'select'
+        value={formData.access_level}
+        onChange={handleChange}
+        required
+        options={[
+          { value: 1, description: '1 - Random User' },
+          { value: 2, description: '2 - Service Personnel' },
+          { value: 3, description: '3 - Manager' },
+          { value: 4, description: '4 - Free' },
+          { value: 5, description: '5 - Admin' },
+        ]}
+      />
+      
       {error && <p className="text-red-500">{error}</p>}
       {confirmationMessage && <p className="text-green-500">{confirmationMessage}</p>}
 

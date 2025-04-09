@@ -130,7 +130,7 @@ exports.updateTask = async (taskId, updateData, organizationId) => {
       statusCode: 400
     };
   }
-  
+  console.log("updateData",updateData)
   const task = await Task.findOneAndUpdate(
     { _id: taskId, organization: organizationId },
     updateData,

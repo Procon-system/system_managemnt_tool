@@ -1,21 +1,14 @@
 
 
 import { useState, useEffect } from 'react';
-import { 
-  FaClock, 
-  FaCheckCircle, 
-  FaStickyNote, 
-  FaSyncAlt, 
-  FaCalendarAlt, 
-  FaUserAlt,
-  FaBox
-} from 'react-icons/fa';
+
 import { useDispatch,useSelector } from 'react-redux';
 import RichTextEditor from './richTextEditor';
 import {SelectInput,SelectTaskPeriodInput} from './selectInput';
-import { getUsers } from '../../features/userSlice';
 import DOMPurify from "dompurify";
 import ImageSlider from './imageSlider';
+import { fetchImageMetadata, fetchImageFile } from '../../features/taskSlice'; // Adjust path as needed
+
 import {localDB} from '../../pouchDb';
 const EventDetailsModal = ({
   isVisible,
@@ -25,8 +18,9 @@ const EventDetailsModal = ({
   handleDelete,
   handleFormSubmit,
 }) => {
-  const dispatch = useDispatch();
+  
   const [editableEvent, setEditableEvent] = useState(selectedEvent || {});
+  const dispatch = useDispatch();
 console.log("selectedEvent",selectedEvent)
 useEffect(() => {
   setEditableEvent(selectedEvent || {});
@@ -52,16 +46,34 @@ const handleChange = (e) => {
       if (editableEvent?._id) {
         if (navigator.onLine) {
           try {
-            const res = await fetch(`http://localhost:5000/api/tasks/get-images/${editableEvent._id}`);
-            const data = await res.json();
-            console.log("Fetched images data:", data);
-  
-            if (Array.isArray(data.images)) {
-              setImages(data.images); // Store the image URLs array
+            // 1. Fetch image metadata (this gives us fileIds)
+            const metaResult = await dispatch(fetchImageMetadata({ fileIds: [editableEvent._id] }));
+    
+            if (fetchImageMetadata.fulfilled.match(metaResult)) {
+              const imageFileIds = metaResult.payload?.images || [];
+    
+              // 2. Fetch image blobs for each image
+              const imageBlobResults = await Promise.all(
+                imageFileIds.map(async (fileId) => {
+                  const fileResult = await dispatch(fetchImageFile({ fileId }));
+                  if (fetchImageFile.fulfilled.match(fileResult)) {
+                    const { blob } = fileResult.payload;
+                    return URL.createObjectURL(blob);
+                  } else {
+                    console.error('Failed to fetch image file', fileResult.payload);
+                    return null;
+                  }
+                })
+              );
+    
+              const validUrls = imageBlobResults.filter(Boolean);
+              setImages(validUrls);
             }
           } catch (error) {
-            console.error("Error fetching images from server:", error);
-          }
+            console.error("Error fetching task or images:", error);
+            // Optionally show error to user
+            // toast.error("Failed to load images. Please try again.");
+          } 
         } else {
           try {
             // Fetch the task document from PouchDB

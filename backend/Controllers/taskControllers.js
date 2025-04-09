@@ -1,6 +1,8 @@
 const taskService = require('../Services/taskService');
 const { sendResponse } = require('../utils/responseHandler');
 const calculateTaskPeriod = require('../Helper/taskPeriodCalc');
+const getColorForStatus =require('../utils/getColorForStatus');
+const uploadFileToGridFS = require('../utils/uploadImage'); // Import the upload function
 
 exports.setTaskSocketIoInstance = (ioInstance) => {
   io = ioInstance;
@@ -98,6 +100,42 @@ exports.createTask = async (req, res) => {
     });
   }
 };
+
+exports.updateTask = async (req, res) => {
+  try {
+    const updateData = { ...req.body };
+
+    // Handle status color
+    if (updateData.status) {
+      updateData.color_code = getColorForStatus(updateData.status);
+    }
+
+    // Handle multiple image uploads
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map(file => 
+        uploadFileToGridFS(file).then(result => result.file._id)
+      );
+      
+      const uploadedImageIds = await Promise.all(uploadPromises);
+      
+      // Add new images to existing ones (or create new array)
+      updateData.images = [
+        ...(updateData.images || []), // Preserve existing images
+        ...uploadedImageIds           // Add new image IDs
+      ].slice(0, 5); // Ensure max 5 images
+    }
+
+    const updatedTask = await taskService.updateTask(
+      req.params.id,
+      updateData,
+      req.user.organization
+    );
+
+    sendResponse(res, 200, 'Task updated successfully', updatedTask);
+  } catch (error) {
+    sendResponse(res, error.statusCode || 500, error.message, null);
+  }
+};
 exports.getTaskById = async (req, res) => {
   try {
     const task = await taskService.getTaskById(req.params.id, req.user.organization);
@@ -110,18 +148,6 @@ exports.getTaskById = async (req, res) => {
   }
 };
 
-exports.updateTask = async (req, res) => {
-  try {
-    const updatedTask = await taskService.updateTask(
-      req.params.id,
-      req.body,
-      req.user.organization
-    );
-    sendResponse(res, 200, 'Task updated successfully', updatedTask);
-  } catch (error) {
-    sendResponse(res, error.statusCode || 500, error.message, null);
-  }
-};
 
 exports.deleteTask = async (req, res) => {
   try {

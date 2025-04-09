@@ -259,7 +259,7 @@ const calendarEvents = useMemo(() => {
             end: task.schedule?.end,
             timezone: task.schedule?.timezone || 'UTC',
             color: task.color_code || '#fbbf24',
-            images: task.attachments || [],
+            images: task.images || [],
             task_period: task.task_period,
             repeat_frequency: task.repeat_frequency,
             created_by: task.createdBy ? {
@@ -429,6 +429,7 @@ const handleEventCreate = async (newEvent) => {
     setCalendarEndDate(endDate);
   };
 const handleEventUpdate = (updatedEvent) => {
+  console.log("updatedEvent",updatedEvent)
   const formData = new FormData();
   formData.append("taskId", updatedEvent._id);
 

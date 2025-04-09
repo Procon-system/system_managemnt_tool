@@ -85,11 +85,11 @@ const taskSchema = new mongoose.Schema({
     //   message: props => `${props.value} is not a valid hex color`
     // }
   },
-  attachments: [{
+ 
+  images: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Attachment' // GridFS references
+    ref: 'fs.files', // Reference to GridFS
   }],
-
   // Task Tracking
   status: {
     type: String,
