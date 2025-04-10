@@ -11,19 +11,19 @@ const getSelectedOptions = (items, options) => {
     return options.find(option => option.value === id) || null; // Find option in dropdown options
   }).filter(option => option !== null); // Remove nulls
 };
-
-
 const SelectInput = ({ label, name, value = [], onChange, options = [], isMulti = false }) => {
-  // Convert value to array if needed and filter valid options
-  const selectedValues = Array.isArray(value) ? value : [value];
-  const selectedOptions = options.filter(opt => selectedValues.includes(opt.value));
+  
+  // Convert value to option objects for react-select
+  const selectedOptions = isMulti
+    ? options.filter(opt => value.includes(opt.value))
+    : options.find(opt => opt.value === value) || null;
 
-  const handleChange = (selected) => {
+  const handleSelectChange = (selected) => {
     const newValue = isMulti
-      ? selected ? selected.map(opt => opt.value) : []
-      : selected ? selected.value : null;
+      ? (selected || []).map(opt => opt.value)
+      : selected?.value || null;
 
-    // Create a synthetic event to match standard input behavior
+    // Create synthetic event to match your handleChange expectations
     onChange({
       target: {
         name,
@@ -37,12 +37,12 @@ const SelectInput = ({ label, name, value = [], onChange, options = [], isMulti 
       <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
       <Select
         name={name}
-        value={isMulti ? selectedOptions : selectedOptions[0] || null}
-        onChange={handleChange}
+        value={selectedOptions}
+        onChange={handleSelectChange}
         options={options}
         isClearable
-        placeholder={`Select ${label}`}
         isSearchable
+        placeholder={`Select ${label}`}
         isMulti={isMulti}
         className="w-full"
         styles={{
@@ -56,10 +56,60 @@ const SelectInput = ({ label, name, value = [], onChange, options = [], isMulti 
           placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
         }}
       />
-     
     </div>
   );
 };
+
+
+
+
+// const SelectInput = ({ label, name, value = [], onChange, options = [], isMulti = false }) => {
+ 
+//   const selectedValues = Array.isArray(value) ? value : [value];
+//   const selectedOptions = options.filter(opt => selectedValues.includes(opt.value));
+
+//   const handleChange = (selected) => {
+//     const newValue = isMulti
+//       ? selected ? selected.map(opt => opt.value) : []
+//       : selected ? selected.value : null;
+
+//     // Create a synthetic event to match standard input behavior
+//     onChange({
+//       target: {
+//         name,
+//         value: newValue
+//       }
+//     });
+//   };
+
+//   return (
+//     <div className="w-full px-2">
+//       <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
+//       <Select
+//         name={name}
+//         value={isMulti ? selectedOptions : selectedOptions[0] || null}
+//         onChange={handleChange}
+//         options={options}
+//         isClearable
+//         placeholder={`Select ${label}`}
+//         isSearchable
+//         isMulti={isMulti}
+//         className="w-full"
+//         styles={{
+//           control: (base) => ({
+//             ...base,
+//             backgroundColor: 'rgb(249 250 251)',
+//             padding: '4px 8px',
+//             borderColor: 'rgb(209 213 219)',
+//             minHeight: '40px'
+//           }),
+//           placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
+//         }}
+//       />
+     
+//     </div>
+//   );
+// };
 // Options for time period (days, weeks, months, years)
 const periodOptions = [
     { value: 'day', label: 'Day' },

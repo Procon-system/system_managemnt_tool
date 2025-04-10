@@ -100,17 +100,21 @@ exports.createTask = async (req, res) => {
     });
   }
 };
-
 exports.updateTask = async (req, res) => {
   try {
-    const updateData = { ...req.body };
+    const updateData = {};
+    const taskId = req.params.id;
 
-    // Handle status color
-    if (updateData.status) {
-      updateData.color_code = getColorForStatus(updateData.status);
+    // Parse JSON fields from FormData
+    if (req.body.keptImages) {
+      updateData.images = JSON.parse(req.body.keptImages);
     }
 
-    // Handle multiple image uploads
+    if (req.body.assigned_resources) {
+      updateData.assigned_resources = JSON.parse(req.body.assigned_resources);
+    }
+
+    // Handle new file uploads
     if (req.files && req.files.length > 0) {
       const uploadPromises = req.files.map(file => 
         uploadFileToGridFS(file).then(result => result.file._id)
@@ -118,24 +122,77 @@ exports.updateTask = async (req, res) => {
       
       const uploadedImageIds = await Promise.all(uploadPromises);
       
-      // Add new images to existing ones (or create new array)
+      // Combine kept images with new ones (max 5 total)
       updateData.images = [
-        ...(updateData.images || []), // Preserve existing images
-        ...uploadedImageIds           // Add new image IDs
-      ].slice(0, 5); // Ensure max 5 images
+        ...(updateData.images || []),
+        ...uploadedImageIds
+      ].slice(0, 5);
     }
 
+    // Handle status color
+    if (req.body.status) {
+      updateData.status = req.body.status;
+      updateData.color_code = getColorForStatus(req.body.status);
+    }
+
+    // Add other simple fields
+    if (req.body.title) updateData.title = req.body.title;
+    // Add other fields as needed...
+
     const updatedTask = await taskService.updateTask(
-      req.params.id,
+      taskId,
       updateData,
       req.user.organization
     );
 
-    sendResponse(res, 200, 'Task updated successfully', updatedTask);
+    res.status(200).json({
+      success: true,
+      message: 'Task updated successfully',
+      data: updatedTask
+    });
   } catch (error) {
-    sendResponse(res, error.statusCode || 500, error.message, null);
+    console.error("Update task error:", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to update task'
+    });
   }
 };
+// exports.updateTask = async (req, res) => {
+//   try {
+//     const updateData = { ...req.body };
+
+//     // Handle status color
+//     if (updateData.status) {
+//       updateData.color_code = getColorForStatus(updateData.status);
+//     }
+
+//     // Handle multiple image uploads
+//     if (req.files && req.files.length > 0) {
+//       const uploadPromises = req.files.map(file => 
+//         uploadFileToGridFS(file).then(result => result.file._id)
+//       );
+      
+//       const uploadedImageIds = await Promise.all(uploadPromises);
+      
+//       // Add new images to existing ones (or create new array)
+//       updateData.images = [
+//         ...(updateData.images || []), // Preserve existing images
+//         ...uploadedImageIds           // Add new image IDs
+//       ].slice(0, 5); // Ensure max 5 images
+//     }
+
+//     const updatedTask = await taskService.updateTask(
+//       req.params.id,
+//       updateData,
+//       req.user.organization
+//     );
+
+//     sendResponse(res, 200, 'Task updated successfully', updatedTask);
+//   } catch (error) {
+//     sendResponse(res, error.statusCode || 500, error.message, null);
+//   }
+// };
 exports.getTaskById = async (req, res) => {
   try {
     const task = await taskService.getTaskById(req.params.id, req.user.organization);

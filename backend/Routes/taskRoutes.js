@@ -47,6 +47,7 @@ router.get('/image/:fileId', async (req, res) => {
 router.get('/images/bulk', async (req, res) => {
     try {
       const { fileIds } = req.query; // Expects ?fileIds=id1,id2,id3
+      console.log("fileIds",fileIds)
       const ids = fileIds.split(',').map(id => new mongoose.Types.ObjectId(id));
   
       const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });

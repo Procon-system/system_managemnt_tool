@@ -1,15 +1,14 @@
 
 
-import { useState, useEffect } from 'react';
-
+import { useState, useEffect} from 'react';
 import { useDispatch,useSelector } from 'react-redux';
 import RichTextEditor from './richTextEditor';
 import {SelectInput,SelectTaskPeriodInput} from './selectInput';
 import DOMPurify from "dompurify";
 import ImageSlider from './imageSlider';
-import { fetchImageMetadata, fetchImageFile } from '../../features/taskSlice'; // Adjust path as needed
-
-import {localDB} from '../../pouchDb';
+import { useResources } from '../../hooks/useResources';
+import { useUsers } from '../../hooks/useUsers';
+;
 const EventDetailsModal = ({
   isVisible,
   closeModal,
@@ -18,17 +17,20 @@ const EventDetailsModal = ({
   handleDelete,
   handleFormSubmit,
 }) => {
-  
-  const [editableEvent, setEditableEvent] = useState(selectedEvent || {});
-  const dispatch = useDispatch();
-console.log("selectedEvent",selectedEvent)
+   const dispatch = useDispatch();
+   const { resourceTypes } = useSelector((state) => state.resourceTypes);
+
+const typeIds = resourceTypes?.map(type => type._id) || [];
+   const { users = [], loading: usersLoading } = useUsers();
+   const { getResourcesByType, loading: resourcesLoading } = useResources(typeIds);
+ 
 useEffect(() => {
   setEditableEvent(selectedEvent || {});
 }, [selectedEvent]);
 
 const handleChange = (e) => {
   const { name, value } = e.target;
-  
+
   setEditableEvent((prev) => ({
     ...prev,
     [name]: Array.isArray(value) ? [...value] : value, // Ensure arrays are stored properly
@@ -37,77 +39,113 @@ const handleChange = (e) => {
 
 
   // Fetch Data from Redux Store
-  const { users } = useSelector((state) => state.users);
-   const [images, setImages] = useState([]);
+  // const { users } = useSelector((state) => state.users);
   const [newImages, setNewImages] = useState([]); // Store new images for preview
+ 
+  const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/tasks`;
+  const [editableEvent, setEditableEvent] = useState(selectedEvent || {});
+  const [images, setImages] = useState([]);
+  const token = useSelector(state => state.auth.token);
 
   useEffect(() => {
     const fetchImages = async () => {
-      if (editableEvent?._id) {
-        if (navigator.onLine) {
-          try {
-            // 1. Fetch image metadata (this gives us fileIds)
-            const metaResult = await dispatch(fetchImageMetadata({ fileIds: [editableEvent._id] }));
-    
-            if (fetchImageMetadata.fulfilled.match(metaResult)) {
-              const imageFileIds = metaResult.payload?.images || [];
-    
-              // 2. Fetch image blobs for each image
-              const imageBlobResults = await Promise.all(
-                imageFileIds.map(async (fileId) => {
-                  const fileResult = await dispatch(fetchImageFile({ fileId }));
-                  if (fetchImageFile.fulfilled.match(fileResult)) {
-                    const { blob } = fileResult.payload;
-                    return URL.createObjectURL(blob);
-                  } else {
-                    console.error('Failed to fetch image file', fileResult.payload);
-                    return null;
-                  }
-                })
-              );
-    
-              const validUrls = imageBlobResults.filter(Boolean);
-              setImages(validUrls);
-            }
-          } catch (error) {
-            console.error("Error fetching task or images:", error);
-            // Optionally show error to user
-            // toast.error("Failed to load images. Please try again.");
-          } 
-        } else {
-          try {
-            // Fetch the task document from PouchDB
-            const taskDoc = await localDB.get(editableEvent._id);
-            console.log("Fetched task document from PouchDB:", taskDoc);
+      if (!editableEvent?.images?.length) return;
   
-            if (taskDoc._attachments) {
-              // Get all image attachments
-              const imageNames = Object.keys(taskDoc._attachments);
-              const imageUrls = await Promise.all(
-                imageNames.map(async (name) => {
-                  const blob = await localDB.getAttachment(editableEvent._id, name);
-                  return URL.createObjectURL(blob); // Convert Blob to URL
-                })
-              );
-              console.log("Generated local image URLs:", imageUrls);
-              setImages(imageUrls); // Store the image URLs array
-            }
-          } catch (error) {
-            console.error("Error fetching images from PouchDB:", error);
+      try {
+        const queryParam = editableEvent.images.join(',');
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/tasks/images/bulk?fileIds=${queryParam}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           }
+        );
+        const data = await res.json();
+  
+        if (data.success) {
+          const imageBlobs = await Promise.all(
+            data.data.map(async (img) => {
+              try {
+                const response = await fetch(
+                  `${process.env.REACT_APP_API_BASE_URL}/api/tasks/image/${img.fileId}`,
+                  {
+                    method: 'GET',
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  }
+                );
+        
+                if (!response.ok) throw new Error('Failed to fetch image');
+                
+                console.log("Response headers:", [...response.headers.entries()]);
+                
+                const blob = await response.blob();
+                console.log("Blob info:", {
+                  size: blob.size,
+                  type: blob.type
+                });
+                
+                if (blob.size === 0) {
+                  throw new Error('Received empty blob');
+                }
+                
+                const objectUrl = URL.createObjectURL(blob);
+                console.log("Object URL created:", objectUrl);
+        
+                return {
+                  url: objectUrl,
+                  contentType: img.contentType,
+                  filename: img.filename,
+                };
+              } catch (err) {
+                console.error(`Failed to load image ${img.fileId}`, err);
+                return null;
+              }
+            })
+          );
+        
+          console.log("Final image blobs:", imageBlobs);
+          setImages(imageBlobs.filter(Boolean));
         }
+      } catch (err) {
+        console.error("Error fetching image metadata:", err);
       }
     };
   
-    fetchImages(); // Call the async function inside useEffect
-  }, [editableEvent?._id]); // Dependency array
-
+    fetchImages();
   
-      const userOptions = users?.map(user => ({
-        label: `${user.first_name} ${user.last_name}`, // Use backticks
-        value: user._id
-      }));
-    
+    // Cleanup function
+    return () => {
+      images.forEach(img => {
+        if (img?.url) URL.revokeObjectURL(img.url);
+      });
+    };
+  }, [editableEvent]);
+ 
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setNewImages([...newImages, ...files]);
+  };
+
+  const handleRemoveImage = (image) => {
+    setImages((prevImages) => prevImages.filter((img) => img !== image));
+  };
+
+  const handleRemoveNewImage = (index) => {
+    setNewImages((prevNewImages) => prevNewImages.filter((_, i) => i !== index));
+  };
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    handleFormSubmit({
+      ...editableEvent,
+      images,
+      newImages,
+    });
+  };
   const [isEditMode, setIsEditMode] = useState(false);
 
   const toggleEditMode = () => {
@@ -118,26 +156,7 @@ const handleChange = (e) => {
   if (!editableEvent) {
     return <p>Loading event details...</p>;  // Show a loading message instead of crashing
   }
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    setNewImages([...newImages, ...files]); // Append new files
-  };
-  const handleRemoveImage = (image) => {
-    setImages((prevImages) => prevImages.filter((img) => img !== image));
-  };
   
-  const handleRemoveNewImage = (index) => {
-    setNewImages((prevNewImages) => prevNewImages.filter((_, i) => i !== index));
-  };
-  
-  const onSubmit = (e) => {
-    e.preventDefault();
-    handleFormSubmit({ 
-      ...editableEvent, 
-      images, 
-      newImages, 
-    });
-  };
   const chunkArray = (array, size) => {
     const result = [];
     for (let i = 0; i < array.length; i += size) {
@@ -145,8 +164,6 @@ const handleChange = (e) => {
     }
     return result;
   };
-  
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="relative bg-white p-6 rounded-lg max-w-5xl w-full">
@@ -188,190 +205,287 @@ const handleChange = (e) => {
           {/* Conditional rendering based on edit mode */}
           {isEditMode ? (
               <>
-              {role >= 3 && (
-                <div className="grid md:grid-cols-4 grid-cols-3 md:gap-4 gap-1">
-                  {/* Title */}
-                  <div>
-                    <label className="block mb-1 text-sm font-medium">Title:</label>
-                    <input
-                      type="text"
-                      name="title"
-                      defaultValue={editableEvent?.title}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                  </div>
-          
-                  {/* Start Time */}
-                  <div>
-                    <label className="block mb-1 text-sm font-medium">Start Time:</label>
-                    <input
-                      type="datetime-local"
-                      name="start"
-                      defaultValue={
-                        new Date(editableEvent?.start).toLocaleDateString("en-CA") +
-                        "T" +
-                        new Date(editableEvent?.start).toLocaleTimeString("en-GB", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: false,
-                        })
-                      }
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                  </div>
-          
-                  {/* End Time */}
-                  <div>
-                    <label className="block mb-1 text-sm font-medium">End Time:</label>
-                    <input
-                      type="datetime-local"
-                      name="end"
-                      defaultValue={
-                        new Date(editableEvent?.end).toLocaleDateString("en-CA") +
-                        "T" +
-                        new Date(editableEvent?.end).toLocaleTimeString("en-GB", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: false,
-                        })
-                      }
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                  </div>
-          
-                  {/* Frequency */}
-                  <div>
-                    <SelectInput
-                      label="Frequency"
-                      name="repeat_frequency"
-                      value={editableEvent?.repeat_frequency}
-                      onChange={handleChange}
-                      options={[
-                        { label: "None", value: "none" },
-                        { label: "Daily", value: "daily" },
-                        { label: "Weekly", value: "weekly" },
-                        { label: "Monthly", value: "monthly" },
-                        { label: "Yearly", value: "yearly" },
-                      ]}
-                      required
-                    />
-                  </div>
-          
-                  {/* Task Period */}
-                  <div>
-                    <SelectTaskPeriodInput
-                      label="Task Period"
-                      name="task_period"
-                      value={editableEvent?.task_period}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-          
-          
-                  {/* Assigned To */}
-                  <div>
-                    <SelectInput
-                      label="Assigned To"
-                      name="assigned_to"
-                      value={editableEvent?.assigned_to || []}
-                      onChange={handleChange}
-                      options={userOptions}
-                      isMulti={true}
-                    />
-                  </div>
-          
-                </div>
-              )}
-             {role >= 2 && (
-                    <div>
-                      <label className="block mb-1 text-sm font-medium">Status:</label>
-                      <select
-                        name="status"
-                        defaultValue={editableEvent?.status || "pending"}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border rounded-md"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="in progress">In progress</option>
-                        <option value="done">Done</option>
-                        <option value="impossible">Impossible</option>
-                        <option value="overdue">Overdue</option>
-                      </select>
-                    </div>
-                  )}
-          
-                  {/* Upload Image (Role ≥ 2) */}
-                  {role >= 2 && (
-                    <div>
-                      <label className="block text-sm font-medium">Upload Image:</label>
-                      <input
-                        type="file"
-                        name="images"
-                        multiple
-                        onChange={handleFileChange}
-                        className="w-full px-2 py-1 border rounded-md text-sm"
-                      />
-                    </div>
-                  )}
-              {/* Image Previews (Role ≥ 2) */}
-              {role >= 2 && (
-                <div className="mt-3 p-3 border  rounded-md shadow-md grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-semibold mb-2 bg-blue-400 text-white px-5 py-1 rounded-md hover:bg-blue-400">Current Images:</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {images.map((image, index) => (
-                        <div key={index} className="relative w-24 h-24">
-                          <img src={image.base64 || image} alt="Preview" className="w-full h-full object-cover rounded-md" />
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleRemoveImage(image);
-                            }}
-                            className="absolute top-1 right-1 bg-red-500 text-white text-xs p-1 rounded-full"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-          
-                  <div>
-                    <h3 className="text-sm font-semibold mb-2 bg-blue-400 text-white px-5 py-1 rounded-md hover:bg-blue-400">New Images:</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {newImages.map((file, index) => (
-                        <div key={index} className="relative w-24 h-24">
-                          <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover rounded-md" />
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleRemoveNewImage(index);
-                            }}
-                            className="absolute top-1 right-1 bg-red-500 text-white text-xs p-1 rounded-full"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-          
-              {/* Notes Section */}
-              {role >= 2 && (
-                <div className="mt-3">
-                  <label className="block mb-1 text-sm font-medium">Note:</label>
-                  <RichTextEditor
-                    value={editableEvent?.notes}
-                    onChange={(value) => handleChange({ target: { name: "notes", value } })}
-                  />
-                </div>
-              )}
+            {isEditMode && (
+  <div className="max-h-[80vh] overflow-y-auto p-4 bg-gray-50 rounded-lg shadow-inner">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      {/* Title */}
+      {role >= 3 && (
+        <div>
+          <label className="block mb-1 text-sm font-medium">Title:</label>
+          <input
+            type="text"
+            name="title"
+            defaultValue={editableEvent?.title}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded-md"
+          />
+        </div>
+      )}
+
+      {/* Start Time */}
+      {role >= 3 && (
+        <div>
+          <label className="block mb-1 text-sm font-medium">Start Time:</label>
+          <input
+            type="datetime-local"
+            name="start"
+            defaultValue={
+              new Date(editableEvent?.start).toLocaleDateString("en-CA") +
+              "T" +
+              new Date(editableEvent?.start).toLocaleTimeString("en-GB", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })
+            }
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded-md"
+          />
+        </div>
+      )}
+
+      {/* End Time */}
+      {role >= 3 && (
+        <div>
+          <label className="block mb-1 text-sm font-medium">End Time:</label>
+          <input
+            type="datetime-local"
+            name="end"
+            defaultValue={
+              new Date(editableEvent?.end).toLocaleDateString("en-CA") +
+              "T" +
+              new Date(editableEvent?.end).toLocaleTimeString("en-GB", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })
+            }
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded-md"
+          />
+        </div>
+      )}
+
+      {/* Frequency */}
+      {role >= 3 && (
+        <div>
+          <SelectInput
+            label="Frequency"
+            name="repeat_frequency"
+            value={editableEvent?.repeat_frequency}
+            onChange={handleChange}
+            options={[
+              { label: "None", value: "none" },
+              { label: "Daily", value: "daily" },
+              { label: "Weekly", value: "weekly" },
+              { label: "Monthly", value: "monthly" },
+              { label: "Yearly", value: "yearly" },
+            ]}
+            required
+          />
+        </div>
+      )}
+
+      {/* Task Period */}
+      {role >= 3 && (
+        <div>
+          <SelectTaskPeriodInput
+            label="Task Period"
+            name="task_period"
+            value={editableEvent?.task_period}
+            onChange={handleChange}
+            required
+          />
+        </div>
+      )}
+
+      
+      {/* Status */}
+      {role >= 2 && (
+        <div>
+          <label className="block mb-1 text-sm font-medium">Status:</label>
+          <select
+            name="status"
+            defaultValue={editableEvent?.status || "pending"}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded-md"
+          >
+            <option value="pending">Pending</option>
+            <option value="in progress">In progress</option>
+            <option value="done">Done</option>
+            <option value="impossible">Impossible</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+      )}
+
+      {/* Upload Images */}
+      {role >= 2 && (
+        <div>
+          <label className="block text-sm font-medium">Upload Image:</label>
+          <input
+            type="file"
+            name="images"
+            multiple
+            onChange={handleFileChange}
+            className="w-full px-2 py-1 border rounded-md text-sm"
+          />
+        </div>
+      )}
+    </div>
+
+    {/* Image Previews */}
+    {role >= 2 && (
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Current Images */}
+        <div>
+          <h3 className="text-sm font-semibold mb-2 bg-blue-400 text-white px-4 py-1 rounded-md">Current Images:</h3>
+          <div className="flex flex-wrap gap-2">
+            {images.map((image, index) => (
+              <div key={index} className="relative w-24 h-24">
+                <img src={image} alt="Preview" className="w-full h-full object-cover rounded-md" />
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleRemoveImage(image);
+                  }}
+                  className="absolute top-1 right-1 bg-red-500 text-white text-xs p-1 rounded-full"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* New Images */}
+        <div>
+          <h3 className="text-sm font-semibold mb-2 bg-blue-400 text-white px-4 py-1 rounded-md">New Images:</h3>
+          <div className="flex flex-wrap gap-2">
+            {newImages.map((file, index) => (
+              <div key={index} className="relative w-24 h-24">
+                <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover rounded-md" />
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleRemoveNewImage(index);
+                  }}
+                  className="absolute top-1 right-1 bg-red-500 text-white text-xs p-1 rounded-full"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Resources Section */}
+   
+{role >= 3 && resourceTypes && (
+  <div className="mt-6">
+    <h2 className="text-lg font-semibold mb-3">Resources</h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Assigned People */}
+      <div className="border rounded-lg p-4 bg-white">
+        <SelectInput
+          label="Assigned People"
+          name="assigned_resources.assigned_to"
+          value={editableEvent?.assigned_resources?.assigned_to?.map(u => u.id) || []}
+          onChange={(e) => {
+            const selectedUserIds = e.target.value || [];
+            const selectedUsers = selectedUserIds.map(id => 
+              users.find(u => u._id === id)
+            );
+            
+            setEditableEvent(prev => ({
+              ...prev,
+              assigned_resources: {
+                ...prev.assigned_resources,
+                assigned_to: selectedUsers
+              }
+            }));
+          }}
+          options={users?.map(u => ({ label: u.full_name, value: u._id })) || []}
+          isMulti
+        />
+      </div>
+
+      {/* Resources by Type */}
+      {resourceTypes.map(type => {
+        const availableResources = getResourcesByType(type._id) || [];
+        const currentResourcesForType = editableEvent?.assigned_resources?.resources
+          ?.filter(res => res.resource?.type?._id === type._id)
+          ?.map(res => res.resource._id) || [];
+
+        return (
+          <div key={type._id} className="border rounded-lg p-4 bg-white">
+            <SelectInput
+              label={type.name}
+              name={`resources_${type._id}`}
+              value={currentResourcesForType}
+              onChange={(e) => {
+                const selectedResourceIds = e.target.value || [];
+                
+                // Keep resources of other types
+                const otherResources = editableEvent?.assigned_resources?.resources?.filter(
+                  res => res.resource?.type?._id !== type._id
+                ) || [];
+
+                // Create new resource objects for selected ones
+                const newResources = selectedResourceIds.map(resourceId => {
+                  const resource = availableResources.find(r => r._id === resourceId);
+                  return {
+                    _id: `${type._id}_${resourceId}`,
+                    relationshipType: "requires",
+                    required: false,
+                    resource: {
+                      _id: resourceId,
+                      type: type,
+                      displayName: resource?.displayName,
+                      ...resource
+                    }
+                  };
+                });
+
+                setEditableEvent(prev => ({
+                  ...prev,
+                  assigned_resources: {
+                    ...prev.assigned_resources,
+                    resources: [...otherResources, ...newResources]
+                  }
+                }));
+              }}
+              options={availableResources.map(r => ({
+                label: r.displayName || r.name,
+                value: r._id
+              }))}
+              isMulti
+            />
+            {type.description && (
+              <p className="text-xs text-gray-500 mt-2">{type.description}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+    {/* Notes */}
+    {role >= 2 && (
+      <div className="mt-6">
+        <label className="block mb-1 text-sm font-medium">Note:</label>
+        <RichTextEditor
+          value={editableEvent?.notes}
+          onChange={(value) => handleChange({ target: { name: "notes", value } })}
+        />
+      </div>
+    )}
+  </div>
+)}
+
             </>
           ): (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 bg-gray-50">
@@ -383,11 +497,11 @@ const handleChange = (e) => {
             )}
           
             {/* Image Slider */}
-            {editableEvent?.images?.length > 0 && (
-              <div className="col-span-full flex justify-center">
-                <ImageSlider images={editableEvent.images} />
-              </div>
-            )}
+            {images.length > 0 && (
+  <div className="col-span-full flex justify-center">
+    <ImageSlider images={images} />
+  </div>
+)}
           
             {/* Start, End, Status */}
             <div className="bg-blue-100 shadow-md rounded-xl p-4 transform rotate-[-1deg] space-y-2">

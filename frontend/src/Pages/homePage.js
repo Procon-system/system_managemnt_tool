@@ -428,43 +428,47 @@ const handleEventCreate = async (newEvent) => {
     setCalendarStartDate(startDate);
     setCalendarEndDate(endDate);
   };
-const handleEventUpdate = (updatedEvent) => {
-  console.log("updatedEvent",updatedEvent)
-  const formData = new FormData();
-  formData.append("taskId", updatedEvent._id);
-
-  // Keep images that are not removed
-  formData.append("keptImages", JSON.stringify(updatedEvent.images));
-
-  // Append new images
-  if (updatedEvent.newImages && Array.isArray(updatedEvent.newImages)) {
-    updatedEvent.newImages.forEach((image) => {
-      if (image instanceof File) {
-        formData.append("images", image);
-      }
-    });
-  }
-
-  // Append other fields
-  for (const key in updatedEvent) {
-    if (key !== "images" && key !== "newImages") {
-      if (typeof updatedEvent[key] === "object" && updatedEvent[key] !== null) {
-        formData.append(key, JSON.stringify(updatedEvent[key]));
-      } else {
-        formData.append(key, updatedEvent[key]);
-      }
+  const handleEventUpdate = (updatedEvent) => {
+    const formData = new FormData();
+    
+    // Append basic fields
+    formData.append("_id", updatedEvent._id);
+    formData.append("title", updatedEvent.title);
+    formData.append("status", updatedEvent.status);
+    // Append other simple fields...
+  
+    // Handle images - keptImages should be an array of image IDs to keep
+    if (updatedEvent.images && updatedEvent.images.length > 0) {
+      formData.append("keptImages", JSON.stringify(updatedEvent.images));
     }
-  }
-
-  dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
-    .then(() => {
-      toast.success("Task updated successfully!");
-    })
-    .catch((err) => {
-      toast.error("Failed to update task. Please try again.");
-      console.error("Task update failed:", err);
-    });
-};
+  
+    // Handle new images
+    if (updatedEvent.newImages && updatedEvent.newImages.length > 0) {
+      updatedEvent.newImages.forEach((image) => {
+        if (image instanceof File) {
+          formData.append("images", image); // 'images' field for new files
+        }
+      });
+    }
+  
+    // Handle assigned resources
+    if (updatedEvent.assigned_resources) {
+      formData.append(
+        "assigned_resources",
+        JSON.stringify(updatedEvent.assigned_resources)
+      );
+    }
+  
+    dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
+      .then(() => {
+        toast.success("Task updated successfully!");
+        // Refresh data or close modal
+      })
+      .catch((err) => {
+        toast.error("Failed to update task. Please try again.");
+        console.error("Task update failed:", err);
+      });
+  };
 
 const handleDelete = async (id) => {
   try {

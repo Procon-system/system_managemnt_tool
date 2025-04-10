@@ -1102,26 +1102,36 @@ const taskService = {
     }
   },
  fetchImageMetadata: async (fileIds, token) => {
-    const response = await axios.get(`${API_URL}/images/bulk?fileIds=${fileIds.join(',')}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return response.data.data;
+    if (!Array.isArray(fileIds) || fileIds.length === 0) {
+      throw new Error("Invalid fileIds array");
+    }
+  
+    try {
+      const response = await axios.get(
+        `http://localhost:5000/api/tasks/images/bulk?fileIds=${fileIds.join(',')}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      console.log("✅ Fetched metadata:", response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error("❌ Error fetching image metadata:", error.message);
+      throw error;
+    }
   },
   
- fetchImageFile: async (fileId, token) => {
-    const response = await axios.get(`${API_URL}/image/${fileId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      responseType: 'blob',
-    });
   
+  fetchImageFile: async (fileId, token, signal) => {
+    const response = await axios.get(`${API_URL}/image/${fileId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: 'blob',
+      signal // Pass the AbortSignal
+    });
     return {
       fileId,
       blob: response.data,
-      contentType: response.headers['content-type'],
+      contentType: response.headers['content-type']
     };
   },
   
@@ -1137,8 +1147,12 @@ const taskService = {
     try {
       console.log("updateData",updateData)
       const response = await axios.put(`${API_URL}/${taskId}`, updateData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      
+      }); 
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

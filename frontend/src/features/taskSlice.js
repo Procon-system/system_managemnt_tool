@@ -128,14 +128,31 @@ export const fetchImageMetadata = createAsyncThunk(
     if (checkTokenAndLogout(token, dispatch)) return null;
 
     try {
+      console.log('Starting metadata fetch for:', fileIds);
       const response = await taskService.fetchImageMetadata(fileIds, token);
+      console.log('Metadata response:', response); // Add this
       return response;
+      
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
   }
 );
+// fetchImageMetadata remains the same
+// export const fetchImageMetadata = createAsyncThunk(
+//   'tasks/fetchImageMetadata',
+//   async ({ fileIds }, { getState, rejectWithValue }) => {
+//     const token = getState().auth.token;
+//     try {
+//       const response = await taskService.fetchImageMetadata(fileIds, token);
+//       return response;
+//     } catch (error) {
+//       return rejectWithValue(error.message);
+//     }
+//   }
+// );
 
+// Remove fetchImageFile thunk since we're fetching directly now
 // Fetch image file
 export const fetchImageFile = createAsyncThunk(
   'tasks/fetchImageFile',
@@ -145,8 +162,10 @@ export const fetchImageFile = createAsyncThunk(
     if (checkTokenAndLogout(token, dispatch)) return null;
 
     try {
-      const response = await taskService.fetchImageFile(fileId, token);
-      return response;
+      console.log('Starting image fetch for:', fileId);
+const response = await taskService.fetchImageFile(fileId, token);
+console.log('Image fetch response:', response); // Add this
+return response;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }

@@ -31,6 +31,13 @@ const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 const store = configureStore({
   reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['tasks/fetchImageFile/fulfilled'],
+        ignoredPaths: ['tasks.imageFiles']
+      }
+    })
 });
 window.Storage = store; // Expose store globally for setTimeout access
 
