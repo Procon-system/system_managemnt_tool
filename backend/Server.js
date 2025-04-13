@@ -194,7 +194,7 @@ async function handleAdminRegistration(extUser) {
     last_name: extUser.name.split(' ')[1] || 'User',
     personal_number: extUser.id.toString(),
     access_level: ADMIN_ACCESS_LEVEL,
-    organizationName: 'procon',
+    organizationName: extUser.organization_name || 'procon',
     max_permitted_user_amount: extUser.max_permitted_user_amount || 1,
     max_permitted_resource_amount: extUser.max_permitted_resource_amount || 1,
     subscription_type: extUser.subscription_type || 'free', // Default to free if not provided  
@@ -251,7 +251,7 @@ function createFallbackAdmin() {
       last_name: 'Admin',
       personal_number: '00000000',
       access_level: ADMIN_ACCESS_LEVEL,
-      organizationName: 'procon',
+      organizationName: extUser.organization_name || 'procon',
       max_permitted_user_amount: extUser.max_permitted_user_amount || 1,
     max_permitted_resource_amount: extUser.max_permitted_resource_amount || 1,
     subscription_type: extUser.subscription_type || 'free', // Default to free if not provided  
