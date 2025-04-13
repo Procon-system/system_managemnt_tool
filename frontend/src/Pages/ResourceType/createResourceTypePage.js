@@ -6,6 +6,9 @@ import { createResourceType } from '../../features/resourceTypeSlice';
 import IconExplorer from '../../Components/common/IconPicker'; // adjust the path as needed
 import { FiChevronDown,FiX, FiPlus, FiSave } from 'react-icons/fi';
 import * as FeatherIcons from 'react-icons/fi';
+import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
+
 const CreateResourceTypePage = ({ onCancel }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -48,17 +51,60 @@ const CreateResourceTypePage = ({ onCancel }) => {
       return { ...prev, fieldDefinitions: newFields };
     });
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await dispatch(createResourceType(resourceType)).unwrap();
       navigate('/show-resource-type');
     } catch (error) {
-      // Error is already handled in the slice
+      
+      if (error?.code === 'RESOURCE_LIMIT_REACHED') {
+        toast.error(
+          ({ closeToast }) => (
+            <div className="p-6 max-w-md w-full">
+              <p className="text-gray-900 font-medium mb-3">{error.message}</p>
+              <div className="flex items-start justify-between gap-4">
+                <div className="text-sm text-gray-700">
+                  You've used <strong>{error.details.currentCount}</strong> of <strong>{error.details.maxAllowed}</strong> resource types.
+                  {error.details.upgradeAvailable && (
+                    <div className="mt-2">
+                      <Link
+                        to={error.actions[0].url}
+                        className="text-blue-600 hover:text-blue-800 font-semibold underline"
+                        onClick={() => {
+                          toast.dismiss(); // close all toasts
+                          closeToast(); // explicitly close this toast
+                        }}
+                      >
+                        {error.actions[0].label}
+                      </Link>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={closeToast}
+                  className="text-gray-500 hover:text-gray-700 text-lg leading-none focus:outline-none"
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
+          ),
+          {
+            position: "top-right",
+            autoClose: false,
+            closeOnClick: false,
+            draggable: false,
+            className: "border-l-4 border-red-500 bg-white shadow-lg rounded-lg",
+            closeButton: false // because we use our custom close button
+          }
+        );
+        
+      } else {
+        toast.error(error?.message || 'An unknown error occurred');
+      }
     }
   };
-
   const handleCancel = () => {
     navigate('/show-resource-type');
   };

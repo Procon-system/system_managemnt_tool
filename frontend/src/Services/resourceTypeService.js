@@ -12,58 +12,11 @@ const resourceTypeService = {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        // Sync with local DB
-        // try {
-        //   const existingDoc = await localDB.get('resourceTypes').catch(() => null);
-        //   const newResourceType = { ...response.data, synced: true };
-          
-        //   if (existingDoc) {
-        //     await localDB.put({
-        //       _id: 'resourceTypes',
-        //       _rev: existingDoc._rev,
-        //       data: [...existingDoc.data, newResourceType]
-        //     });
-        //   } else {
-        //     await localDB.put({
-        //       _id: 'resourceTypes',
-        //       data: [newResourceType]
-        //     });
-        //   }
-        // } catch (dbError) {
-        //   console.error('Local DB sync error:', dbError);
-        // }
-        
+
         return response.data.data;
-    //   } else {
-    //     // Offline handling
-    //     const resourceTypeId = `resourceType:${uuidv4()}`;
-    //     const newResourceType = {
-    //       _id: resourceTypeId,
-    //       type: 'resourceType',
-    //       ...resourceTypeData,
-    //       synced: false,
-    //       isNew: true
-    //     };
-        
-    //     const existingDoc = await localDB.get('resourceTypes').catch(() => null);
-        
-    //     if (existingDoc) {
-    //       await localDB.put({
-    //         _id: 'resourceTypes',
-    //         _rev: existingDoc._rev,
-    //         data: [...existingDoc.data, newResourceType]
-    //       });
-    //     } else {
-    //       await localDB.put({
-    //         _id: 'resourceTypes',
-    //         data: [newResourceType]
-    //       });
-    //     }
-        
-    //     return newResourceType;
-    //   }
+
     } catch (error) {
-      throw error.response?.data || error.message;
+      throw error;
     }
   },
 

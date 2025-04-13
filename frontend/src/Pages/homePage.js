@@ -428,6 +428,47 @@ const handleEventCreate = async (newEvent) => {
     setCalendarStartDate(startDate);
     setCalendarEndDate(endDate);
   };
+  // const handleEventUpdate = (updatedEvent) => {
+  //   const formData = new FormData();
+    
+  //   // Append basic fields
+  //   formData.append("_id", updatedEvent._id);
+  //   formData.append("title", updatedEvent.title);
+  //   formData.append("status", updatedEvent.status);
+  //   // Append other simple fields...
+  
+  //   // Handle images - keptImages should be an array of image IDs to keep
+  //   if (updatedEvent.images && updatedEvent.images.length > 0) {
+  //     formData.append("keptImages", JSON.stringify(updatedEvent.images));
+  //   }
+  
+  //   // Handle new images
+  //   if (updatedEvent.newImages && updatedEvent.newImages.length > 0) {
+  //     updatedEvent.newImages.forEach((image) => {
+  //       if (image instanceof File) {
+  //         formData.append("images", image); // 'images' field for new files
+  //       }
+  //     });
+  //   }
+  
+  //   // Handle assigned resources
+  //   if (updatedEvent.assigned_resources) {
+  //     formData.append(
+  //       "assigned_resources",
+  //       JSON.stringify(updatedEvent.assigned_resources)
+  //     );
+  //   }
+  
+  //   dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
+  //     .then(() => {
+  //       toast.success("Task updated successfully!");
+  //       // Refresh data or close modal
+  //     })
+  //     .catch((err) => {
+  //       toast.error("Failed to update task. Please try again.");
+  //       console.error("Task update failed:", err);
+  //     });
+  // };
   const handleEventUpdate = (updatedEvent) => {
     const formData = new FormData();
     
@@ -435,41 +476,49 @@ const handleEventCreate = async (newEvent) => {
     formData.append("_id", updatedEvent._id);
     formData.append("title", updatedEvent.title);
     formData.append("status", updatedEvent.status);
-    // Append other simple fields...
   
-    // Handle images - keptImages should be an array of image IDs to keep
-    if (updatedEvent.images && updatedEvent.images.length > 0) {
-      formData.append("keptImages", JSON.stringify(updatedEvent.images));
+    // Handle images - filter invalid IDs
+    if (updatedEvent.images?.length > 0) {
+      const validImages = updatedEvent.images.filter(id => 
+        /^[0-9a-fA-F]{24}$/.test(id)
+      );
+      formData.append("keptImages", JSON.stringify(validImages));
     }
   
     // Handle new images
-    if (updatedEvent.newImages && updatedEvent.newImages.length > 0) {
+    if (updatedEvent.newImages?.length > 0) {
       updatedEvent.newImages.forEach((image) => {
         if (image instanceof File) {
-          formData.append("images", image); // 'images' field for new files
+          formData.append("images", image);
         }
       });
     }
   
-    // Handle assigned resources
+    // Sanitize assigned_resources before sending
     if (updatedEvent.assigned_resources) {
-      formData.append(
-        "assigned_resources",
-        JSON.stringify(updatedEvent.assigned_resources)
-      );
+      const sanitized = {
+        assigned_to: updatedEvent.assigned_resources.assigned_to?.map(user => ({
+          ...user,
+          _id: user._id,
+        })),
+        resources: updatedEvent.assigned_resources.resources?.map(res => ({
+          ...res,
+          resource: {
+            ...res.resource,
+            _id: res.resource?._id,
+          },
+        })),
+      };
+      formData.append("assigned_resources", JSON.stringify(sanitized));
     }
   
     dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
-      .then(() => {
-        toast.success("Task updated successfully!");
-        // Refresh data or close modal
-      })
+      .then(() => toast.success("Task updated successfully!"))
       .catch((err) => {
-        toast.error("Failed to update task. Please try again.");
+        toast.error("Failed to update task.");
         console.error("Task update failed:", err);
       });
   };
-
 const handleDelete = async (id) => {
   try {
     // Dispatch delete action and wait for it to succeed

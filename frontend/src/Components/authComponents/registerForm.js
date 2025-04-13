@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { registerUser } from '../../Services/authService';
+import { registerUsers } from '../../features/authSlice';
 import FormInput from './inputForm';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 
 const RegisterForm = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     first_name: '',
     last_name: '',
     personal_number: '',
-    organizationName: '', // Add this field
+    // organizationName: '', // Add this field
     access_level: 1,
   });
   const [error, setError] = useState('');
@@ -27,25 +29,51 @@ const RegisterForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-   
+    
     try {
-      const response = await registerUser(formData);
-      console.log("res", response.user);
+      const resultAction = await dispatch(registerUsers(formData));
       
-      if (response && response.success) {
-        setConfirmationMessage('User registered successfully. Please verify the email.');
-        toast.success('Registration successful!');
+      if (registerUsers.fulfilled.match(resultAction)) {
+        toast.success('User registered successfully!');
         navigate('/home');
-      } else {
-        console.error('Unexpected response structure:', response);
-        toast.error('Registration failed. Please try again.');
+      } else if (registerUsers.rejected.match(resultAction)) {
+        const error = resultAction.payload;
+        
+        if (error.code === 'USER_LIMIT_REACHED') {
+          toast.error(
+            <div className="p-4">
+              <p className="font-medium">{error.message}</p>
+              <p className="my-2">
+                Current: {error.details?.currentCount || 'N/A'}/
+                {error.details?.maxAllowed || 'N/A'} users
+              </p>
+              {error.details?.upgradeAvailable && (
+                <div className="mt-3">
+                  <Link 
+                    to={error.actions?.[0]?.url || '/subscription'} 
+                    className="text-blue-600 hover:text-blue-800 font-medium underline"
+                    onClick={() => toast.dismiss()}
+                  >
+                    {error.actions?.[0]?.label || 'Upgrade subscription'}
+                  </Link>
+                </div>
+              )}
+            </div>,
+            {
+              position: "top-right",
+              autoClose: false,
+              className: 'border-l-4 border-red-500'
+            }
+          );
+        } else {
+          toast.error(error.message || 'Registration failed');
+        }
       }
     } catch (error) {
-      console.error('Registration error:', error.message);
-      toast.error(`Error: ${error.message}`);
+      console.error('Unexpected error:', error);
+      toast.error('An unexpected error occurred');
     }
   };
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <FormInput label="First Name" name="first_name" type="text" value={formData.first_name} onChange={handleChange} required />
@@ -56,7 +84,7 @@ const RegisterForm = () => {
         Password must be at least 6 characters long and include a mix of letters and numbers.
       </p>
       <FormInput label="Personal Number" name="personal_number" type="text" value={formData.personal_number} onChange={handleChange} />
-      <FormInput label="Organization Name" name="organizationName" type="text" value={formData.organizationName} onChange={handleChange} />
+      {/* <FormInput label="Organization Name" name="organizationName" type="text" value={formData.organizationName} onChange={handleChange} /> */}
       
       <FormInput
         label="Access Level"
@@ -70,7 +98,7 @@ const RegisterForm = () => {
           { value: 2, description: '2 - Service Personnel' },
           { value: 3, description: '3 - Manager' },
           { value: 4, description: '4 - Free' },
-          { value: 5, description: '5 - Admin' },
+          // { value: 5, description: '5 - Admin' },
         ]}
       />
       

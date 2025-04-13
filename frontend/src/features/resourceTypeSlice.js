@@ -13,11 +13,19 @@ export const createResourceType = createAsyncThunk(
     try {
       return await resourceTypeService.createResourceType(resourceTypeData, token);
     } catch (error) {
-      return rejectWithValue(error.message || 'Error creating resource type');
+      
+      if (error.response?.status === 403 && error.response.data?.error?.code === 'RESOURCE_LIMIT_REACHED') {
+        return rejectWithValue({
+          ...error.response.data.error,
+          limitReached: true // Adding for backward compatibility
+        });
+      }
+      return rejectWithValue({
+        message: error.response?.data?.message || error.message || 'Error creating resource type'
+      });
     }
   }
 );
-
 export const fetchResourceTypes = createAsyncThunk(
   'resourceTypes/fetchResourceTypes',
   async (_, { getState, dispatch, rejectWithValue }) => {

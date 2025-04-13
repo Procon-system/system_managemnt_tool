@@ -4,6 +4,9 @@ import checkTokenExpiration from "../Helper/checkTokenExpire";
 import {jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import { resetToastFlag } from '../Helper/checkTokenExpire';
+import { createAsyncThunk } from '@reduxjs/toolkit';
+import { checkTokenAndLogout } from '../Helper/checkTokenExpire';
+import {registerUser,CustomError} from '../Services/authService';
 
 const initialState = {
   user: null,
@@ -11,6 +14,31 @@ const initialState = {
   isLoggedIn: false,
   access_level: null, // Add accessLevel to track user permissions
 };
+export const registerUsers = createAsyncThunk(
+  'auth/register',
+  async (userData, { getState, dispatch, rejectWithValue }) => {
+    const token = getState().auth.token;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return rejectWithValue('Session expired. Please log in again.');
+    }
+    
+    try {
+      return await registerUser(userData, token);
+    } catch (error) {
+      if (error instanceof CustomError) {
+        return rejectWithValue({
+          message: error.message,
+          code: error.code,
+          ...error // Spread all additional properties
+        });
+      }
+      return rejectWithValue({
+        message: error.message || 'Registration failed',
+        code: 'UNKNOWN_ERROR'
+      });
+    }
+  }
+);
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -47,6 +75,20 @@ const authSlice = createSlice({
 sessionStorage.removeItem('token');
     },
   },
+  extraReducers: (builder) => {
+    builder
+      .addCase(registerUsers.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(registerUsers.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        // Optionally update state if needed
+      })
+      .addCase(registerUsers.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      });
+  }
 });
 
 export const { login, logout } = authSlice.actions;

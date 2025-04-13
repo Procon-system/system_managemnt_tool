@@ -79,30 +79,117 @@ exports.createRecurringTasks = async ({ baseTask, frequency, endDate }) => {
   
   return [rootTask, ...createdInstances];
 };
-
+// Simplified createTask for single tasks
 exports.createTask = async (taskData) => {
-  // Validate task data
-  await validateTaskData(taskData);
-  
-  // Verify all referenced resources exist
-  if (taskData.resources && taskData.resources.length > 0) {
-    const resourceIds = taskData.resources.map(r => r.resource);
-    const resources = await Resource.find({
-      _id: { $in: resourceIds },
-      organization: taskData.organization
-    });
-    
-    if (resources.length !== resourceIds.length) {
+  try {
+    // Enhanced validation
+    if (!taskData.title?.trim()) {
       throw { 
-        message: 'One or more referenced resources not found',
+        message: 'Task title is required',
+        statusCode: 400 
+      };
+    }
+
+    if (!taskData.schedule?.start || !taskData.schedule?.end) {
+      throw {
+        message: 'Both start and end times are required',
         statusCode: 400
       };
     }
+
+    // Validate date consistency
+    const startDate = new Date(taskData.schedule.start);
+    const endDate = new Date(taskData.schedule.end);
+    
+    if (startDate >= endDate) {
+      throw {
+        message: 'End time must be after start time',
+        statusCode: 400
+      };
+    }
+
+    // Normalize task data
+    const normalizedTask = {
+      ...taskData,
+      title: taskData.title.trim(),
+      schedule: {
+        start: startDate,
+        end: endDate,
+        timezone: taskData.schedule.timezone || 'UTC'
+      },
+      // Explicitly set recurring flags
+      isRecurringRoot: false,
+      isRecurringInstance: false,
+      // Ensure default values
+      status: taskData.status || 'pending',
+      priority: taskData.priority || 'medium',
+      notes: taskData.notes || '',
+      resources: taskData.resources || []
+    };
+
+    console.log('Creating task with normalized data:', normalizedTask);
+
+    // Verify resources exist if provided
+    if (normalizedTask.resources.length > 0) {
+      const resourceIds = normalizedTask.resources.map(r => r.resource);
+      const existingResources = await Resource.find({
+        _id: { $in: resourceIds },
+        organization: normalizedTask.organization
+      }).lean();
+
+      if (existingResources.length !== resourceIds.length) {
+        throw {
+          message: 'One or more resources not found',
+          statusCode: 404
+        };
+      }
+    }
+
+    // Create and save with timeout
+    const task = new Task(normalizedTask);
+    const savedTask = await Promise.race([
+      task.save(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Database save operation timed out')), 5000))
+    ]);
+
+    console.log('Task created successfully:', savedTask._id);
+    return savedTask;
+
+  } catch (error) {
+    console.error('Error in createTask service:', {
+      error: error.message,
+      taskData: {
+        title: taskData?.title,
+        schedule: taskData?.schedule
+      }
+    });
+    throw error; // Re-throw for controller to handle
   }
-  
-  const task = new Task(taskData);
-  return await task.save();
 };
+// exports.createTask = async (taskData) => {
+//   // Validate task data
+//   await validateTaskData(taskData);
+  
+//   // Verify all referenced resources exist
+//   if (taskData.resources && taskData.resources.length > 0) {
+//     const resourceIds = taskData.resources.map(r => r.resource);
+//     const resources = await Resource.find({
+//       _id: { $in: resourceIds },
+//       organization: taskData.organization
+//     });
+    
+//     if (resources.length !== resourceIds.length) {
+//       throw { 
+//         message: 'One or more referenced resources not found',
+//         statusCode: 400
+//       };
+//     }
+//   }
+//   console.log("taskadtaa",taskData)
+//   const task = new Task(taskData);
+//   return await task.save();
+// };
 
 exports.getTaskById = async (taskId, organizationId) => {
   const task = await Task.findOne({

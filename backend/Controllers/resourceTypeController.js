@@ -4,16 +4,6 @@ exports.setResourceTypeSocketIoInstance = (ioInstance) => {
   io = ioInstance;
 };
 
-// exports.createResourceType = async (req, res) => {
-//   try {
-//     const typeData = req.body;
-//     typeData.organization = req.user.organization;
-//     const resourceType = await resourceTypeService.createResourceType(typeData);
-//     sendResponse(res, 201, 'Resource type created successfully', resourceType);
-//   } catch (error) {
-//     sendResponse(res, 500, error.message, null);
-//   }
-// };
 exports.createResourceType = async (req, res) => {
   try {
     const typeData = req.body;
@@ -49,6 +39,7 @@ exports.createResourceType = async (req, res) => {
 };
 exports.getResourceTypes = async (req, res) => {
   try {
+    console.log(" req.user.organization", req.user.organization)
     const resourceTypes = await resourceTypeService.getResourceTypesByOrganization(
       req.user.organization
     );

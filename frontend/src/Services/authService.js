@@ -156,21 +156,56 @@ export const removeUserSession = async () => {
     console.log('No session to remove.');
   }
 };
+export class CustomError extends Error {
+  constructor(message, code, extra = {}) {
+    super(message);
+    this.name = 'CustomError';
+    this.code = code;
+    Object.assign(this, extra);
+  }
+}
 
 // **Register User**
-export const registerUser = async (userData) => {
-  const request = { method: 'post', url: `${API_URL}/register`, data: userData };
+export const registerUser = async (userData, token) => {
+  const request = { 
+    method: 'post', 
+    url: `${API_URL}/register`, 
+    data: userData,
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  };
 
   if (!isOnline()) {
     await saveOfflineRequest(request);
-    throw new Error('You are offline. Registration will be processed when online.');
+    throw new CustomError(
+      'You are offline. Registration will be processed when online.',
+      'OFFLINE_ERROR'
+    );
   }
 
   try {
     const response = await axios(request);
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.error || 'Error during registration');
+    if (error.response?.data?.error?.code === 'USER_LIMIT_REACHED') {
+      throw new CustomError(
+        error.response.data.error.message,
+        'USER_LIMIT_REACHED',
+        {
+          ...error.response.data.error, // Include all error details
+          limitReached: true
+        }
+      );
+    }
+
+    throw new CustomError(
+      error.response?.data?.error?.message ||
+      error.response?.data?.message ||
+      error.message ||
+      'Error during registration',
+      'REGISTRATION_ERROR'
+    );
   }
 };
 

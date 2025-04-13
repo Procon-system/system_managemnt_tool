@@ -13,7 +13,77 @@ const { validateRegistration } = require('../Helper/validators');
 
 // Service to register a new user
 const registerUser = async (userData) => {
-  const { email, password, last_name, first_name, organizationName, personal_number,access_level } = userData;
+  const { email, password, last_name, first_name, organization, personal_number,access_level,
+    // max_permitted_user_amount,
+    //   max_permitted_resource_amount,
+    //   subscription_type,
+      isConfirmed,
+      isActive,
+   } = userData;
+  
+  // Validate input
+  const validation = validateRegistration({ email, password });
+  if (validation.error) {
+    throw new Error(validation.error.details.map(d => d.message).join('<br>'));
+  }
+
+  // Check if user exists by email
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new Error('User already exists with this email');
+  }
+
+  // Check if personal_number is provided and unique
+  if (personal_number) {
+    const existingWithPN = await User.findOne({ personal_number });
+    if (existingWithPN) {
+      throw new Error('This personal number is already in use');
+    }
+  }
+
+  // Find or create organization
+  // let organization = await Organization.findOne({ name: organizationName });
+  // if (!organization) {
+  //   organization = await Organization.create({ name: organizationName });
+  // }
+
+  // Hash password
+  // const hashedPassword = await bcrypt.hash(password, 10);
+
+  // Create new user
+  const newUser = new User({
+    email,
+    password: password,
+    last_name,
+    first_name,
+    access_level: access_level,
+    personal_number: personal_number || null,
+    organization: organization,
+    // max_permitted_user_amount: userData.max_permitted_user_amount || 1,
+    // max_permitted_resource_amount: userData.max_permitted_resource_amount || 1,
+    // subscription_type: userData.subscription_type || 'free',
+    isConfirmed: userData.isConfirmed || false,
+    confirmationCode: crypto.randomBytes(20).toString('hex')
+  });
+
+  await newUser.save();
+
+  return {
+    _id: newUser._id,
+    email: newUser.email,
+    first_name: newUser.first_name,
+    last_name: newUser.last_name,
+    organization: organization
+  };
+};
+const registerAdminUser = async (userData) => {
+  const { email, password, last_name, first_name, organizationName, personal_number,access_level,
+    max_permitted_user_amount,
+      max_permitted_resource_amount,
+      subscription_type,
+      isConfirmed,
+      isActive,
+   } = userData;
   
   // Validate input
   const validation = validateRegistration({ email, password });
@@ -53,6 +123,10 @@ const registerUser = async (userData) => {
     access_level: access_level,
     personal_number: personal_number || null,
     organization: organization._id,
+    max_permitted_user_amount: userData.max_permitted_user_amount || 1,
+    max_permitted_resource_amount: userData.max_permitted_resource_amount || 1,
+    subscription_type: userData.subscription_type || 'free',
+    isConfirmed: userData.isConfirmed || false,
     confirmationCode: crypto.randomBytes(20).toString('hex')
   });
 
@@ -204,6 +278,7 @@ const logoutUser = () => {
 
 module.exports = {
   registerUser,
+  registerAdminUser,
   loginUser,
   logoutUser,
   confirmEmail,

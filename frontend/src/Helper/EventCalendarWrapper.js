@@ -65,10 +65,18 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
     allDay: false,
     
     resourceIds: [
-      ...(event.assigned_resources?.assigned_to?.map(a => a.user.id).filter(Boolean) || []), // Changed to a.id
-      ...(event.assigned_resources?.resources?.map(r => r.resource?._id).filter(Boolean) || [])
+      // Handle assigned_to with null checks
+      ...(event.assigned_resources?.assigned_to
+        ?.map(a => a?.user?.id || a?.user?._id || a?._id) // Check multiple possible ID locations
+        .filter(id => id && typeof id === 'string') // Ensure valid string IDs
+        || []),
+      
+      // Handle resources with null checks  
+      ...(event.assigned_resources?.resources
+        ?.map(r => r?.resource?._id || r?._id) // Check both resource._id and root _id
+        .filter(id => id && typeof id === 'string') // Ensure valid string IDs
+        || [])
     ],
-    
     extendedProps: {
       ...event,
       created_by: event.createdBy ? {
@@ -82,23 +90,24 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
           _id: assignment._id,
           role: assignment.role,
           team: assignment.team,
-          // Directly use the root level properties
-          id: assignment.user.id,
-          name: assignment.user.name,
-          email: assignment.user.email
+          id: assignment.user?._id, // Use _id instead of id
+          name: assignment.user?.name,
+          email: assignment.user?.email
         })) || [],
-        resources: event.assigned_resources?.resources?.map(resource => ({
-          _id: resource._id,
-          relationshipType: resource.relationshipType,
-          required: resource.required,
-          resource: resource.resource ? {
-            _id: resource.resource._id,
-            type: resource.resource.type,
-            displayName: resource.resource.displayName,
-            fields: resource.resource.fields,
-            status: resource.resource.status
-          } : null
-        })) || []
+        resources: event.assigned_resources?.resources
+      ?.filter(resource => resource?.resource) // Filter null resources
+      ?.map(resource => ({
+        _id: resource._id,
+        relationshipType: resource.relationshipType,
+        required: resource.required,
+        resource: {
+          _id: resource.resource._id,
+          type: resource.resource.type,
+          displayName: resource.resource.displayName,
+          fields: resource.resource.fields,
+          status: resource.resource.status
+        }
+      })) || []
       }
     }
   }));

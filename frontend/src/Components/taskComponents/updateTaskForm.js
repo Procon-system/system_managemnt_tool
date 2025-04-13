@@ -437,8 +437,9 @@ const handleChange = (e) => {
                 // Create new resource objects for selected ones
                 const newResources = selectedResourceIds.map(resourceId => {
                   const resource = availableResources.find(r => r._id === resourceId);
+                  console.log("respo565676",resource)
                   return {
-                    _id: `${type._id}_${resourceId}`,
+                    _id: resource._id,
                     relationshipType: "requires",
                     required: false,
                     resource: {

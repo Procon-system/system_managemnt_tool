@@ -111,7 +111,8 @@ export const updateTask = createAsyncThunk(
     try {
       // return await taskService.updateTask(taskId, updatedData, token);
       const response = await taskService.updateTask(taskId, updatedData, token);
-    return response; 
+      console.log("77887878",response.data)
+    return response.data; 
     } catch (error) {
       console.error('Error in updateTask:', error.response?.data || error.message);
       return rejectWithValue(error.response?.data || error.message || 'Error updating task');
@@ -344,17 +345,34 @@ const taskSlice = createSlice({
       })
       .addCase(updateTask.fulfilled, (state, action) => {
         state.status = 'succeeded';
+        
+        // Safely get current tasks (ensure it's always an array)
+        const currentTasks = Array.isArray(state.tasks) ? [...state.tasks] : [];
+        
+        // Get the updated task from payload
+        const updatedTask = action.payload.data || action.payload;
+        
+        if (!updatedTask?._id) {
+          console.error('Update failed: Task missing _id', updatedTask);
+          return;
+        }
       
-        // Extract the updated task from the payload
-        const updatedTask = action.payload;
-        // Check if the task exists and update it, otherwise add it
-        const index = state.tasks.findIndex(task => task._id === updatedTask._id);
-        if (index !== -1) {
-          state.tasks[index] = updatedTask; // Update existing task
+        // Find index of existing task (-1 if not found)
+        const taskIndex = currentTasks.findIndex(t => t._id === updatedTask._id);
+        
+        if (taskIndex >= 0) {
+          // Update existing task - create new array with updated task
+          state.tasks = currentTasks.map((task, index) => 
+            index === taskIndex 
+              ? { ...task, ...updatedTask } // Merge updates
+              : task
+          );
         } else {
-          state.tasks.push(updatedTask); // Add new task if it doesn't exist
+          // Add new task - prepend to array
+          state.tasks = [updatedTask, ...currentTasks];
         }
       })
+      
       .addCase(deleteTask.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.tasks = state.tasks.filter(task => task._id !== action.payload._id); // Use the correct identifier

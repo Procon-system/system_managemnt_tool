@@ -48,6 +48,9 @@ const userSchema = new mongoose.Schema({
     ref: 'Organization',
     required: true
   },
+  max_permitted_user_amount: { type: Number},
+  max_permitted_resource_amount: { type: Number},
+  subscription_type: { type: String, default: 'free' },
   teams: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Team'
@@ -176,7 +179,8 @@ userSchema.methods.resetLoginAttempts = function() {
   return this.save(); // Make sure to return the save() promise
 };
 
-
+// In your UserSchema
+userSchema.index({ organization: 1, isActive: 1 });
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
