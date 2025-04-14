@@ -1,5 +1,6 @@
 const {
   registerUser,
+  registerAdminUser,
   loginUser,
   logoutUser,
   confirmEmail,
@@ -66,8 +67,8 @@ const registerAdminController = async (req, res) => {
       isConfirmed,
       isActive,
     } = req.body;
-
-    const user = await registerUser({
+console.log("req.body",req.body)
+    const user = await registerAdminUser({
       email,
       password,
       last_name,

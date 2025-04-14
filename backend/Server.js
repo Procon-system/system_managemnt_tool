@@ -55,11 +55,65 @@ async function fetchAdminUsers() {
     return [];
   }
 }
+async function handleAdminRegistration(extUser) {
+  const registrationData = {
+    email: extUser.email,
+    password: 'tempPassword123!',
+    first_name: extUser.name.split(' ')[0] || 'Admin',
+    last_name: extUser.name.split(' ')[1] || 'User',
+    personal_number: extUser.id.toString(),
+    access_level: ADMIN_ACCESS_LEVEL,
+    organizationName: extUser.organization_name || 'procon',
+    max_permitted_user_amount: extUser.max_permitted_user_amount || 1,
+    max_permitted_resource_amount: extUser.max_permitted_resource_amount || 1,
+    subscription_type: extUser.subscription_type || 'free',
+    isConfirmed: true
+  };
+
+  const mockReq = {
+    body: registrationData
+  };
+
+  const mockRes = {
+    status: function(statusCode) {
+      this.statusCode = statusCode;
+      return this;
+    },
+    json: function(data) {
+      if (data.success) {
+        return data.data;
+      }
+      throw new Error(data.error || 'Registration failed');
+    }
+  };
+
+  try {
+    const existingUser = await User.findOne({
+      $or: [
+        { email: extUser.email },
+        { personal_number: extUser.id.toString() }
+      ]
+    });
+
+    if (existingUser) {
+      // Silently return the existing user without throwing an error
+      return existingUser;
+    } else {
+      return await registerAdminController(mockReq, mockRes);
+    }
+  } catch (error) {
+    // Only log unexpected errors, not "user exists" errors
+    if (!error.message.includes('User already exists')) {
+      console.error('Registration error:', error.message);
+    }
+    throw error; // Re-throw to let syncAdminUsers handle fallback
+  }
+}
+
 async function syncAdminUsers() {
   try {
     const externalUsers = await fetchAdminUsers();
     const currentContainerId = getContainerId();
-    console.log('Container ID:', currentContainerId);
     
     if (!currentContainerId) {
       console.warn('Could not determine container ID - using fallback admin');
@@ -69,10 +123,12 @@ async function syncAdminUsers() {
     for (const extUser of externalUsers) {
       if (extUser.unique_id === currentContainerId) {
         try {
-          // ... existing registration logic ...
           return await handleAdminRegistration(extUser);
         } catch (error) {
-          console.error('Error syncing admin user:', error.message);
+          // Skip logging "user exists" errors
+          if (!error.message.includes('User already exists')) {
+            console.error('Error syncing admin user:', error.message);
+          }
           return createFallbackAdmin();
         }
       }
@@ -81,61 +137,11 @@ async function syncAdminUsers() {
     console.warn('No admin user found for container ID - using fallback admin');
     return createFallbackAdmin();
   } catch (error) {
-    console.error('Admin sync failed:', error.message);
-    return createFallbackAdmin();
-  }
-}
-
-async function handleAdminRegistration(extUser) {
- 
-  const registrationData = {
-    email: extUser.email,
-    password: 'tempPassword123!', // Default password
-    first_name: extUser.name.split(' ')[0] || 'Admin',
-    last_name: extUser.name.split(' ')[1] || 'User',
-    personal_number: extUser.id.toString(),
-    access_level: ADMIN_ACCESS_LEVEL,
-    organizationName: extUser.organization_name || 'procon',
-    max_permitted_user_amount: extUser.max_permitted_user_amount || 1,
-    max_permitted_resource_amount: extUser.max_permitted_resource_amount || 1,
-    subscription_type: extUser.subscription_type || 'free', // Default to free if not provided  
-    isConfirmed: true // Auto-confirm admin users
-  };
-
-  // Create a mock request object
-  const mockReq = {
-    body: registrationData
-  };
-
-  // Create a mock response object
-  const mockRes = {
-    status: function(statusCode) {
-      this.statusCode = statusCode;
-      return this;
-    },
-    json: function(data) {
-      if (data.success) {
-        return data.data; // Return the created user
-      }
-      throw new Error(data.error || 'Registration failed');
+    // Skip logging "user exists" errors
+    if (!error.message.includes('User already exists')) {
+      console.error('Admin sync failed:', error.message);
     }
-  };
-
-  // Check if user already exists
-  const existingUser = await User.findOne({
-    $or: [
-      { email: extUser.email },
-      { personal_number: extUser.id.toString() }
-    ]
-  });
-
-  if (existingUser) {
-    // Update existing user through registration controller
-    mockReq.body._id = existingUser._id; // Add ID for update
-    return await registerAdminController(mockReq, mockRes);
-  } else {
-    // Create new user through registration controller
-    return await registerAdminController(mockReq, mockRes);
+    return createFallbackAdmin();
   }
 }
 
@@ -143,6 +149,7 @@ function createFallbackAdmin() {
   const fallbackEmail = `admin-${Date.now()}@fallback.com`;
   console.warn(`Creating fallback admin: ${fallbackEmail}`);
   
+  // Fixed the undefined extUser reference here
   return User.findOneAndUpdate(
     { email: fallbackEmail },
     {
@@ -152,10 +159,10 @@ function createFallbackAdmin() {
       last_name: 'Admin',
       personal_number: '00000000',
       access_level: ADMIN_ACCESS_LEVEL,
-      organizationName: extUser.organization_name || 'procon',
-      max_permitted_user_amount: extUser.max_permitted_user_amount || 1,
-    max_permitted_resource_amount: extUser.max_permitted_resource_amount || 1,
-    subscription_type: extUser.subscription_type || 'free', // Default to free if not provided  
+      organizationName: 'procon',
+      max_permitted_user_amount: 1,
+      max_permitted_resource_amount: 1,
+      subscription_type: 'free',
       isConfirmed: true,
       isActive: true
     },
