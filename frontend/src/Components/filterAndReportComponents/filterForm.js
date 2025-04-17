@@ -1,16 +1,14 @@
 import React, { useState } from "react";
 import { SelectInput } from "../taskComponents/selectInput";
 
-const FilterForm = ({ onFilter, onReset, users, facilities, machines, tools, materials }) => {
+const FilterForm = ({ onFilter, onReset, users }) => {
   const [filters, setFilters] = useState({
     assignedTo: [],
     startDate: "",
     endDate: "",
-    facility: null,
+    
     status: "",
-    machine: null,
-    tools: [],
-    materials: [],
+    
     taskPeriod: "",
   });
 
@@ -42,11 +40,7 @@ const FilterForm = ({ onFilter, onReset, users, facilities, machines, tools, mat
       assignedTo: [],
       startDate: "",
       endDate: "",
-      facility: null,
       status: "",
-      machine: null,
-      tools: [],
-      materials: [],
       taskPeriod: "",
     });
     onReset();
@@ -94,7 +88,7 @@ const FilterForm = ({ onFilter, onReset, users, facilities, machines, tools, mat
         </div>
 
         {/* Facility (Single Select) */}
-        <SelectInput
+        {/* <SelectInput
           label="Facility"
           name="facility"
           value={filters.facility}
@@ -106,7 +100,7 @@ const FilterForm = ({ onFilter, onReset, users, facilities, machines, tools, mat
             />
 
         {/* Machine (Single Select) */}
-        <SelectInput
+        {/* <SelectInput
           label="Machine"
           name="machine"
           value={filters.machine}
@@ -115,10 +109,10 @@ const FilterForm = ({ onFilter, onReset, users, facilities, machines, tools, mat
             label: machine.machine_name,
             value: machine._id,
           })) : []}       
-           />
+           /> */}
  
         {/* Tools (Multi-Select) */}
-        <SelectInput
+        {/* <SelectInput
           label="Tools"
           name="tools"
           value={filters.tools}
@@ -128,9 +122,9 @@ const FilterForm = ({ onFilter, onReset, users, facilities, machines, tools, mat
             value: tool._id,
           })) : []}  
                   isMulti
-        />
+        /> */}
 
-        {/* Materials (Multi-Select) */}
+        {/* Materials (Multi-Select) 
         <SelectInput
           label="Materials"
           name="materials"
@@ -141,7 +135,7 @@ const FilterForm = ({ onFilter, onReset, users, facilities, machines, tools, mat
             value: material._id,
           })) : []}  
          isMulti
-        />
+        /> */}
 
         {/* Status */}
         <div className="flex flex-col">

@@ -173,7 +173,7 @@ export const handleSingleEventUpdate = async ({
   getTimezoneFromDate,
 }) => {
   const { event } = info;
-
+console.log("event single",event)
   try {
     if (!event || !event.start || !event.end) {
       console.error('Invalid event data:', event);

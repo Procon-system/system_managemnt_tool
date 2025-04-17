@@ -3,8 +3,8 @@ function getColorForStatus(status) {
     console.log("status",status);
     switch (status) {
         case 'done':
-            return 'green';
-        case 'in progress':
+            return 'blue';
+        case 'in_progress':
             return 'green';
         case 'pending':
             return 'yellow';

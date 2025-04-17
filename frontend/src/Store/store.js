@@ -8,6 +8,7 @@ import taskReducer from '../features/taskSlice';
 import userSlice from '../features/userSlice';
 import resourceTypeReducer from '../features/resourceTypeSlice';
 import resourceReducer from '../features/resourceSlice';
+import teamReducer from '../features/teamSlice';
 import { combineReducers } from 'redux';
 
 // Define persist configuration for the auth slice
@@ -24,6 +25,7 @@ const rootReducer = combineReducers({
   users:userSlice,
   resourceTypes: resourceTypeReducer,
   resources:resourceReducer,
+  teams: teamReducer,
 });
 
 // Wrap the root reducer with persistReducer

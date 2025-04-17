@@ -7,7 +7,7 @@ const { protect, authorize } = require('../Middleware/authMiddleware');
 router.use(protect);
 
 // Basic team CRUD
-router.post('/', authorize([2,3, 4, 5]), teamController.createTeam);
+router.post('/', authorize([3, 4, 5]), teamController.createTeam);
 router.get('/', teamController.getOrganizationTeams);
 router.get('/:id', teamController.getTeam);
 router.put('/:id', authorize([3, 4, 5]), teamController.updateTeam);

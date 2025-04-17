@@ -3,7 +3,7 @@ function getColorForStatus(status) {
     switch (status.toLowerCase()) { 
       case 'done':
         return 'blue';
-      case 'in progress':
+      case 'in_progress':
         return 'green';
       case 'pending':
           return '#ffcc00'; // Dark Yellow

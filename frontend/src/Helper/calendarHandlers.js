@@ -218,9 +218,19 @@ export const handleEventResize = async (info, user, onEventUpdate, adjustTimeFor
     info.revert();
     return;
   }
-  const timezoneOffset = 3;
-  const adjustedStartTime = adjustTimeForBackend(event.start, timezoneOffset);
-  const adjustedEndTime = adjustTimeForBackend(event.end, timezoneOffset);
+  // 1. Get user's timezone dynamically
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
+  // 2. Fallback to local timezone offset if needed (in hours)
+  const fallbackTimezoneOffset = new Date().getTimezoneOffset() / -60;
+  
+  // 3. Use detected timezone (preferred) or fallback
+  const timezoneToUse = userTimezone || fallbackTimezoneOffset;
+
+  console.log('Using timezone:', timezoneToUse); // For debugging
+
+  const adjustedStartTime = adjustTimeForBackend(event.start, timezoneToUse);
+  const adjustedEndTime = adjustTimeForBackend(event.end, timezoneToUse);
   const updatedEvent = {
     _id: mongoId,
     start_time: adjustedStartTime,

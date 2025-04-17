@@ -19,7 +19,7 @@ router.get('/:id', authorize([2,3, 4, 5]),taskController.getTaskById);
 router.put('/:id',upload.array('images', 5),authorize([3, 4, 5]),taskController.updateTask);
 router.delete('/:id',authorize([3, 4, 5]), taskController.deleteTask);
 router.patch('/:id/status', authorize([2,3, 4, 5]),taskController.changeTaskStatus);
-
+router.post('/filter', authorize([ 2, 3, 4, 5]), taskController.filterTasksByOrganization);
 router.get('/image/:fileId', async (req, res) => {
     try {
       const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });

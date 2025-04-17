@@ -55,31 +55,59 @@ const HomePage = () => {
   },[]);
  
   const updateEventState = useCallback((updatedEvents = [], deletedEventId = null) => {
-   
+    console.log("Incoming update data:", updatedEvents);
+    
     setFilteredEvents((prevEvents) => {
       let currentEvents = prevEvents || tasks || [];
-       
+      
       // Handle deletion
       if (deletedEventId) {
         handleTaskDeletion(deletedEventId);
         const updatedEvents = currentEvents.filter(
           (event) => event._id !== deletedEventId
         );
-        eventsRef.current = updatedEvents; // Sync with ref
-        return updatedEvents; // Update state
+        eventsRef.current = updatedEvents;
+        return updatedEvents;
       }
   
       // Handle updates or additions
-      if (updatedEvents && updatedEvents.length > 0) {
+      if (updatedEvents?.length > 0) {
         const eventMap = new Map(
           currentEvents.map((event) => [event._id, event])
         );
   
         updatedEvents.forEach((event) => {
-          if (event && event._id) {
-            eventMap.set(event._id, {
-              ...eventMap.get(event._id),
+          if (event?._id) {
+            // Normalize time fields into schedule object
+            const normalizedEvent = {
               ...event,
+              schedule: {
+                start: event.schedule?.start || event.start_time || event.start,
+                end: event.schedule?.end || event.end_time || event.end,
+                timezone: event.schedule?.timezone || event.timezone || 'UTC'
+              },
+              // Remove old time fields to prevent confusion
+              ...(event.start_time && { start_time: undefined }),
+              ...(event.end_time && { end_time: undefined }),
+              ...(event.start && { start: undefined }),
+              ...(event.end && { end: undefined }),
+              ...(event.timezone && { timezone: undefined })
+            };
+  
+            // Merge with existing event
+            const existing = eventMap.get(event._id) || {};
+            eventMap.set(event._id, {
+              ...existing,
+              ...normalizedEvent,
+              schedule: {
+                ...existing.schedule,
+                ...normalizedEvent.schedule
+              },
+              // Preserve arrays if not provided in update
+              assigned_resources: event.assigned_resources !== undefined 
+                ? event.assigned_resources 
+                : existing.assigned_resources,
+              // ... other array fields (same as before)
             });
           }
         });
@@ -88,17 +116,18 @@ const HomePage = () => {
           (event) =>
             event._id &&
             event.title &&
-            (event.start_time || event.start) &&
-            (event.end_time || event.end)
+            event.schedule?.start &&
+            event.schedule?.end
         );
-        eventsRef.current = finalEvents; // Sync with ref
+        
+        console.log("Normalized events:", finalEvents);
+        eventsRef.current = finalEvents;
         return finalEvents;
       }
   
       return currentEvents;
     });
-  }, [tasks, handleTaskDeletion, eventsRef]); // Add dependencies
-
+  }, [tasks, handleTaskDeletion, eventsRef]);
   const handleTaskCreated = useCallback((broadcastData) => {
     console.log('Socket task received:', broadcastData);
     
@@ -221,8 +250,10 @@ useEffect(() => {
   });
 }, [tasks]);
 const calendarEvents = useMemo(() => {
-  return Array.isArray(tasks?.data?.tasks)
-    ? tasks.data.tasks
+  console.log("tasks?.data?.tasks",tasks)
+
+  return Array.isArray(tasks)
+      ? tasks
         .filter((task) => !deletedTaskIds.has(task._id))
         .map((task) => {
           // Format assigned resources with full details
@@ -255,10 +286,12 @@ const calendarEvents = useMemo(() => {
           return {
             _id: task._id,
             title: task.title || 'No Title',
-            start: task.schedule?.start,
-            end: task.schedule?.end,
-            timezone: task.schedule?.timezone || 'UTC',
-            color: task.color_code || '#fbbf24',
+            schedule: {
+              start:task.schedule?.start,
+              end:task.schedule?.end ,
+              timezone: task.schedule?.timezone || 'UTC'
+            },
+            color: task.color_code || task.color|| '#fbbf24',
             images: task.images || [],
             task_period: task.task_period,
             repeat_frequency: task.repeat_frequency,
@@ -301,7 +334,7 @@ useEffect(() => {
     dispatch(fetchOrganizationTasks({page :1, limit :100})); // Fetch all tasks
   } else if (currentView === 'userTasks') {
     
-       dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user
+    dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user
   } else if (currentView === 'userDoneTasks') {
    
     dispatch(getTasksDoneByAssignedUser(user._id)); // Fetch tasks done by the user
@@ -428,6 +461,64 @@ const handleEventCreate = async (newEvent) => {
     setCalendarStartDate(startDate);
     setCalendarEndDate(endDate);
   };
+  const handleEventUpdate = (updatedEvent) => {
+    // First get current event data to preserve unchanged fields
+    const currentEvent = tasks.find(task => task._id === updatedEvent._id) || {};
+    
+    // Create merged event data preserving unchanged fields
+    const mergedEvent = {
+      ...currentEvent,  // Existing data
+      ...updatedEvent,  // New updates
+      // Handle special nested objects
+      schedule: {
+        ...currentEvent.schedule,
+        ...(updatedEvent.schedule || {}),
+        // Handle legacy time fields
+        start: updatedEvent.start_time || updatedEvent.start || currentEvent.schedule?.start,
+        end: updatedEvent.end_time || updatedEvent.end || currentEvent.schedule?.end,
+        timezone: updatedEvent.timezone || currentEvent.schedule?.timezone || 'UTC'
+      },
+      // Preserve arrays if not provided in update
+      assigned_resources: updatedEvent.assigned_resources !== undefined 
+        ? updatedEvent.assigned_resources 
+        : currentEvent.assigned_resources,
+      resources: updatedEvent.resources !== undefined
+        ? updatedEvent.resources
+        : currentEvent.resources,
+      // Add other array fields similarly...
+    };
+  
+    // Optimistic update with merged data
+    updateEventState([mergedEvent]);
+  
+    const formData = new FormData();
+    
+    // Always include the ID
+    formData.append("_id", mergedEvent._id);
+    
+    // Append only changed fields (optional optimization)
+    if (updatedEvent.title) formData.append("title", mergedEvent.title);
+    if (updatedEvent.status) formData.append("status", mergedEvent.status);
+    
+    // Handle time fields through schedule object
+    formData.append("start", mergedEvent.schedule.start);
+    formData.append("end", mergedEvent.schedule.end);
+    if (mergedEvent.schedule.timezone) formData.append("timezone", mergedEvent.schedule.timezone);
+  
+    // Handle other fields... (same as before but using mergedEvent)
+  
+    dispatch(updateTask({ taskId: mergedEvent._id, updatedData: formData }))
+      .then((action) => {
+        toast.success("Task updated successfully!");
+        updateEventState([action.payload]);
+      })
+      .catch((err) => {
+        // Revert to original state on failure
+        updateEventState([currentEvent]);
+        toast.error("Failed to update task.");
+        console.error("Update error:", err);
+      });
+  };
   // const handleEventUpdate = (updatedEvent) => {
   //   const formData = new FormData();
     
@@ -469,56 +560,90 @@ const handleEventCreate = async (newEvent) => {
   //       console.error("Task update failed:", err);
   //     });
   // };
-  const handleEventUpdate = (updatedEvent) => {
-    const formData = new FormData();
+//   const handleEventUpdate = (updatedEvent) => {
+//     updateEventState([updatedEvent]);
+  
+//     const formData = new FormData();
     
-    // Append basic fields
-    formData.append("_id", updatedEvent._id);
-    formData.append("title", updatedEvent.title);
-    formData.append("status", updatedEvent.status);
-  
-    // Handle images - filter invalid IDs
-    if (updatedEvent.images?.length > 0) {
-      const validImages = updatedEvent.images.filter(id => 
-        /^[0-9a-fA-F]{24}$/.test(id)
-      );
-      formData.append("keptImages", JSON.stringify(validImages));
-    }
-  
-    // Handle new images
-    if (updatedEvent.newImages?.length > 0) {
-      updatedEvent.newImages.forEach((image) => {
-        if (image instanceof File) {
-          formData.append("images", image);
-        }
-      });
-    }
-  
-    // Sanitize assigned_resources before sending
-    if (updatedEvent.assigned_resources) {
-      const sanitized = {
-        assigned_to: updatedEvent.assigned_resources.assigned_to?.map(user => ({
-          ...user,
-          _id: user._id,
-        })),
-        resources: updatedEvent.assigned_resources.resources?.map(res => ({
-          ...res,
-          resource: {
-            ...res.resource,
-            _id: res.resource?._id,
-          },
-        })),
-      };
-      formData.append("assigned_resources", JSON.stringify(sanitized));
-    }
-  
-    dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
-      .then(() => toast.success("Task updated successfully!"))
-      .catch((err) => {
-        toast.error("Failed to update task.");
-        console.error("Task update failed:", err);
-      });
-  };
+//     // Append basic fields only if they exist
+//     if (updatedEvent._id) formData.append("_id", updatedEvent._id);
+//     if (updatedEvent.title) formData.append("title", updatedEvent.title);
+//     if (updatedEvent.status) formData.append("status", updatedEvent.status);
+    
+//     // Handle time fields (optional)
+//     if (updatedEvent.start || updatedEvent.start_time ) formData.append("start", updatedEvent.start || updatedEvent.start_time);
+//     if (updatedEvent.end || updatedEvent.end_time ) formData.append("end", updatedEvent.end || updatedEvent.end_time);
+    
+//     // Handle other optional fields
+//     if (updatedEvent.color) formData.append("color", updatedEvent.color);
+//     if (updatedEvent.notes) formData.append("notes", updatedEvent.notes);
+//     if (updatedEvent.priority) formData.append("priority", updatedEvent.priority);
+//     if (updatedEvent.repeat_frequency) formData.append("repeat_frequency", updatedEvent.repeat_frequency);
+//     if (updatedEvent.task_period) formData.append("task_period", updatedEvent.task_period);
+//     if (updatedEvent.timezone) formData.append("timezone", updatedEvent.timezone);
+//     if (updatedEvent.visibility) formData.append("visibility", updatedEvent.visibility);
+
+//     // Handle images - filter invalid IDs
+//     if (updatedEvent.images?.length > 0) {
+//         const validImages = updatedEvent.images.filter(id => 
+//             /^[0-9a-fA-F]{24}$/.test(id)
+//         );
+//         formData.append("keptImages", JSON.stringify(validImages));
+//     } else if (updatedEvent.images?.length === 0) {
+//         // Explicitly handle empty array to clear images
+//         formData.append("keptImages", JSON.stringify([]));
+//     }
+
+//     // Handle new images
+//     if (updatedEvent.newImages?.length > 0) {
+//         updatedEvent.newImages.forEach((image) => {
+//             if (image instanceof File) {
+//                 formData.append("images", image);
+//             }
+//         });
+//     }
+
+//     // Sanitize assigned_resources before sending (optional)
+//     if (updatedEvent.assigned_resources) {
+//         const sanitized = {
+//             assigned_to: updatedEvent.assigned_resources.assigned_to?.map(user => ({
+//                 ...user,
+//                 _id: user._id,
+//             })),
+//             resources: updatedEvent.assigned_resources.resources?.map(res => ({
+//                 ...res,
+//                 resource: {
+//                     ...res.resource,
+//                     _id: res.resource?._id,
+//                 },
+//             })),
+//         };
+//         formData.append("assigned_resources", JSON.stringify(sanitized));
+//     } else if (updatedEvent.assigned_resources === null) {
+//         // Explicitly handle null to clear assignments
+//         formData.append("assigned_resources", JSON.stringify(null));
+//     }
+
+//     // dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
+//     //     .then(() => toast.success("Task updated successfully!"))
+//     //     .catch((err) => {
+//     //         toast.error("Failed to update task.");
+//     //         console.error("Task update failed:", err);
+//     //     });
+//     dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
+//     .then((action) => {  // <-- Add the action parameter here
+//       toast.success("Task updated successfully!");
+     
+//       // Confirmatory update in case server made additional changes
+//       updateEventState([action.payload]); 
+//     })
+//     .catch((err) => {
+//       // Revert optimistic update on failure
+//       updateEventState([{...updatedEvent}]);
+//       toast.error("Failed to update task.");
+//       console.error("Task update failed:", err);
+//     });
+// };
 const handleDelete = async (id) => {
   try {
     // Dispatch delete action and wait for it to succeed

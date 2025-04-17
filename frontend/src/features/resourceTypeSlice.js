@@ -130,8 +130,10 @@ const resourceTypeSlice = createSlice({
         state.status = 'succeeded';
         state.loading = false;
         if (action.payload) {
-          // Optimistically add to local state immediately
-          state.resourceTypes.push(action.payload);
+          const exists = state.resourceTypes.some(rt => rt._id === action.payload._id);
+          if (!exists) {
+            state.resourceTypes.push(action.payload);
+          }
         }
       })
       .addCase(createResourceType.rejected, (state, action) => {

@@ -3,6 +3,7 @@ const { sendResponse } = require('../utils/responseHandler');
 const calculateTaskPeriod = require('../Helper/taskPeriodCalc');
 const getColorForStatus =require('../utils/getColorForStatus');
 const uploadFileToGridFS = require('../utils/uploadImage'); // Import the upload function
+const mongoose = require('mongoose');
 const cleanObjectId = (id) => {
   if (!id) return null;
   const possibleIds = id.split('_').filter(mongoose.Types.ObjectId.isValid);
@@ -15,16 +16,16 @@ exports.setTaskSocketIoInstance = (ioInstance) => {
 };
 exports.createTask = async (req, res) => {
   try {
-    // 1. Validate required fields
+    // Validate required fields
     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields: title, schedule.start, or schedule.end",
+        message: "Missing required fields",
         data: null
       });
     }
 
-    // 2. Prepare task data (for both single and recurring)
+    // Prepare task data
     const taskData = {
       title: req.body.title,
       organization: req.user.organization,
@@ -38,17 +39,21 @@ exports.createTask = async (req, res) => {
       status: req.body.status || 'pending',
       priority: req.body.priority || 'medium',
       notes: req.body.notes || '',
+      assignments: req.body.assigned_to 
+    ? req.body.assigned_to.map(userId => ({ user: userId })) 
+    : [],
       // Only include if provided
       ...(req.body.resources && { resources: req.body.resources }),
       ...(req.body.repeat_frequency && { repeat_frequency: req.body.repeat_frequency }),
       ...(req.body.task_period && { task_period: req.body.task_period })
     };
 
-    // 3. Handle task creation based on frequency
+    // Clear any undefined fields
+    Object.keys(taskData).forEach(key => taskData[key] === undefined && delete taskData[key]);
+
     let createdTask;
-    if (taskData.repeat_frequency && taskData.task_period) {
-      // Recurring task path
-      console.log("recurring")
+    if (taskData.repeat_frequency !== 'none' && taskData.task_period) {
+      // Handle recurring tasks
       const periodEndDate = calculateTaskPeriod(taskData.schedule.start, taskData.task_period);
       createdTask = await taskService.createRecurringTasks({
         baseTask: taskData,
@@ -56,35 +61,100 @@ exports.createTask = async (req, res) => {
         endDate: periodEndDate
       });
     } else {
-      // Single task path - simplified
-      console.log("Creating single task with data:", taskData);
+      // Handle single task
+      console.log("Creating single task");
       createdTask = await taskService.createTask(taskData);
     }
 
-    // 4. Send appropriate response
+    // Ensure we're sending a response
     return res.status(201).json({
       success: true,
-      message: Array.isArray(createdTask) 
-        ? 'Recurring tasks created successfully'
-        : 'Task created successfully',
+      message: 'Task created successfully',
       data: createdTask
     });
 
   } catch (error) {
-    console.error('Task creation error:', error);
+    console.error('Error in createTask:', error);
     return res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Internal server error',
+      message: error.message || 'Task creation failed',
       data: null
     });
   }
 };
+// exports.createTask = async (req, res) => {
+//   try {
+//     // 1. Validate required fields
+//     console.log("req.body",req.body)
+//     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Missing required fields: title, schedule.start, or schedule.end",
+//         data: null
+//       });
+//     }
+
+//     // 2. Prepare task data (for both single and recurring)
+//     const taskData = {
+//       title: req.body.title,
+//       organization: req.user.organization,
+//       createdBy: req.user._id,
+//       schedule: {
+//         start: new Date(req.body.schedule.start),
+//         end: new Date(req.body.schedule.end),
+//         timezone: req.body.schedule.timezone || 'UTC'
+//       },
+//       // Optional fields with defaults
+//       status: req.body.status || 'pending',
+//       priority: req.body.priority || 'medium',
+//       notes: req.body.notes || '',
+//       // Only include if provided
+//       ...(req.body.resources && { resources: req.body.resources }),
+//       ...(req.body.repeat_frequency && { repeat_frequency: req.body.repeat_frequency }),
+//       ...(req.body.task_period && { task_period: req.body.task_period })
+//     };
+
+//     // 3. Handle task creation based on frequency
+//     let createdTask;
+//     if (taskData.repeat_frequency && taskData.task_period) {
+//       // Recurring task path
+      
+//       const periodEndDate = calculateTaskPeriod(taskData.schedule.start, taskData.task_period);
+//       createdTask = await taskService.createRecurringTasks({
+//         baseTask: taskData,
+//         frequency: taskData.repeat_frequency,
+//         endDate: periodEndDate
+//       });
+//     } else {
+//       // Single task path - simplified
+//       console.log("Creating single task with data:", taskData);
+//       createdTask = await taskService.createTask(taskData);
+//     }
+
+//     // 4. Send appropriate response
+//     return res.status(201).json({
+//       success: true,
+//       message: Array.isArray(createdTask) 
+//         ? 'Recurring tasks created successfully'
+//         : 'Task created successfully',
+//       data: createdTask
+//     });
+
+//   } catch (error) {
+//     console.error('Task creation error:', error);
+//     return res.status(error.statusCode || 500).json({
+//       success: false,
+//       message: error.message || 'Internal server error',
+//       data: null
+//     });
+//   }
+// };
 exports.updateTask = async (req, res) => {
   try {
     const taskId = req.params.id;
     const updateData = {};
     const mongoose = require('mongoose');
-    console.log(req.body)
+    console.log("req.nody",req.body)
     // Parse the assigned_resources if it exists
     if (req.body.assigned_resources) {
       const assignedResources = JSON.parse(req.body.assigned_resources);
@@ -155,6 +225,7 @@ updateData.resources = assignedResources.resources
 
     // Handle status color
     if (req.body.status) {
+      
       updateData.color_code = getColorForStatus(req.body.status);
     }
 
@@ -222,7 +293,68 @@ exports.getTasksByOrganization = async (req, res) => {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
+exports.filterTasksByOrganization = async (req, res) => {
+  try {
+    console.log('Raw request body:', req.body);
 
+    // Handle both POST (body) and GET (query) requests
+    const requestData = req.method === 'POST' ? req.body : req.query;
+
+    // Properly extract filters and pagination
+    const { 
+      page = 1, 
+      limit = 10,
+      filters: requestFilters = {} 
+    } = requestData;
+
+    // Handle cases where filters might be nested or direct
+    const filters = typeof requestFilters === 'string' 
+      ? JSON.parse(requestFilters) 
+      : requestFilters;
+
+    console.log('Extracted filters:', filters);
+
+    // Process filters
+    const parsedFilters = {};
+    for (const [key, value] of Object.entries(filters)) {
+      if (value === undefined || value === '') continue;
+      
+      if (value === 'true') parsedFilters[key] = true;
+      else if (value === 'false') parsedFilters[key] = false;
+      else if (key.endsWith('Date')) {
+        parsedFilters[key] = new Date(value);
+        if (isNaN(parsedFilters[key].getTime())) {
+          throw new Error(`Invalid date format for ${key}`);
+        }
+      }
+      else if (mongoose.Types.ObjectId.isValid(value)) {
+        parsedFilters[key] = new mongoose.Types.ObjectId(value);
+      }
+      else if (key === 'tags' && typeof value === 'string') {
+        parsedFilters[key] = value.split(',');
+      }
+      else {
+        parsedFilters[key] = value;
+      }
+    }
+
+    console.log('Processed filters:', parsedFilters);
+
+    const result = await taskService.filterTasksByOrganization(
+      req.user.organization,
+      { 
+        page: parseInt(page), 
+        limit: Math.min(parseInt(limit), 100),
+        filters: parsedFilters
+      }
+    );
+
+    sendResponse(res, 200, 'Tasks filtered successfully', result);
+  } catch (error) {
+    console.error('Filter error:', error);
+    sendResponse(res, error.statusCode || 500, error.message, null);
+  }
+};
 
 exports.changeTaskStatus = async (req, res) => {
   try {

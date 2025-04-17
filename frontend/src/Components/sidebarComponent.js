@@ -43,7 +43,6 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
     console.log("Socket connection initialized with organization ID:", user.organization);
 
     socket.on('resourceType:created', (data) => {
-      console.log("Received new resource type via socket:", data);
       dispatch(addResourceTypeFromSocket(data.resourceType));
     });
   
@@ -102,7 +101,19 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
     navigate('/home');
     setIsOpen(false);
   };
-
+  const StyledAddButton = ({ icon, label, onClick }) => (
+    <button 
+      className="relative group bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
+      onClick={onClick}
+      aria-label={label}
+    >
+      {icon}
+      <span className="absolute right-full top-1/2 transform -translate-y-1/2 mr-3 whitespace-nowrap bg-gradient-to-r from-blue-100 to-blue-200 text-blue-900 text-sm px-3 py-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        {label}
+      </span>
+    </button>
+  );
+  
   return (
     <>
       {/* Mobile Toggle Button */}
@@ -241,7 +252,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
                   
                   <div 
                     className={`overflow-y-auto transition-all duration-300 ease-in-out ${
-                      expandedCategories.resources ? 'max-h-[300px]' : 'max-h-0'
+                      expandedCategories.resources ? 'max-h-[200px]' : 'max-h-0'
                     }`}
                   >
                     <div className="ml-8 mt-1 space-y-1">
@@ -270,70 +281,58 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
   
         {/* Add Button - Now properly positioned at bottom */}
         {access_level >= 4 && (
-          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 pt-2 pb-4 px-4 z-10">
-            <div 
-              className="relative flex justify-end"
-              onMouseEnter={() => setShowAddOptions(true)}
-              onMouseLeave={() => setShowAddOptions(false)}
-              onTouchStart={() => setShowAddOptions(!showAddOptions)}
-            >
-              <div className="relative">
-                <button 
-                  className="bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
-                  aria-label="Add options"
-                  onClick={() => setShowAddOptions(!showAddOptions)}
-                >
-                  <FaPlus size={18} />
-                </button>
-  
-                {/* Options panel */}
-                <div className={`absolute bottom-full right-0 mb-2 flex flex-col space-y-1 transition-all duration-300 ease-in-out ${
-                  showAddOptions ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
-                }`}>
-                  <button 
-                    className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    onClick={() => {
-                      handleNavigation('/add-team');
-                      setShowAddOptions(false);
-                    }}
-                    aria-label="Add team"
-                  >
-                    <FiUsers size={18} />
-                    <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      Add Team
-                    </span>
-                  </button>
-                  <button 
-                    className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    onClick={() => {
-                      handleNavigation('/create-resource-type');
-                      setShowAddOptions(false);
-                    }}
-                    aria-label="Add resource"
-                  >
-                    <FiTool size={18} />
-                    <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      Add Resource
-                    </span>
-                  </button>
-                  <button 
-                    className="bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    onClick={() => {
-                      handleNavigation('/add-user');
-                      setShowAddOptions(false);
-                    }}
-                    aria-label="Add user"
-                  >
-                    <FiUserPlus size={18} />
-                    <span className="absolute right-full mr-2 whitespace-nowrap bg-gray-800 text-white text-sm px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      Add User
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+  <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 pt-2 pb-4 px-4 z-10">
+    <div className="relative flex justify-end">
+      <div className="relative">
+        <button 
+          className="bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+          aria-label="Add options"
+          onClick={() => {
+            setShowAddOptions(!showAddOptions);
+            // Auto-close after 5 seconds if opened
+            if (!showAddOptions) {
+              setTimeout(() => {
+                setShowAddOptions(false);
+              }, 5000);
+            }
+          }}
+        >
+          <FaPlus size={18} />
+        </button>
+
+        {/* Options panel */}
+        <div className={`absolute bottom-full right-0 mb-1 flex flex-col space-y-1 transition-all duration-500 ease-in-out ${
+          showAddOptions ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
+        }`}>
+          <StyledAddButton 
+            icon={<FiUsers size={18} />} 
+            label="Team" 
+            onClick={() => {
+              handleNavigation('/teams');
+              setShowAddOptions(false);
+            }}
+          />
+          <StyledAddButton 
+            icon={<FiTool size={18} />} 
+            label="Resource" 
+            onClick={() => {
+              handleNavigation('/create-resource-type');
+              setShowAddOptions(false);
+            }}
+          />
+          <StyledAddButton 
+            icon={<FiUserPlus size={18} />} 
+            label="User" 
+            onClick={() => {
+              handleNavigation('/register');
+              setShowAddOptions(false);
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       </aside>
   
       {/* Mobile Overlay */}

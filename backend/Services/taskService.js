@@ -1,7 +1,7 @@
 const Task = require('../Models/TaskSchema');
 const Resource = require('../Models/ResourceSchema');
 const { validateTaskData } = require('../utils/validators');
-
+const mongoose = require('mongoose');
 const generateRecurringInstances = (baseTask, frequency, endDate) => {
   const tasks = [];
   let currentStart = new Date(baseTask.schedule.start);
@@ -82,19 +82,9 @@ exports.createRecurringTasks = async ({ baseTask, frequency, endDate }) => {
 // Simplified createTask for single tasks
 exports.createTask = async (taskData) => {
   try {
-    // Enhanced validation
+    // Basic validation
     if (!taskData.title?.trim()) {
-      throw { 
-        message: 'Task title is required',
-        statusCode: 400 
-      };
-    }
-
-    if (!taskData.schedule?.start || !taskData.schedule?.end) {
-      throw {
-        message: 'Both start and end times are required',
-        statusCode: 400
-      };
+      throw { statusCode: 400, message: 'Title is required' };
     }
 
     // Validate date consistency
@@ -108,89 +98,34 @@ exports.createTask = async (taskData) => {
       };
     }
 
-    // Normalize task data
-    const normalizedTask = {
+    // Create task without transaction
+    const task = new Task({
       ...taskData,
-      title: taskData.title.trim(),
-      schedule: {
-        start: startDate,
-        end: endDate,
-        timezone: taskData.schedule.timezone || 'UTC'
-      },
-      // Explicitly set recurring flags
       isRecurringRoot: false,
-      isRecurringInstance: false,
-      // Ensure default values
-      status: taskData.status || 'pending',
-      priority: taskData.priority || 'medium',
-      notes: taskData.notes || '',
-      resources: taskData.resources || []
-    };
+      isRecurringInstance: false
+    });
 
-    console.log('Creating task with normalized data:', normalizedTask);
-
-    // Verify resources exist if provided
-    if (normalizedTask.resources.length > 0) {
-      const resourceIds = normalizedTask.resources.map(r => r.resource);
-      const existingResources = await Resource.find({
+    // Validate resources if they exist
+    if (taskData.resources?.length > 0) {
+      const resourceIds = taskData.resources.map(r => r.resource);
+      const existingResources = await Resource.countDocuments({
         _id: { $in: resourceIds },
-        organization: normalizedTask.organization
-      }).lean();
+        organization: taskData.organization
+      });
 
-      if (existingResources.length !== resourceIds.length) {
-        throw {
-          message: 'One or more resources not found',
-          statusCode: 404
-        };
+      if (existingResources !== resourceIds.length) {
+        throw { statusCode: 404, message: 'Some resources not found' };
       }
     }
 
-    // Create and save with timeout
-    const task = new Task(normalizedTask);
-    const savedTask = await Promise.race([
-      task.save(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Database save operation timed out')), 5000))
-    ]);
-
-    console.log('Task created successfully:', savedTask._id);
+    const savedTask = await task.save();
     return savedTask;
 
   } catch (error) {
-    console.error('Error in createTask service:', {
-      error: error.message,
-      taskData: {
-        title: taskData?.title,
-        schedule: taskData?.schedule
-      }
-    });
-    throw error; // Re-throw for controller to handle
+    console.error('Error in task service:', error);
+    throw error;
   }
 };
-// exports.createTask = async (taskData) => {
-//   // Validate task data
-//   await validateTaskData(taskData);
-  
-//   // Verify all referenced resources exist
-//   if (taskData.resources && taskData.resources.length > 0) {
-//     const resourceIds = taskData.resources.map(r => r.resource);
-//     const resources = await Resource.find({
-//       _id: { $in: resourceIds },
-//       organization: taskData.organization
-//     });
-    
-//     if (resources.length !== resourceIds.length) {
-//       throw { 
-//         message: 'One or more referenced resources not found',
-//         statusCode: 400
-//       };
-//     }
-//   }
-//   console.log("taskadtaa",taskData)
-//   const task = new Task(taskData);
-//   return await task.save();
-// };
-
 exports.getTaskById = async (taskId, organizationId) => {
   const task = await Task.findOne({
     _id: taskId,
@@ -276,7 +211,334 @@ exports.getTasksByOrganization = async (organizationId, options = {}) => {
     currentPage: page
   };
 };
+// exports.filterTasksByOrganization = async (organizationId, options = {}) => {
+//   const { page = 1, limit = 10, filters = {} } = options;
+  
+//   // Base query with organization
+//   const query = { organization: organizationId };
+  
+//   // Build filter conditions
+//   if (filters) {
+//     // Convert string dates to Date objects if they exist
+//     if (filters.startDate) {
+//       filters.startDate = new Date(filters.startDate);
+//     }
+//     if (filters.endDate) {
+//       filters.endDate = new Date(filters.endDate);
+//     }
+//     if (filters.dueDate) {
+//       filters.dueDate = new Date(filters.dueDate);
+//     }
 
+//     // Status filter
+//     if (filters.status) {
+//       query.status = filters.status;
+//     }
+    
+//     // Priority filter
+//     if (filters.priority) {
+//       query.priority = filters.priority;
+//     }
+    
+//     // Assigned user filter
+//     if (filters.assignedTo) {
+//       query['assignments.user'] = new mongoose.Types.ObjectId(filters.assignedTo);
+//     }
+    
+//     // Due date filter
+//     if (filters.dueDate) {
+//       query['schedule.end'] = { $lte: filters.dueDate };
+//     }
+    
+//     // Team filter
+//     if (filters.team) {
+//       query['assignments.team'] = new mongoose.Types.ObjectId(filters.team);
+//     }
+    
+//     // Empty resources filter
+//     if (filters.hasResources === false) {
+//       query.resources = { $size: 0 };
+//     }
+    
+//     // Empty assignments filter
+//     if (filters.hasAssignments === false) {
+//       query.assignments = { $size: 0 };
+//     }
+    
+//     // Dependency filter
+//     if (filters.dependencyTask) {
+//       query['dependencies.task'] = new mongoose.Types.ObjectId(filters.dependencyTask);
+//     }
+    
+//     // Role filter
+//     if (filters.role) {
+//       query['assignments.role'] = filters.role;
+//     }
+    
+//     // Resource filter
+//     if (filters.resource) {
+//       query['resources.resource'] = new mongoose.Types.ObjectId(filters.resource);
+//     }
+    
+//     // Resource relationship type filter
+//     if (filters.resourceRelationship) {
+//       query['resources.relationshipType'] = filters.resourceRelationship;
+//     }
+    
+//     // Tag filter
+//     if (filters.tags) {
+//       const tags = Array.isArray(filters.tags) ? filters.tags : [filters.tags];
+//       query.tags = { $all: tags.map(tag => tag.toLowerCase()) };
+//     }
+    
+//     // Date range filters - FIXED IMPLEMENTATION
+//     if (filters.startDate || filters.endDate) {
+//       query['schedule.start'] = {};
+//       if (filters.startDate) {
+//         query['schedule.start'].$gte = filters.startDate;
+//       }
+//       if (filters.endDate) {
+//         query['schedule.start'].$lte = filters.endDate;
+//       }
+//     }
+    
+//     // Visibility filter
+//     if (filters.visibility) {
+//       query.visibility = filters.visibility;
+//     }
+    
+//     // Created by filter
+//     if (filters.createdBy) {
+//       query.createdBy = new mongoose.Types.ObjectId(filters.createdBy);
+//     }
+    
+//     // Text search
+//     if (filters.search) {
+//       query.$or = [
+//         { title: { $regex: filters.search, $options: 'i' } },
+//         { notes: { $regex: filters.search, $options: 'i' } }
+//       ];
+//     }
+//   }
+
+//   // Debugging: Log the final query
+//   console.log('Final Query:', JSON.stringify(query, null, 2));
+  
+//   // Execute query
+//   const [tasks, count] = await Promise.all([
+//     Task.find(query)
+//       .skip((page - 1) * limit)
+//       .limit(limit)
+//       .populate(populateOptions)
+//       .sort({ 'schedule.start': 1 })
+//       .lean(),
+//     Task.countDocuments(query)
+//   ]);
+  
+//   return {
+//     tasks,
+//     total: count,
+//     pages: Math.ceil(count / limit),
+//     currentPage: page
+//   };
+// };
+
+exports.filterTasksByOrganization = async (organizationId, options = {}) => {
+  const { page = 1, limit = 10, filters = {} } = options;
+  
+  console.log('Service received:', { organizationId, filters });
+
+  // Base query with organization
+  const query = { organization: new mongoose.Types.ObjectId(organizationId) };
+  
+  // Apply filters
+  if (filters && Object.keys(filters).length > 0) {
+    // ID filter
+    if (filters._id) {
+      query._id = new mongoose.Types.ObjectId(filters._id);
+    }
+    if (filters.resource) {
+      // Handle both single resource and array of resources
+      const resourceIds = Array.isArray(filters.resource) 
+        ? filters.resource.map(id => new mongoose.Types.ObjectId(id))
+        : [new mongoose.Types.ObjectId(filters.resource)];
+    
+      query.resources = {
+        $elemMatch: {
+          resource: { $in: resourceIds }
+        }
+      };
+    }
+    
+    // For combined resource filters with multiple resources
+    if (filters.resource && (filters.resourceRelationship || filters.hasRequiredResources !== undefined)) {
+      const resourceConditions = {
+        resource: { 
+          $in: Array.isArray(filters.resource)
+            ? filters.resource.map(id => new mongoose.Types.ObjectId(id))
+            : [new mongoose.Types.ObjectId(filters.resource)]
+        }
+      };
+    
+      if (filters.resourceRelationship) {
+        resourceConditions.relationshipType = filters.resourceRelationship;
+      }
+    
+      if (filters.hasRequiredResources !== undefined) {
+        resourceConditions.required = filters.hasRequiredResources;
+      }
+    
+      query.resources = { $elemMatch: resourceConditions };
+    }
+
+    // Status filter
+    if (filters.status) {
+      query.status = filters.status;
+    }
+    
+    // Priority filter
+    if (filters.priority) {
+      query.priority = filters.priority;
+    }
+    
+    // Visibility filter
+    if (filters.visibility) {
+      query.visibility = filters.visibility;
+    }
+    
+    // Created by filter
+    if (filters.createdBy) {
+      query.createdBy = new mongoose.Types.ObjectId(filters.createdBy);
+    }
+    
+    // Date range filters
+    if (filters.startDate || filters.endDate) {
+      query['schedule.start'] = {};
+      if (filters.startDate) {
+        query['schedule.start'].$gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        query['schedule.start'].$lte = new Date(filters.endDate);
+      }
+    }
+    
+    // Due date filter
+    if (filters.dueDate) {
+      query['schedule.end'] = { $lte: new Date(filters.dueDate) };
+    }
+    
+    // Assigned user filter
+    if (filters.assignedTo) {
+      query['assignments.user'] = new mongoose.Types.ObjectId(filters.assignedTo);
+    }
+    
+    // Team filter
+    if (filters.team) {
+      query['assignments.team'] = new mongoose.Types.ObjectId(filters.team);
+    }
+    
+    // Assignment role filter
+    if (filters.role) {
+      query['assignments.role'] = filters.role;
+    }
+    
+    // Empty assignments filter
+    if (filters.hasAssignments === false) {
+      query.assignments = { $size: 0 };
+    } else if (filters.hasAssignments === true) {
+      query.assignments = { $not: { $size: 0 } };
+    }
+  
+    // Empty resources filter
+    if (filters.hasResources === false) {
+      query.resources = { $size: 0 };
+    } else if (filters.hasResources === true) {
+      query.resources = { $not: { $size: 0 } };
+    }
+    // Tag filter
+    if (filters.tags) {
+      const tags = Array.isArray(filters.tags) ? filters.tags : [filters.tags];
+      query.tags = { $all: tags.map(tag => tag.toLowerCase()) };
+    }
+    
+    // Task period filter
+    if (filters.task_period) {
+      query.task_period = filters.task_period;
+    }
+    
+    // Repeat frequency filter
+    if (filters.repeat_frequency) {
+      query.repeat_frequency = filters.repeat_frequency;
+    }
+    
+    // Color code filter
+    if (filters.color_code) {
+      query.color_code = filters.color_code;
+    }
+    
+    // Text search (title or notes)
+    if (filters.search) {
+      query.$or = [
+        { title: { $regex: filters.search, $options: 'i' } },
+        { notes: { $regex: filters.search, $options: 'i' } }
+      ];
+    }
+    
+    // Dependencies filter
+    if (filters.hasDependencies === true) {
+      query.dependencies = { $not: { $size: 0 } };
+    } else if (filters.hasDependencies === false) {
+      query.dependencies = { $size: 0 };
+    }
+    
+    // Specific dependency filter
+    if (filters.dependencyTask) {
+      query['dependencies.task'] = new mongoose.Types.ObjectId(filters.dependencyTask);
+    }
+  }
+
+  console.log('Final query:', JSON.stringify(query, null, 2));
+
+  try {
+    const [tasks, count] = await Promise.all([
+      Task.find(query)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate([
+          {
+            path: 'resources.resource',
+            populate: { path: 'type', select: 'name icon color' }
+          },
+          {
+            path: 'assignments.user',
+            select: 'name email avatar'
+          },
+          {
+            path: 'assignments.team',
+            select: 'name'
+          },
+          {
+            path: 'dependencies.task',
+            select: 'title status'
+          }
+        ])
+        .sort({ 'schedule.start': 1 })
+        .lean(),
+      Task.countDocuments(query)
+    ]);
+
+    console.log(`Found ${tasks.length} matching tasks`);
+    return {
+      tasks,
+      total: count,
+      pages: Math.ceil(count / limit),
+      currentPage: page
+    };
+  } catch (error) {
+    console.error('Query error:', error);
+    throw error;
+  }
+};
 exports.changeTaskStatus = async (taskId, newStatus, changedBy, notes, organizationId) => {
   const task = await Task.findOne({ _id: taskId, organization: organizationId });
   

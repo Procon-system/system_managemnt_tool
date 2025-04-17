@@ -312,7 +312,7 @@ const handleChange = (e) => {
             className="w-full px-3 py-2 border rounded-md"
           >
             <option value="pending">Pending</option>
-            <option value="in progress">In progress</option>
+            <option value="in_progress">In progress</option>
             <option value="done">Done</option>
             <option value="impossible">Impossible</option>
             <option value="overdue">Overdue</option>
@@ -437,7 +437,7 @@ const handleChange = (e) => {
                 // Create new resource objects for selected ones
                 const newResources = selectedResourceIds.map(resourceId => {
                   const resource = availableResources.find(r => r._id === resourceId);
-                  console.log("respo565676",resource)
+                  
                   return {
                     _id: resource._id,
                     relationshipType: "requires",

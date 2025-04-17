@@ -25,11 +25,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { localDB } from './pouchDb';
 import MainLayout from './Components/layout/layoutWrapper'
 import ResourceTypesPage from './Pages/ResourceType/showResourceTypePage';
+import TeamsPage from './Pages/Team/TeamsPage';
 const viewAllDocuments = async () => {
   try {
     const result = await localDB.allDocs({ include_docs: true });
     const documents = result.rows.map((row) => row.doc);
-    console.log('All documents:', documents);
+   
     // await Promise.all(
     //   documents.map((doc) => localDB.remove(doc._id, doc._rev))
     // );
@@ -49,7 +50,7 @@ const ConditionalNavBar = () => {
   const location = useLocation();
 
   // Paths where Navbar and Sidebar are not displayed
-  const authPaths = ["/register", "/login", "/logout", "/forgot-password", "/reset-password", "/confirm-email"];
+  const authPaths = [ "/login", "/logout", "/forgot-password", "/reset-password", "/confirm-email"];
 
   const hideNavBar = authPaths.some(path => location.pathname.startsWith(path));
 
@@ -74,7 +75,6 @@ const App = () => {
 
           {/* Public Routes */}
           <Route path="/home" element={<HomePage />} />
-          <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/logout" element={<LogoutPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -91,11 +91,30 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+           <Route
+            path="/register"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+                <MainLayout><RegisterPage /></MainLayout>
+                
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/user"
             element={
               <ProtectedRoute requiredAccessLevel={ROLES.ADMIN}>
                 <UserManagementPage />
+              </ProtectedRoute>
+            }
+          />
+           <Route
+            path="/teams"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
+                 <MainLayout>
+                 <TeamsPage />
+                 </MainLayout>
               </ProtectedRoute>
             }
           />
