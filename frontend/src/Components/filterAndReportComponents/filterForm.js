@@ -1,169 +1,222 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import { SelectInput } from "../taskComponents/selectInput";
 
-const FilterForm = ({ onFilter, onReset, users }) => {
+const ResourceTypeFilter = ({ 
+  resourceTypes, 
+  onFilterChange,
+  initialFilters = []
+}) => {
+  const [selectedResources, setSelectedResources] = useState(
+    initialFilters.reduce((acc, filter) => {
+      if (filter.resource) {
+        acc[filter.type] = filter.resource;
+      }
+      return acc;
+    }, {})
+  );
+
+  const handleResourceChange = (typeId, value) => {
+    const newSelection = { ...selectedResources, [typeId]: value };
+    setSelectedResources(newSelection);
+    
+    // Convert to filter format and update parent
+    const filters = Object.entries(newSelection)
+      .filter(([_, resourceId]) => resourceId !== null)
+      .map(([typeId, resourceId]) => ({ type: typeId, resource: resourceId }));
+    
+    onFilterChange(filters);
+  };
+
+  // Dynamic grid calculation
+  const calculateGridLayout = (count) => {
+    if (count <= 4) return { base: 2, md: Math.min(count, 4) };
+    if (count <= 6) return { base: 2, md: 3, lg: Math.min(count, 6) };
+    return { base: 2, md: 3, lg: 4 }; // Max 4 columns for many items
+  };
+
+  const gridConfig = calculateGridLayout(resourceTypes.length);
+  const gridClass = `grid grid-cols-${gridConfig.base} md:grid-cols-${gridConfig.md} lg:grid-cols-${gridConfig.lg} gap-4`;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-medium text-gray-700">Select Resources</h3>
+      
+      <div className={gridClass}>
+        {resourceTypes.map(type => {
+          const resourcesOfType = type.resources || [];
+          return (
+            <div key={type._id} className="space-y-2">
+              <label className="block text-sm font-medium text-gray-600">
+                {type.name}
+              </label>
+              <SelectInput
+                value={selectedResources[type._id] || null}
+                onChange={(value) => handleResourceChange(type._id, value)}
+                options={[
+                  { label: `All ${type.name}`, value: null },
+                  ...resourcesOfType.map(res => ({
+                    label: res.displayName || res.name,
+                    value: res._id
+                  }))
+                ]}
+                isClearable={false}
+                className="w-full"
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+const FilterForm = ({ 
+  onFilter, 
+  onReset, 
+  users, 
+  resourceTypes, // Now expects array of { _id, name, resources: [] }
+  teams,
+  statusOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'done', label: 'Done' },
+    { value: 'impossible', label: 'Impossible' }
+  ],
+  
+}) => {
   const [filters, setFilters] = useState({
-    assignedTo: [],
+    assignedTo: null,
     startDate: "",
     endDate: "",
-    
     status: "",
     
-    taskPeriod: "",
+    resourceFilters: [],
+    search: ""
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    console.log("name, value",name, value);
-    setFilters((prev) => ({
-      ...prev,
-      [name]: Array.isArray(value) ? [...value] : value, // Ensure arrays are stored properly
-    }));
-  };
-  // Handle date inputs
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      [name]: value,
-    }));
+    setFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  // Apply filters
+  const handleResourceFiltersChange = (resourceFilters) => {
+    setFilters(prev => ({ ...prev, resourceFilters }));
+  };
+
   const handleApplyFilters = () => {
-    onFilter(filters);
+    // Convert to API format
+    const apiFilters = {
+      ...filters,
+      resources: filters.resourceFilters.map(filter => ({
+        resource: filter.resource,
+        relationshipType: filter.relationshipType,
+        required: filter.required
+      }))
+    };
+    onFilter(apiFilters);
   };
 
-  // Reset filters
   const handleResetFilters = () => {
     setFilters({
-      assignedTo: [],
+      assignedTo: null,
       startDate: "",
       endDate: "",
       status: "",
-      taskPeriod: "",
+      
+      resourceFilters: [],
+      search: ""
     });
     onReset();
   };
 
   return (
     <div className="mb-4 p-4 border rounded-lg shadow-md bg-white">
-      <h2 className="text-lg font-semibold max-w-4xl mb-4">Filter Tasks</h2>
+      <h2 className="text-lg font-semibold mb-4">Filter Tasks</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Assigned To (Multi-Select) */}
-        <SelectInput
-          label="Assigned To"
-          name="assignedTo"
-          value={filters.assignedTo}
-          onChange={handleChange}
-          options={Array.isArray(users) ? users.map(user => ({
-            label: `${user.first_name} ${user.last_name} `,
-            value: user._id,
-          })) : []}
-          isMulti
-        />
-
-        {/* Date Range */}
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-600">Start Date</label>
-          <input
-            type="date"
-            name="startDate"
-            value={filters.startDate}
-            onChange={handleInputChange}
-            className="p-2 border rounded w-full"
-          />
-        </div>
-
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-600">End Date</label>
-          <input
-            type="date"
-            name="endDate"
-            value={filters.endDate}
-            onChange={handleInputChange}
-            className="p-2 border rounded w-full"
-          />
-        </div>
-
-        {/* Facility (Single Select) */}
-        {/* <SelectInput
-          label="Facility"
-          name="facility"
-          value={filters.facility}
-          onChange={handleChange}
-          options={Array.isArray(facilities) ? facilities.map((facility) => ({
-            label: facility.facility_name,
-            value: facility._id,
-          })) : []}      
+      <div className="space-y-6">
+        {/* Basic Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Search</label>
+            <input
+              type="text"
+              name="search"
+              value={filters.search}
+              onChange={handleChange}
+              className="p-2 border rounded w-full"
+              placeholder="Search in title/notes"
             />
+          </div>
 
-        {/* Machine (Single Select) */}
-        {/* <SelectInput
-          label="Machine"
-          name="machine"
-          value={filters.machine}
-          onChange={handleChange}
-          options={Array.isArray(machines) ? machines.map((machine) => ({
-            label: machine.machine_name,
-            value: machine._id,
-          })) : []}       
-           /> */}
- 
-        {/* Tools (Multi-Select) */}
-        {/* <SelectInput
-          label="Tools"
-          name="tools"
-          value={filters.tools}
-          onChange={handleChange}
-          options={Array.isArray(tools) ? tools.map(tool => ({
-            label: tool.tool_name,
-            value: tool._id,
-          })) : []}  
-                  isMulti
-        /> */}
-
-        {/* Materials (Multi-Select) 
-        <SelectInput
-          label="Materials"
-          name="materials"
-          value={filters.materials}
-          onChange={handleChange}
-          options={Array.isArray(materials) ? materials.map(material => ({
-            label: material.material_name,
-            value: material._id,
-          })) : []}  
-         isMulti
-        /> */}
-
-        {/* Status */}
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-600">Status</label>
-          <select
+          <SelectInput
+            label="Status"
             name="status"
             value={filters.status}
-            onChange={handleInputChange}
-            className="p-2 border rounded w-full"
-          >
-            <option value="">All</option>
-            <option value="in progress">In Progress</option>
-            <option value="done">Done</option>
-            <option value="pending">Pending</option>
-            <option value="impossible">Impossible</option>
-            <option value="overdue">Overdue</option>
-          </select>
+            onChange={handleChange}
+            options={statusOptions}
+            isClearable
+          />
+           <SelectInput
+            label="Assigned To"
+            name="assignedTo"
+            value={filters.assignedTo}
+            onChange={handleChange}
+            options={users?.map(user => ({
+              label: `${user.first_name} ${user.last_name}`,
+              value: user._id
+            })) || []}
+            isClearable
+          />
+         
         </div>
-      </div>
 
-      {/* Buttons */}
-      <div className="mt-4 ml-2 flex space-x-4">
-        <button onClick={handleApplyFilters} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-          Search
-        </button>
-        <button onClick={handleResetFilters} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
-          Reset
-        </button>
+
+        {/* Resource Type Filters */}
+        <ResourceTypeFilter 
+          resourceTypes={resourceTypes}
+          onFilterChange={handleResourceFiltersChange}
+          initialFilters={filters.resourceFilters}
+        />
+
+        {/* Date Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Start Date</label>
+            <input
+              type="date"
+              name="startDate"
+              value={filters.startDate}
+              onChange={handleChange}
+              className="p-2 border rounded w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">End Date</label>
+            <input
+              type="date"
+              name="endDate"
+              value={filters.endDate}
+              onChange={handleChange}
+              className="p-2 border rounded w-full"
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex space-x-4">
+          <button 
+            onClick={handleApplyFilters}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Apply Filters
+          </button>
+          <button 
+            onClick={handleResetFilters}
+            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+          >
+            Reset
+          </button>
+        </div>
       </div>
     </div>
   );

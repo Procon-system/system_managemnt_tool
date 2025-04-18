@@ -10,7 +10,7 @@ const FilterPage = () => {
   // Get data from Redux store (fetched globally in App.js)
   const { tasks, filteredTasks, currentView, status } = useSelector((state) => state.tasks);
   const { users } = useSelector((state) => state.users);
-
+  const { resourceTypes, loading, error } = useSelector((state) => state.resourceTypes);
   // Handle filtering
   const handleFilter = (filters) => {
   
@@ -21,7 +21,6 @@ const FilterPage = () => {
   const resetFilters = () => {
     dispatch(resetFilteredTasks());
   };
-
   // Determine which tasks to display
   const displayedTasks = currentView === "filteredTasks" ? filteredTasks : tasks;
 
@@ -32,12 +31,15 @@ const FilterPage = () => {
         onFilter={handleFilter}
         onReset={resetFilters}
         users={users}
-       
+        resourceTypes={resourceTypes}
       />
       {status === "loading" ? (
         <p>Loading tasks...</p>
       ) : (
-        <TaskTable tasks={displayedTasks} />
+        <TaskTable 
+        tasks={displayedTasks} 
+        resourceTypes={resourceTypes}
+        />
       )}
     </div>
   );
