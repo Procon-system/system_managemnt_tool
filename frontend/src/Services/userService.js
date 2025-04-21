@@ -8,49 +8,47 @@ const isOnline = () => navigator.onLine;
 
 export const getAllUsers = async (token) => {
   try {
-    if (isOnline()) {
+    // if (isOnline()) {
       // Fetch users from the server
       const response = await axios.get(API_URL, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log('Fetched users from server:', response.data);
-
       // Save users to local PouchDB for offline use
-      try {
-        await localDB.put({
-          _id: 'users',
-          data: response.data.data, // Adjusted to match backend response structure
-        });
-        console.log('Users saved to PouchDB successfully.');
-      } catch (err) {
-        if (err.name === 'conflict') {
-          console.log('Document conflict detected. Updating existing document...');
-          const existingDoc = await localDB.get('users');
-          await localDB.put({
-            _id: 'users',
-            _rev: existingDoc._rev,
-            data: response.data.data,
-          });
-          console.log('Users updated in PouchDB successfully.');
-        } else {
-          console.error('Error saving users to PouchDB:', err);
-          throw err;
-        }
-      }
+      // try {
+      //   await localDB.put({
+      //     _id: 'users',
+      //     data: response.data.data, // Adjusted to match backend response structure
+      //   });
+      //   console.log('Users saved to PouchDB successfully.');
+      // } catch (err) {
+      //   if (err.name === 'conflict') {
+      //     console.log('Document conflict detected. Updating existing document...');
+      //     const existingDoc = await localDB.get('users');
+      //     await localDB.put({
+      //       _id: 'users',
+      //       _rev: existingDoc._rev,
+      //       data: response.data.data,
+      //     });
+      //     console.log('Users updated in PouchDB successfully.');
+      //   } else {
+      //     console.error('Error saving users to PouchDB:', err);
+      //     throw err;
+      //   }
+      // }
 
       return response.data.data;
-    } else {
-      // Fetch users from local PouchDB if offline
-      console.log('App is offline. Fetching users from PouchDB...');
-      const localData = await localDB.get('users').catch((err) => {
-        console.log('No users found in PouchDB. Returning empty array.');
-        return { data: [] }; // Return empty array if no data exists
-      });
+    // } else {
+    //   // Fetch users from local PouchDB if offline
+    //   console.log('App is offline. Fetching users from PouchDB...');
+    //   const localData = await localDB.get('users').catch((err) => {
+    //     console.log('No users found in PouchDB. Returning empty array.');
+    //     return { data: [] }; // Return empty array if no data exists
+    //   });
 
-      console.log('Fetched users from PouchDB:', localData.data);
-      return localData.data;
-    }
+    //   console.log('Fetched users from PouchDB:', localData.data);
+    //   return localData.data;
+    // }
   } catch (error) {
     console.error('Failed to fetch users:', error);
     throw new Error(error.response?.data?.error || 'Failed to fetch users');

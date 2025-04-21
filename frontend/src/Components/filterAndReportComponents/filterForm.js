@@ -4,92 +4,120 @@ import { SelectInput } from "../taskComponents/selectInput";
 const ResourceTypeFilter = ({ 
   resourceTypes, 
   onFilterChange,
-  initialFilters = []
+  initialFilters = [],
+  getResourcesByType,
+  resourcesLoading
 }) => {
-  const [selectedResources, setSelectedResources] = useState(
-    initialFilters.reduce((acc, filter) => {
-      if (filter.resource) {
-        acc[filter.type] = filter.resource;
+  // Initialize selected resources
+  const [selectedResources, setSelectedResources] = React.useState(() => {
+    const selections = {};
+    initialFilters.forEach(filter => {
+      if (filter.type && filter.resources) {
+        selections[filter.type] = filter.resources;
       }
-      return acc;
-    }, {})
-  );
+    });
+    return selections;
+  });
 
-  const handleResourceChange = (typeId, value) => {
-    const newSelection = { ...selectedResources, [typeId]: value };
+  const handleResourceChange = (typeId, event) => {
+    // Extract the value array from the event object
+    const selectedValues = event.target.value || [];
+    
+    // Update selections
+    const newSelection = {
+      ...selectedResources,
+      [typeId]: Array.isArray(selectedValues) ? selectedValues : [selectedValues]
+    };
+    
     setSelectedResources(newSelection);
     
-    // Convert to filter format and update parent
+    // Convert to filter format
     const filters = Object.entries(newSelection)
-      .filter(([_, resourceId]) => resourceId !== null)
-      .map(([typeId, resourceId]) => ({ type: typeId, resource: resourceId }));
+      .filter(([_, resourceIds]) => resourceIds && resourceIds.length > 0)
+      .map(([typeId, resourceIds]) => ({
+        type: typeId,
+        resources: resourceIds
+      }));
     
     onFilterChange(filters);
   };
 
-  // Dynamic grid calculation
-  const calculateGridLayout = (count) => {
-    if (count <= 4) return { base: 2, md: Math.min(count, 4) };
-    if (count <= 6) return { base: 2, md: 3, lg: Math.min(count, 6) };
-    return { base: 2, md: 3, lg: 4 }; // Max 4 columns for many items
-  };
-
-  const gridConfig = calculateGridLayout(resourceTypes.length);
-  const gridClass = `grid grid-cols-${gridConfig.base} md:grid-cols-${gridConfig.md} lg:grid-cols-${gridConfig.lg} gap-4`;
+  // Group resource types by category
+  const groupedResourceTypes = resourceTypes?.reduce((acc, type) => {
+    const category = type.category || 'other';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(type);
+    return acc;
+  }, {}) || {};
 
   return (
-    <div className="space-y-4">
-      <h3 className="font-medium text-gray-700">Select Resources</h3>
-      
-      <div className={gridClass}>
-        {resourceTypes.map(type => {
-          const resourcesOfType = type.resources || [];
-          return (
-            <div key={type._id} className="space-y-2">
-              <label className="block text-sm font-medium text-gray-600">
-                {type.name}
-              </label>
-              <SelectInput
-                value={selectedResources[type._id] || null}
-                onChange={(value) => handleResourceChange(type._id, value)}
-                options={[
-                  { label: `All ${type.name}`, value: null },
-                  ...resourcesOfType.map(res => ({
-                    label: res.displayName || res.name,
-                    value: res._id
-                  }))
-                ]}
-                isClearable={false}
-                className="w-full"
-              />
-            </div>
-          );
-        })}
-      </div>
+    <div className="space-y-6">
+      {Object.entries(groupedResourceTypes).map(([category, types]) => (
+        <div key={category} className="space-y-4">
+          <h3 className="font-medium text-gray-700 capitalize">{category}</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {types.map(type => {
+              const resources = getResourcesByType(type._id) || [];
+              const isLoading = resourcesLoading;
+              const currentSelection = selectedResources[type._id] || [];
+
+              return (
+                <div key={type._id} className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-600">
+                    {type.name}
+                  </label>
+                  
+                  {isLoading ? (
+                    <div>Loading {type.name} resources...</div>
+                  ) : (
+                    <SelectInput
+                      name={`resource-${type._id}`}
+                      value={currentSelection}
+                      onChange={(e) => handleResourceChange(type._id, e)}
+                      options={resources.map(res => ({
+                        label: res.displayName || res.name,
+                        value: res._id
+                      }))}
+                      isMulti
+                      className="w-full"
+                    />
+                  )}
+                  
+                  {type.description && (
+                    <p className="text-xs text-gray-500 mt-1">{type.description}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
+
 const FilterForm = ({ 
   onFilter, 
   onReset, 
   users, 
-  resourceTypes, // Now expects array of { _id, name, resources: [] }
-  teams,
+  resourceTypes,
+  
   statusOptions = [
     { value: 'pending', label: 'Pending' },
     { value: 'in_progress', label: 'In Progress' },
     { value: 'done', label: 'Done' },
     { value: 'impossible', label: 'Impossible' }
   ],
-  
+  getResourcesByType,
+  resourcesLoading
 }) => {
   const [filters, setFilters] = useState({
     assignedTo: null,
     startDate: "",
     endDate: "",
     status: "",
-    
-    resourceFilters: [],
+    resourceFilters: [], // This is for UI state management
     search: ""
   });
 
@@ -101,27 +129,57 @@ const FilterForm = ({
   const handleResourceFiltersChange = (resourceFilters) => {
     setFilters(prev => ({ ...prev, resourceFilters }));
   };
-
   const handleApplyFilters = () => {
-    // Convert to API format
-    const apiFilters = {
+    // Create clean filters object
+    const cleanFilters = {
       ...filters,
-      resources: filters.resourceFilters.map(filter => ({
-        resource: filter.resource,
-        relationshipType: filter.relationshipType,
-        required: filter.required
-      }))
+      // Only include resources if they exist
+      ...(filters.resourceFilters.length > 0 && {
+        resource: filters.resourceFilters.flatMap(f => f.resources)
+      }),
+      // Ensure dates are properly formatted or undefined
+      ...(filters.startDate && { startDate: new Date(filters.startDate).toISOString() }),
+      ...(filters.endDate && { endDate: new Date(filters.endDate).toISOString() }),
+      // Remove null/empty values
+      ...(filters.assignedTo && { assignedTo: filters.assignedTo }),
+      ...(filters.status && { status: filters.status }),
+      ...(filters.search && { search: filters.search })
     };
+  
+    // Remove the UI-specific field
+    delete cleanFilters.resourceFilters;
+  
+    // Prepare final API payload (matches Postman structure)
+    const apiFilters = {
+      filters: cleanFilters,
+      page: 1,
+      limit: 100
+    };
+  
+    console.log("API Filters:", apiFilters);
     onFilter(apiFilters);
   };
-
+  // const handleApplyFilters = () => {
+  //   // Transform to flat filter object
+  //   const apiFilters = {
+  //     ...filters,
+  //     // Convert resourceFilters to simple resource array
+  //     resource: filters.resourceFilters.flatMap(f => f.resources),
+      
+  //   };
+    
+  //   // Remove the UI-specific field
+  //   delete apiFilters.resourceFilters;
+    
+  //   console.log("API Filters:", apiFilters); // Verify output
+  //   onFilter(apiFilters);
+  // };
   const handleResetFilters = () => {
     setFilters({
       assignedTo: null,
       startDate: "",
       endDate: "",
       status: "",
-      
       resourceFilters: [],
       search: ""
     });
@@ -155,7 +213,8 @@ const FilterForm = ({
             options={statusOptions}
             isClearable
           />
-           <SelectInput
+          
+          <SelectInput
             label="Assigned To"
             name="assignedTo"
             value={filters.assignedTo}
@@ -166,15 +225,15 @@ const FilterForm = ({
             })) || []}
             isClearable
           />
-         
         </div>
-
 
         {/* Resource Type Filters */}
         <ResourceTypeFilter 
           resourceTypes={resourceTypes}
           onFilterChange={handleResourceFiltersChange}
           initialFilters={filters.resourceFilters}
+          getResourcesByType={getResourcesByType}
+          resourcesLoading={resourcesLoading}
         />
 
         {/* Date Filters */}

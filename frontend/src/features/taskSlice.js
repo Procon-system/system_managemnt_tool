@@ -2,22 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import taskService from '../Services/taskService';
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 
-// export const createTask = createAsyncThunk(
-//   'tasks/createTask',
-//   async (taskData, { getState, dispatch,rejectWithValue }) => {
-//     try {
-//       // Get the token from the Redux state
-//       const token = getState().auth.token;
-//       if (checkTokenAndLogout(token, dispatch)) {
-//         return null; // Exit if the token is expired
-//       }
-//       // Call the taskService with taskData and token
-//       return await taskService.createTask(taskData, token);
-//     } catch (error) {
-//       return rejectWithValue(error.details || 'Error creating task');
-//     }
-//   }
-// );
+
 export const createTask = createAsyncThunk(
   'tasks/createTask',
   async (taskData, { getState, dispatch, rejectWithValue }) => {
@@ -111,7 +96,7 @@ export const updateTask = createAsyncThunk(
     try {
       // return await taskService.updateTask(taskId, updatedData, token);
       const response = await taskService.updateTask(taskId, updatedData, token);
-      console.log("77887878",response.data)
+     
     return response.data; 
     } catch (error) {
       console.error('Error in updateTask:', error.response?.data || error.message);
@@ -129,7 +114,6 @@ export const fetchImageMetadata = createAsyncThunk(
     if (checkTokenAndLogout(token, dispatch)) return null;
 
     try {
-      console.log('Starting metadata fetch for:', fileIds);
       const response = await taskService.fetchImageMetadata(fileIds, token);
       console.log('Metadata response:', response); // Add this
       return response;
@@ -139,22 +123,7 @@ export const fetchImageMetadata = createAsyncThunk(
     }
   }
 );
-// fetchImageMetadata remains the same
-// export const fetchImageMetadata = createAsyncThunk(
-//   'tasks/fetchImageMetadata',
-//   async ({ fileIds }, { getState, rejectWithValue }) => {
-//     const token = getState().auth.token;
-//     try {
-//       const response = await taskService.fetchImageMetadata(fileIds, token);
-//       return response;
-//     } catch (error) {
-//       return rejectWithValue(error.message);
-//     }
-//   }
-// );
 
-// Remove fetchImageFile thunk since we're fetching directly now
-// Fetch image file
 export const fetchImageFile = createAsyncThunk(
   'tasks/fetchImageFile',
   async ({ fileId }, { getState, dispatch, rejectWithValue }) => {
@@ -163,9 +132,7 @@ export const fetchImageFile = createAsyncThunk(
     if (checkTokenAndLogout(token, dispatch)) return null;
 
     try {
-      console.log('Starting image fetch for:', fileId);
-const response = await taskService.fetchImageFile(fileId, token);
-console.log('Image fetch response:', response); // Add this
+      const response = await taskService.fetchImageFile(fileId, token);
 return response;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -210,17 +177,25 @@ export const bulkUpdateTasks = createAsyncThunk(
     }
   }
 );
+// features/tasks/tasksSlice.js
 export const filterTasks = createAsyncThunk(
   'tasks/filterTasks',
-  async (filters, { getState,dispatch, rejectWithValue }) => {
+  async (filters, { getState, dispatch, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
       if (checkTokenAndLogout(token, dispatch)) {
         return null; // Exit if the token is expired
       }
-      return await taskService.filterTasks(filters); // ✅ Call filterTasks API
+      // Prepare filters with defaults
+      const requestFilters = {
+        // page: filters?.page || 2,
+        // limit: filters?.limit || 100,
+        filters: filters || {}
+      };
+
+      return await taskService.filterTasks(requestFilters, token);
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Error filtering tasks');
+      return rejectWithValue(error.message || 'Error filtering tasks');
     }
   }
 );
@@ -325,7 +300,8 @@ const taskSlice = createSlice({
       })
       .addCase(filterTasks.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.filteredTasks = action.payload;
+        console.log("action.payload",action.payload.data.tasks)
+        state.filteredTasks = action.payload.data.tasks;
         state.currentView = 'filteredTasks'; // ✅ Switch view to filtered tasks
       })
       .addCase(filterTasks.rejected, (state, action) => {
@@ -337,7 +313,7 @@ const taskSlice = createSlice({
       })
       .addCase(fetchOrganizationTasks.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        console.log("hjhj",action.payload)
+        
         // Validate and sanitize payload
         if (!Array.isArray(action.payload.data.tasks)) {
           console.error('Invalid tasks payload:', action.payload.data.tasks);

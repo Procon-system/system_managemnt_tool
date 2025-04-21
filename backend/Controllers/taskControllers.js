@@ -295,10 +295,10 @@ exports.getTasksByOrganization = async (req, res) => {
 };
 exports.filterTasksByOrganization = async (req, res) => {
   try {
-    console.log('Raw request body:', req.body);
+    console.log('Raw request body:', req.body.filters);
 
     // Handle both POST (body) and GET (query) requests
-    const requestData = req.method === 'POST' ? req.body : req.query;
+    const requestData = req.method === 'POST' ? req.body.filters : req.query;
 
     // Properly extract filters and pagination
     const { 

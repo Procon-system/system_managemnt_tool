@@ -1033,6 +1033,7 @@
 // };
 // export default taskService;
 import axios from 'axios';
+import { filterTasks } from '../features/taskSlice';
 
 const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/tasks`;
 
@@ -1196,7 +1197,19 @@ const taskService = {
       throw error.response?.data || error.message;
     }
   },
-
+ filterTasks : async (filters = {}, token) => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+  
+      // Always use POST with the filters in the request body
+      const response = await axios.post(`${API_URL}/filter`, filters, config);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   /**
    * Change task status
    * @param {string} taskId - Task ID

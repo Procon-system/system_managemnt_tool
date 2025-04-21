@@ -211,137 +211,6 @@ exports.getTasksByOrganization = async (organizationId, options = {}) => {
     currentPage: page
   };
 };
-// exports.filterTasksByOrganization = async (organizationId, options = {}) => {
-//   const { page = 1, limit = 10, filters = {} } = options;
-  
-//   // Base query with organization
-//   const query = { organization: organizationId };
-  
-//   // Build filter conditions
-//   if (filters) {
-//     // Convert string dates to Date objects if they exist
-//     if (filters.startDate) {
-//       filters.startDate = new Date(filters.startDate);
-//     }
-//     if (filters.endDate) {
-//       filters.endDate = new Date(filters.endDate);
-//     }
-//     if (filters.dueDate) {
-//       filters.dueDate = new Date(filters.dueDate);
-//     }
-
-//     // Status filter
-//     if (filters.status) {
-//       query.status = filters.status;
-//     }
-    
-//     // Priority filter
-//     if (filters.priority) {
-//       query.priority = filters.priority;
-//     }
-    
-//     // Assigned user filter
-//     if (filters.assignedTo) {
-//       query['assignments.user'] = new mongoose.Types.ObjectId(filters.assignedTo);
-//     }
-    
-//     // Due date filter
-//     if (filters.dueDate) {
-//       query['schedule.end'] = { $lte: filters.dueDate };
-//     }
-    
-//     // Team filter
-//     if (filters.team) {
-//       query['assignments.team'] = new mongoose.Types.ObjectId(filters.team);
-//     }
-    
-//     // Empty resources filter
-//     if (filters.hasResources === false) {
-//       query.resources = { $size: 0 };
-//     }
-    
-//     // Empty assignments filter
-//     if (filters.hasAssignments === false) {
-//       query.assignments = { $size: 0 };
-//     }
-    
-//     // Dependency filter
-//     if (filters.dependencyTask) {
-//       query['dependencies.task'] = new mongoose.Types.ObjectId(filters.dependencyTask);
-//     }
-    
-//     // Role filter
-//     if (filters.role) {
-//       query['assignments.role'] = filters.role;
-//     }
-    
-//     // Resource filter
-//     if (filters.resource) {
-//       query['resources.resource'] = new mongoose.Types.ObjectId(filters.resource);
-//     }
-    
-//     // Resource relationship type filter
-//     if (filters.resourceRelationship) {
-//       query['resources.relationshipType'] = filters.resourceRelationship;
-//     }
-    
-//     // Tag filter
-//     if (filters.tags) {
-//       const tags = Array.isArray(filters.tags) ? filters.tags : [filters.tags];
-//       query.tags = { $all: tags.map(tag => tag.toLowerCase()) };
-//     }
-    
-//     // Date range filters - FIXED IMPLEMENTATION
-//     if (filters.startDate || filters.endDate) {
-//       query['schedule.start'] = {};
-//       if (filters.startDate) {
-//         query['schedule.start'].$gte = filters.startDate;
-//       }
-//       if (filters.endDate) {
-//         query['schedule.start'].$lte = filters.endDate;
-//       }
-//     }
-    
-//     // Visibility filter
-//     if (filters.visibility) {
-//       query.visibility = filters.visibility;
-//     }
-    
-//     // Created by filter
-//     if (filters.createdBy) {
-//       query.createdBy = new mongoose.Types.ObjectId(filters.createdBy);
-//     }
-    
-//     // Text search
-//     if (filters.search) {
-//       query.$or = [
-//         { title: { $regex: filters.search, $options: 'i' } },
-//         { notes: { $regex: filters.search, $options: 'i' } }
-//       ];
-//     }
-//   }
-
-//   // Debugging: Log the final query
-//   console.log('Final Query:', JSON.stringify(query, null, 2));
-  
-//   // Execute query
-//   const [tasks, count] = await Promise.all([
-//     Task.find(query)
-//       .skip((page - 1) * limit)
-//       .limit(limit)
-//       .populate(populateOptions)
-//       .sort({ 'schedule.start': 1 })
-//       .lean(),
-//     Task.countDocuments(query)
-//   ]);
-  
-//   return {
-//     tasks,
-//     total: count,
-//     pages: Math.ceil(count / limit),
-//     currentPage: page
-//   };
-// };
 
 exports.filterTasksByOrganization = async (organizationId, options = {}) => {
   const { page = 1, limit = 10, filters = {} } = options;
@@ -511,7 +380,7 @@ exports.filterTasksByOrganization = async (organizationId, options = {}) => {
           },
           {
             path: 'assignments.user',
-            select: 'name email avatar'
+            select: 'first_name last_name email avatar'
           },
           {
             path: 'assignments.team',
