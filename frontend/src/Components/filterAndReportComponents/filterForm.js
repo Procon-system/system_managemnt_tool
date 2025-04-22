@@ -64,15 +64,13 @@ const ResourceTypeFilter = ({
 
               return (
                 <div key={type._id} className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-600">
-                    {type.name}
-                  </label>
-                  
+                 
                   {isLoading ? (
                     <div>Loading {type.name} resources...</div>
                   ) : (
                     <SelectInput
                       name={`resource-${type._id}`}
+                      label={type.name}
                       value={currentSelection}
                       onChange={(e) => handleResourceChange(type._id, e)}
                       options={resources.map(res => ({
@@ -159,21 +157,6 @@ const FilterForm = ({
     console.log("API Filters:", apiFilters);
     onFilter(apiFilters);
   };
-  // const handleApplyFilters = () => {
-  //   // Transform to flat filter object
-  //   const apiFilters = {
-  //     ...filters,
-  //     // Convert resourceFilters to simple resource array
-  //     resource: filters.resourceFilters.flatMap(f => f.resources),
-      
-  //   };
-    
-  //   // Remove the UI-specific field
-  //   delete apiFilters.resourceFilters;
-    
-  //   console.log("API Filters:", apiFilters); // Verify output
-  //   onFilter(apiFilters);
-  // };
   const handleResetFilters = () => {
     setFilters({
       assignedTo: null,

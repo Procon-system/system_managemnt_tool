@@ -12,7 +12,7 @@ const getSelectedOptions = (items, options) => {
   }).filter(option => option !== null); // Remove nulls
 };
 const SelectInput = ({ label, name, value = [], onChange, options = [], isMulti = false }) => {
-  
+ 
   // Convert value to option objects for react-select
   const selectedOptions = isMulti
     ? options.filter(opt => value.includes(opt.value))
