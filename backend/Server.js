@@ -23,32 +23,58 @@ const { redisClient, connectRedis } = require("./redisClient");
 const ADMIN_API_URL = 'http://admin-api:8000/api/users';  // Use service name
 const ADMIN_ACCESS_LEVEL = 5; // Your admin access level
 // In your backend code
-function getContainerId() {
-  // Method 1: From HOSTNAME environment variable
-  if (process.env.HOSTNAME) {
-    return process.env.HOSTNAME;
-  }
+async function getContainerIdWithRetry(maxRetries = 3, retryDelay = 4000) {
+  let retries = 0;
   
-  // Method 2: From /proc/self/cgroup (Linux containers)
-  try {
-    const fs = require('fs');
-    const content = fs.readFileSync('/proc/self/cgroup', 'utf-8');
-    const lines = content.split('\n');
-    for (const line of lines) {
-      const match = line.match(/([0-9a-f]{64})/);
-      if (match) return match[1];
+  const getContainerId = () => {
+    // Method 1: From HOSTNAME environment variable
+    if (process.env.HOSTNAME) {
+      return process.env.HOSTNAME;
     }
-  } catch (error) {
-    console.error('Could not read container ID:', error);
+    
+    // Method 2: From /proc/self/cgroup (Linux containers)
+    try {
+      const fs = require('fs');
+      const content = fs.readFileSync('/proc/self/cgroup', 'utf-8');
+      const lines = content.split('\n');
+      for (const line of lines) {
+        const match = line.match(/([0-9a-f]{64})/);
+        if (match) return match[1];
+      }
+    } catch (error) {
+      console.error(`Could not read container ID from cgroup:`, error.message);
+    }
+    
+    return null;
+  };
+
+  while (retries < maxRetries) {
+    try {
+      const containerId = getContainerId();
+      if (containerId) {
+        return containerId;
+      }
+      
+      if (retries < maxRetries - 1) {
+        console.log(`Container ID not available yet. Retrying in ${retryDelay/1000} seconds... (Attempt ${retries + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    } catch (error) {
+      console.error(`Attempt ${retries + 1} failed:`, error.message);
+    }
+    
+    retries++;
   }
   
-  // Development fallback
-  return process.env.DEV_CONTAINER_ID || 'dev-container-id';
+  // Final fallback options
+  return process.env.DEV_CONTAINER_ID || 
+         process.env.HOSTNAME || 
+         'default-container-id';
 }
 async function fetchAdminUsers() {
   try {
     const response = await axios.get(ADMIN_API_URL);
-    console.log("response", response.data);  // Note: response.data contains the actual data
+    // console.log("response", response.data);  // Note: response.data contains the actual data
     return response.data.users;  // Access data property
   } catch (error) {
     console.error('Failed to fetch admin users:', error.message);
@@ -113,7 +139,7 @@ async function handleAdminRegistration(extUser) {
 async function syncAdminUsers() {
   try {
     const externalUsers = await fetchAdminUsers();
-    const currentContainerId = getContainerId();
+    const currentContainerId = await getContainerIdWithRetry(); // Now async
     
     if (!currentContainerId) {
       console.warn('Could not determine container ID - using fallback admin');
@@ -121,11 +147,11 @@ async function syncAdminUsers() {
     }
 
     for (const extUser of externalUsers) {
-      if (extUser.unique_id === currentContainerId) {
+      if (extUser.user_container_id === currentContainerId) {
+      
         try {
           return await handleAdminRegistration(extUser);
         } catch (error) {
-          // Skip logging "user exists" errors
           if (!error.message.includes('User already exists')) {
             console.error('Error syncing admin user:', error.message);
           }
@@ -137,14 +163,12 @@ async function syncAdminUsers() {
     console.warn('No admin user found for container ID - using fallback admin');
     return createFallbackAdmin();
   } catch (error) {
-    // Skip logging "user exists" errors
     if (!error.message.includes('User already exists')) {
       console.error('Admin sync failed:', error.message);
     }
     return createFallbackAdmin();
   }
 }
-
 function createFallbackAdmin() {
   const fallbackEmail = `admin-${Date.now()}@fallback.com`;
   console.warn(`Creating fallback admin: ${fallbackEmail}`);
@@ -172,8 +196,7 @@ function createFallbackAdmin() {
 // Initialize the application
 async function initializeApplication() {
   try {
-    const containerId = getContainerId();
-    console.log(`Container ID: ${containerId}`);
+    const containerId = await getContainerIdWithRetry();
     
     await connectRedis();
     await mongoose.connect(config.mongoURI);

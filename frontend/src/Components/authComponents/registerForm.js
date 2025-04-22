@@ -15,7 +15,6 @@ const RegisterForm = () => {
     first_name: '',
     last_name: '',
     personal_number: '',
-    // organizationName: '', // Add this field
     access_level: 1,
   });
   const [error, setError] = useState('');
@@ -26,7 +25,6 @@ const RegisterForm = () => {
     setFormData({ ...formData, [name]: value });
     setError('');
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -35,6 +33,17 @@ const RegisterForm = () => {
       
       if (registerUsers.fulfilled.match(resultAction)) {
         toast.success('User registered successfully!');
+        
+        // Reset form data after successful registration
+        setFormData({
+          email: '',
+          password: '',
+          first_name: '',
+          last_name: '',
+          personal_number: '',
+          access_level: 1,
+        });
+        
         navigate('/home');
       } else if (registerUsers.rejected.match(resultAction)) {
         const error = resultAction.payload;
@@ -74,6 +83,53 @@ const RegisterForm = () => {
       toast.error('An unexpected error occurred');
     }
   };
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+    
+  //   try {
+  //     const resultAction = await dispatch(registerUsers(formData));
+      
+  //     if (registerUsers.fulfilled.match(resultAction)) {
+  //       toast.success('User registered successfully!');
+  //       navigate('/home');
+  //     } else if (registerUsers.rejected.match(resultAction)) {
+  //       const error = resultAction.payload;
+        
+  //       if (error.code === 'USER_LIMIT_REACHED') {
+  //         toast.error(
+  //           <div className="p-4">
+  //             <p className="font-medium">{error.message}</p>
+  //             <p className="my-2">
+  //               Current: {error.details?.currentCount || 'N/A'}/
+  //               {error.details?.maxAllowed || 'N/A'} users
+  //             </p>
+  //             {error.details?.upgradeAvailable && (
+  //               <div className="mt-3">
+  //                 <Link 
+  //                   to={error.actions?.[0]?.url || '/subscription'} 
+  //                   className="text-blue-600 hover:text-blue-800 font-medium underline"
+  //                   onClick={() => toast.dismiss()}
+  //                 >
+  //                   {error.actions?.[0]?.label || 'Upgrade subscription'}
+  //                 </Link>
+  //               </div>
+  //             )}
+  //           </div>,
+  //           {
+  //             position: "top-right",
+  //             autoClose: false,
+  //             className: 'border-l-4 border-red-500'
+  //           }
+  //         );
+  //       } else {
+  //         toast.error(error.message || 'Registration failed');
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('Unexpected error:', error);
+  //     toast.error('An unexpected error occurred');
+  //   }
+  // };
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <FormInput label="First Name" name="first_name" type="text" value={formData.first_name} onChange={handleChange} required />
@@ -84,8 +140,7 @@ const RegisterForm = () => {
         Password must be at least 6 characters long and include a mix of letters and numbers.
       </p>
       <FormInput label="Personal Number" name="personal_number" type="text" value={formData.personal_number} onChange={handleChange} />
-      {/* <FormInput label="Organization Name" name="organizationName" type="text" value={formData.organizationName} onChange={handleChange} /> */}
-      
+     
       <FormInput
         label="Access Level"
         name="access_level"
