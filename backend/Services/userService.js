@@ -13,8 +13,7 @@ class UserService {
   async getAllUsers(requester) {
     try {
       // If user is admin but not super admin, only show users from their organization
-      const filter = requester.access_level === 4 ? { organization: requester.organization } : {};
-      
+      const filter = requester.access_level >= 3 ? { organization: requester.organization } : {};
       const users = await User.find(filter)
         .select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire')
         .populate('organization', 'name');

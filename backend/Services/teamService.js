@@ -63,7 +63,7 @@ exports.getTeamsByOrganization = async (organizationId, options = {}) => {
   const teams = await Team.find(query)
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
-    .populate('members.user', 'first_name last_name')
+    .populate('members.user', 'first_name last_name email')
     .populate('organization', 'name');
     
   const count = await Team.countDocuments(query);
