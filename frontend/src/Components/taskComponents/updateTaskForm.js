@@ -17,12 +17,12 @@ const EventDetailsModal = ({
   handleDelete,
   handleFormSubmit,
 }) => {
-   const dispatch = useDispatch();
+   
    const { resourceTypes } = useSelector((state) => state.resourceTypes);
 
 const typeIds = resourceTypes?.map(type => type._id) || [];
-   const { users = [], loading: usersLoading } = useUsers();
-   const { getResourcesByType, loading: resourcesLoading } = useResources(typeIds);
+   const { users = [] } = useUsers();
+   const { getResourcesByType } = useResources(typeIds);
  
 useEffect(() => {
   setEditableEvent(selectedEvent || {});
@@ -38,12 +38,8 @@ const handleChange = (e) => {
 };
 
 
-  // Fetch Data from Redux Store
-  // const { users } = useSelector((state) => state.users);
-  const [newImages, setNewImages] = useState([]); // Store new images for preview
- 
-  const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/tasks`;
-  const [editableEvent, setEditableEvent] = useState(selectedEvent || {});
+    const [newImages, setNewImages] = useState([]); // Store new images for preview
+   const [editableEvent, setEditableEvent] = useState(selectedEvent || {});
   const [images, setImages] = useState([]);
   const token = useSelector(state => state.auth.token);
 
@@ -140,11 +136,28 @@ const handleChange = (e) => {
 
   const onSubmit = (e) => {
     e.preventDefault();
-    handleFormSubmit({
+    
+    // Prepare the complete payload
+    const payload = {
       ...editableEvent,
-      images,
-      newImages,
-    });
+      images: images, // Current images
+      newImages: newImages, // Newly uploaded images
+      // Ensure dates are properly formatted if needed
+      start: editableEvent.start instanceof Date ? editableEvent.start.toISOString() : editableEvent.start,
+      end: editableEvent.end instanceof Date ? editableEvent.end.toISOString() : editableEvent.end,
+      // Include all other fields that might be missing
+      assigned_resources: editableEvent.assigned_resources,
+      notes: editableEvent.notes,
+      repeat_frequency: editableEvent.repeat_frequency,
+      task_period: editableEvent.task_period
+    };
+  
+    // Remove any undefined or null values
+    const cleanPayload = Object.fromEntries(
+      Object.entries(payload).filter(([_, v]) => v != null)
+    );
+     console.log("payload",payload)
+    handleFormSubmit(cleanPayload);
   };
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -344,7 +357,9 @@ const handleChange = (e) => {
           <div className="flex flex-wrap gap-2">
             {images.map((image, index) => (
               <div key={index} className="relative w-24 h-24">
-                <img src={image} alt="Preview" className="w-full h-full object-cover rounded-md" />
+                 <img
+              src={image.url || image.base64 || image}
+              alt={image.filename || `Image ${index + 1}`}  className="w-full h-full object-cover rounded-md" />
                 <button
                   onClick={(e) => {
                     e.preventDefault();

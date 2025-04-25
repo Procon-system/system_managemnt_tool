@@ -53,81 +53,212 @@ const HomePage = () => {
   const handleTaskDeletion = useCallback((deletedTaskId) => {
     setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
   },[]);
- 
   const updateEventState = useCallback((updatedEvents = [], deletedEventId = null) => {
     console.log("Incoming update data:", updatedEvents);
     
     setFilteredEvents((prevEvents) => {
-      let currentEvents = prevEvents || tasks || [];
-      
-      // Handle deletion
-      if (deletedEventId) {
-        handleTaskDeletion(deletedEventId);
-        const updatedEvents = currentEvents.filter(
-          (event) => event._id !== deletedEventId
-        );
-        eventsRef.current = updatedEvents;
-        return updatedEvents;
-      }
-  
-      // Handle updates or additions
-      if (updatedEvents?.length > 0) {
-        const eventMap = new Map(
-          currentEvents.map((event) => [event._id, event])
-        );
-  
-        updatedEvents.forEach((event) => {
-          if (event?._id) {
-            // Normalize time fields into schedule object
-            const normalizedEvent = {
-              ...event,
-              schedule: {
-                start: event.schedule?.start || event.start_time || event.start,
-                end: event.schedule?.end || event.end_time || event.end,
-                timezone: event.schedule?.timezone || event.timezone || 'UTC'
-              },
-              // Remove old time fields to prevent confusion
-              ...(event.start_time && { start_time: undefined }),
-              ...(event.end_time && { end_time: undefined }),
-              ...(event.start && { start: undefined }),
-              ...(event.end && { end: undefined }),
-              ...(event.timezone && { timezone: undefined })
-            };
-  
-            // Merge with existing event
-            const existing = eventMap.get(event._id) || {};
-            eventMap.set(event._id, {
-              ...existing,
-              ...normalizedEvent,
-              schedule: {
-                ...existing.schedule,
-                ...normalizedEvent.schedule
-              },
-              // Preserve arrays if not provided in update
-              assigned_resources: event.assigned_resources !== undefined 
-                ? event.assigned_resources 
-                : existing.assigned_resources,
-              // ... other array fields (same as before)
-            });
-          }
-        });
-  
-        const finalEvents = Array.from(eventMap.values()).filter(
-          (event) =>
-            event._id &&
-            event.title &&
-            event.schedule?.start &&
-            event.schedule?.end
-        );
+        let currentEvents = prevEvents || tasks || [];
         
-        console.log("Normalized events:", finalEvents);
-        eventsRef.current = finalEvents;
-        return finalEvents;
-      }
-  
-      return currentEvents;
+        // Handle deletion
+        if (deletedEventId) {
+            handleTaskDeletion(deletedEventId);
+            const updatedEvents = currentEvents.filter(
+                (event) => event._id !== deletedEventId
+            );
+            eventsRef.current = updatedEvents;
+            return updatedEvents;
+        }
+
+        // Handle updates or additions
+        if (updatedEvents?.length > 0) {
+            const eventMap = new Map(
+                currentEvents.map((event) => [event._id, event])
+            );
+
+            updatedEvents.forEach((event) => {
+                if (event?._id) {
+                    // Ensure assigned_resources is always an array
+                    const safeAssignedResources = Array.isArray(event.assigned_resources) 
+                        ? event.assigned_resources 
+                        : [];
+                    
+                    // Ensure resources is always an array
+                    const safeResources = Array.isArray(event.resources) 
+                        ? event.resources 
+                        : [];
+
+                    // Normalize the event structure
+                    const normalizedEvent = {
+                        ...event,
+                        // Normalize schedule
+                        schedule: {
+                            start: event.schedule?.start || event.start_time || event.start,
+                            end: event.schedule?.end || event.end_time || event.end,
+                            timezone: event.schedule?.timezone || event.timezone || 'UTC'
+                        },
+                        // Normalize assignments to assigned_resources if they exist
+                        assigned_resources: event.assignments?.map(assignment => ({
+                            user: assignment.user,
+                            role: assignment.role
+                        })) || safeAssignedResources,
+                        // Normalize resources
+                        resources: safeResources.map(resource => ({
+                            ...resource,
+                            resource: {
+                                ...resource.resource,
+                                type: resource.resource.type || {
+                                    _id: resource.resource.type?._id,
+                                    name: resource.resource.type?.name,
+                                    icon: resource.resource.type?.icon,
+                                    color: resource.resource.type?.color
+                                }
+                            }
+                        })),
+                        // Remove old fields
+                        ...(event.start_time && { start_time: undefined }),
+                        ...(event.end_time && { end_time: undefined }),
+                        ...(event.start && { start: undefined }),
+                        ...(event.end && { end: undefined }),
+                        ...(event.timezone && { timezone: undefined }),
+                        ...(event.assignments && { assignments: undefined })
+                    };
+
+                    // Merge with existing event
+                    const existing = eventMap.get(event._id) || {};
+                    
+                    // Ensure existing.assigned_resources is an array
+                    const existingAssignedResources = Array.isArray(existing.assigned_resources) 
+                        ? existing.assigned_resources 
+                        : [];
+                    
+                    // Ensure existing.resources is an array
+                    const existingResources = Array.isArray(existing.resources) 
+                        ? existing.resources 
+                        : [];
+
+                    eventMap.set(event._id, {
+                        ...existing,
+                        ...normalizedEvent,
+                        schedule: {
+                            ...existing.schedule,
+                            ...normalizedEvent.schedule
+                        },
+                        assigned_resources: [
+                            ...existingAssignedResources,
+                            ...(normalizedEvent.assigned_resources || [])
+                        ].reduce((acc, curr) => {
+                            // Remove duplicates by user ID and role
+                            const exists = acc.some(item => 
+                                item.user?._id === curr.user?._id && 
+                                item.role === curr.role
+                            );
+                            return exists ? acc : [...acc, curr];
+                        }, []),
+                        resources: [
+                            ...existingResources,
+                            ...(normalizedEvent.resources || [])
+                        ].reduce((acc, curr) => {
+                            // Remove duplicates by resource ID
+                            const exists = acc.some(item => 
+                                item._id === curr._id || 
+                                item.resource?._id === curr.resource?._id
+                            );
+                            return exists ? acc : [...acc, curr];
+                        }, [])
+                    });
+                }
+            });
+
+            const finalEvents = Array.from(eventMap.values()).filter(
+                (event) =>
+                    event._id &&
+                    event.title &&
+                    event.schedule?.start &&
+                    event.schedule?.end
+            );
+            
+            console.log("Normalized events:", finalEvents);
+            eventsRef.current = finalEvents;
+            return finalEvents;
+        }
+
+        return currentEvents;
     });
-  }, [tasks, handleTaskDeletion, eventsRef]);
+}, [tasks, handleTaskDeletion, eventsRef]);
+  // const updateEventState = useCallback((updatedEvents = [], deletedEventId = null) => {
+  //   console.log("Incoming update data:", updatedEvents);
+    
+  //   setFilteredEvents((prevEvents) => {
+  //     let currentEvents = prevEvents || tasks || [];
+      
+  //     // Handle deletion
+  //     if (deletedEventId) {
+  //       handleTaskDeletion(deletedEventId);
+  //       const updatedEvents = currentEvents.filter(
+  //         (event) => event._id !== deletedEventId
+  //       );
+  //       eventsRef.current = updatedEvents;
+  //       return updatedEvents;
+  //     }
+  
+  //     // Handle updates or additions
+  //     if (updatedEvents?.length > 0) {
+  //       const eventMap = new Map(
+  //         currentEvents.map((event) => [event._id, event])
+  //       );
+  
+  //       updatedEvents.forEach((event) => {
+  //         if (event?._id) {
+  //           // Normalize time fields into schedule object
+  //           const normalizedEvent = {
+  //             ...event,
+  //             schedule: {
+  //               start: event.schedule?.start || event.start_time || event.start,
+  //               end: event.schedule?.end || event.end_time || event.end,
+  //               timezone: event.schedule?.timezone || event.timezone || 'UTC'
+  //             },
+  //             // Remove old time fields to prevent confusion
+  //             ...(event.start_time && { start_time: undefined }),
+  //             ...(event.end_time && { end_time: undefined }),
+  //             ...(event.start && { start: undefined }),
+  //             ...(event.end && { end: undefined }),
+  //             ...(event.timezone && { timezone: undefined })
+  //           };
+  
+  //           // Merge with existing event
+  //           const existing = eventMap.get(event._id) || {};
+  //           eventMap.set(event._id, {
+  //             ...existing,
+  //             ...normalizedEvent,
+  //             schedule: {
+  //               ...existing.schedule,
+  //               ...normalizedEvent.schedule
+  //             },
+  //             // Preserve arrays if not provided in update
+  //             assigned_resources: event.assigned_resources !== undefined 
+  //               ? event.assigned_resources 
+  //               : existing.assigned_resources,
+  //             // ... other array fields (same as before)
+  //           });
+  //         }
+  //       });
+  
+  //       const finalEvents = Array.from(eventMap.values()).filter(
+  //         (event) =>
+  //           event._id &&
+  //           event.title &&
+  //           event.schedule?.start &&
+  //           event.schedule?.end
+  //       );
+        
+  //       console.log("Normalized events:", finalEvents);
+  //       eventsRef.current = finalEvents;
+  //       return finalEvents;
+  //     }
+  
+  //     return currentEvents;
+  //   });
+  // }, [tasks, handleTaskDeletion, eventsRef]);
   const handleTaskCreated = useCallback((broadcastData) => {
     console.log('Socket task received:', broadcastData);
     
@@ -504,7 +635,40 @@ const handleEventCreate = async (newEvent) => {
     formData.append("start", mergedEvent.schedule.start);
     formData.append("end", mergedEvent.schedule.end);
     if (mergedEvent.schedule.timezone) formData.append("timezone", mergedEvent.schedule.timezone);
-  
+  // Example: serialize arrays and nested objects
+if (mergedEvent.assigned_resources)
+  formData.append("assigned_resources", JSON.stringify(mergedEvent.assigned_resources));
+
+if (mergedEvent.resources)
+  formData.append("resources", JSON.stringify(mergedEvent.resources));
+
+if (mergedEvent.resourceIds)
+  formData.append("resourceIds", JSON.stringify(mergedEvent.resourceIds));
+
+if (mergedEvent.images)
+  formData.append("images", JSON.stringify(mergedEvent.images));
+
+if (mergedEvent.notes)
+  formData.append("notes", mergedEvent.notes);
+
+if (mergedEvent.priority)
+  formData.append("priority", mergedEvent.priority);
+
+if (mergedEvent.visibility)
+  formData.append("visibility", mergedEvent.visibility);
+
+if (mergedEvent.task_period)
+  formData.append("task_period", mergedEvent.task_period);
+
+if (mergedEvent.repeat_frequency)
+  formData.append("repeat_frequency", mergedEvent.repeat_frequency);
+
+if (mergedEvent.newImages && mergedEvent.newImages.length > 0) {
+  mergedEvent.newImages.forEach((file) => {
+    formData.append("images", file); // 👈 this must match the field expected by your backend
+  });
+}
+
     // Handle other fields... (same as before but using mergedEvent)
   
     dispatch(updateTask({ taskId: mergedEvent._id, updatedData: formData }))
@@ -519,132 +683,7 @@ const handleEventCreate = async (newEvent) => {
         console.error("Update error:", err);
       });
   };
-  // const handleEventUpdate = (updatedEvent) => {
-  //   const formData = new FormData();
-    
-  //   // Append basic fields
-  //   formData.append("_id", updatedEvent._id);
-  //   formData.append("title", updatedEvent.title);
-  //   formData.append("status", updatedEvent.status);
-  //   // Append other simple fields...
-  
-  //   // Handle images - keptImages should be an array of image IDs to keep
-  //   if (updatedEvent.images && updatedEvent.images.length > 0) {
-  //     formData.append("keptImages", JSON.stringify(updatedEvent.images));
-  //   }
-  
-  //   // Handle new images
-  //   if (updatedEvent.newImages && updatedEvent.newImages.length > 0) {
-  //     updatedEvent.newImages.forEach((image) => {
-  //       if (image instanceof File) {
-  //         formData.append("images", image); // 'images' field for new files
-  //       }
-  //     });
-  //   }
-  
-  //   // Handle assigned resources
-  //   if (updatedEvent.assigned_resources) {
-  //     formData.append(
-  //       "assigned_resources",
-  //       JSON.stringify(updatedEvent.assigned_resources)
-  //     );
-  //   }
-  
-  //   dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
-  //     .then(() => {
-  //       toast.success("Task updated successfully!");
-  //       // Refresh data or close modal
-  //     })
-  //     .catch((err) => {
-  //       toast.error("Failed to update task. Please try again.");
-  //       console.error("Task update failed:", err);
-  //     });
-  // };
-//   const handleEventUpdate = (updatedEvent) => {
-//     updateEventState([updatedEvent]);
-  
-//     const formData = new FormData();
-    
-//     // Append basic fields only if they exist
-//     if (updatedEvent._id) formData.append("_id", updatedEvent._id);
-//     if (updatedEvent.title) formData.append("title", updatedEvent.title);
-//     if (updatedEvent.status) formData.append("status", updatedEvent.status);
-    
-//     // Handle time fields (optional)
-//     if (updatedEvent.start || updatedEvent.start_time ) formData.append("start", updatedEvent.start || updatedEvent.start_time);
-//     if (updatedEvent.end || updatedEvent.end_time ) formData.append("end", updatedEvent.end || updatedEvent.end_time);
-    
-//     // Handle other optional fields
-//     if (updatedEvent.color) formData.append("color", updatedEvent.color);
-//     if (updatedEvent.notes) formData.append("notes", updatedEvent.notes);
-//     if (updatedEvent.priority) formData.append("priority", updatedEvent.priority);
-//     if (updatedEvent.repeat_frequency) formData.append("repeat_frequency", updatedEvent.repeat_frequency);
-//     if (updatedEvent.task_period) formData.append("task_period", updatedEvent.task_period);
-//     if (updatedEvent.timezone) formData.append("timezone", updatedEvent.timezone);
-//     if (updatedEvent.visibility) formData.append("visibility", updatedEvent.visibility);
-
-//     // Handle images - filter invalid IDs
-//     if (updatedEvent.images?.length > 0) {
-//         const validImages = updatedEvent.images.filter(id => 
-//             /^[0-9a-fA-F]{24}$/.test(id)
-//         );
-//         formData.append("keptImages", JSON.stringify(validImages));
-//     } else if (updatedEvent.images?.length === 0) {
-//         // Explicitly handle empty array to clear images
-//         formData.append("keptImages", JSON.stringify([]));
-//     }
-
-//     // Handle new images
-//     if (updatedEvent.newImages?.length > 0) {
-//         updatedEvent.newImages.forEach((image) => {
-//             if (image instanceof File) {
-//                 formData.append("images", image);
-//             }
-//         });
-//     }
-
-//     // Sanitize assigned_resources before sending (optional)
-//     if (updatedEvent.assigned_resources) {
-//         const sanitized = {
-//             assigned_to: updatedEvent.assigned_resources.assigned_to?.map(user => ({
-//                 ...user,
-//                 _id: user._id,
-//             })),
-//             resources: updatedEvent.assigned_resources.resources?.map(res => ({
-//                 ...res,
-//                 resource: {
-//                     ...res.resource,
-//                     _id: res.resource?._id,
-//                 },
-//             })),
-//         };
-//         formData.append("assigned_resources", JSON.stringify(sanitized));
-//     } else if (updatedEvent.assigned_resources === null) {
-//         // Explicitly handle null to clear assignments
-//         formData.append("assigned_resources", JSON.stringify(null));
-//     }
-
-//     // dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
-//     //     .then(() => toast.success("Task updated successfully!"))
-//     //     .catch((err) => {
-//     //         toast.error("Failed to update task.");
-//     //         console.error("Task update failed:", err);
-//     //     });
-//     dispatch(updateTask({ taskId: updatedEvent._id, updatedData: formData }))
-//     .then((action) => {  // <-- Add the action parameter here
-//       toast.success("Task updated successfully!");
-     
-//       // Confirmatory update in case server made additional changes
-//       updateEventState([action.payload]); 
-//     })
-//     .catch((err) => {
-//       // Revert optimistic update on failure
-//       updateEventState([{...updatedEvent}]);
-//       toast.error("Failed to update task.");
-//       console.error("Task update failed:", err);
-//     });
-// };
-const handleDelete = async (id) => {
+  const handleDelete = async (id) => {
   try {
     // Dispatch delete action and wait for it to succeed
     await dispatch(deleteTask(id));

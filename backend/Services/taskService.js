@@ -158,8 +158,18 @@ exports.updateTask = async (taskId, updateData, organizationId) => {
     updateData,
     { new: true, runValidators: true }
   )
-    .populate('resources.resource')
-    .populate('assignments.user');
+  .populate({
+    path: 'resources.resource',
+    populate: {
+      path: 'type',
+      model: 'ResourceType',
+      select: 'name icon color'
+    }
+  })
+  .populate({
+    path: 'assignments.user',
+    select: 'first_name last_name email avatar'
+  })
     
   if (!task) {
     throw { message: 'Task not found', statusCode: 404 };
@@ -186,9 +196,12 @@ exports.deleteTask = async (taskId, organizationId) => {
 };
 
 exports.getTasksByOrganization = async (organizationId, options = {}) => {
-  const { page = 1, limit = 10 } = options; // Only get pagination
+  const { page = 1, limit = 100 } = options;
   
-  const tasks = await Task.find({ organization: organizationId })
+  const tasks = await Task.find({ 
+    organization: organizationId,
+    status: { $ne: 'done' } // Exclude done tasks
+  })
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
     .populate({
@@ -196,13 +209,18 @@ exports.getTasksByOrganization = async (organizationId, options = {}) => {
       populate: {
         path: 'type',
         model: 'ResourceType',
-        select: 'name icon color' // Only include these fields
+        select: 'name icon color'
       }
     })
-    .populate('assignments.user')
-    .sort({ 'schedule.start': 1 });
+    .populate({
+      path: 'assignments.user',
+      select: 'first_name last_name email avatar'
+    })
     
-  const count = await Task.countDocuments({ organization: organizationId });
+  const count = await Task.countDocuments({ 
+    organization: organizationId,
+    status: { $ne: 'done' } // Consistent count query
+  });
   
   return {
     tasks,
@@ -214,9 +232,7 @@ exports.getTasksByOrganization = async (organizationId, options = {}) => {
 
 exports.filterTasksByOrganization = async (organizationId, options = {}) => {
   const { page = 1, limit = 10, filters = {} } = options;
-  
-  console.log('Service received:', { organizationId, filters });
-
+ 
   // Base query with organization
   const query = { organization: new mongoose.Types.ObjectId(organizationId) };
   
@@ -366,8 +382,6 @@ exports.filterTasksByOrganization = async (organizationId, options = {}) => {
     }
   }
 
-  console.log('Final query:', JSON.stringify(query, null, 2));
-
   try {
     const [tasks, count] = await Promise.all([
       Task.find(query)
@@ -427,4 +441,69 @@ exports.changeTaskStatus = async (taskId, newStatus, changedBy, notes, organizat
   task.status.current = newStatus;
   
   return await task.save();
+};
+
+exports.fetchAllDoneTasks = async (organizationId) => {
+  const tasks = await Task.find({
+    organization: organizationId,
+    status: 'done'
+  })
+    .populate({
+      path: 'resources.resource',
+      populate: {
+        path: 'type',
+        model: 'ResourceType',
+        select: 'name icon color'
+      }
+    })
+    .populate('assignments.user')
+    .sort({ completedAt: -1 });
+
+  if (!tasks || tasks.length === 0) {
+    throw { statusCode: 404, message: 'No done tasks found' };
+  }
+
+  return tasks;
+};
+
+exports.fetchDoneTasksForUser = async (userId, organizationId) => {
+  const tasks = await Task.find({
+    assignee: userId,
+    organization: organizationId,
+    status: 'done'
+  })
+    .populate({
+      path: 'resources.resource',
+      populate: {
+        path: 'type',
+        model: 'ResourceType',
+        select: 'name icon color'
+      }
+    })
+    .populate('assignments.user')
+    .sort({ completedAt: -1 });
+
+  if (!tasks || tasks.length === 0) {
+    throw { statusCode: 404, message: 'No done tasks found for this user' };
+  }
+
+  return tasks;
+};
+
+exports.getTasksByAssignedUser = async (userId, organizationId) => {
+  return await Task.find({
+    assignee: userId,
+    organization: organizationId
+  })
+    .populate({
+      path: 'resources.resource',
+      populate: {
+        path: 'type',
+        model: 'ResourceType',
+        select: 'name icon color'
+      }
+    })
+    .populate('assignments.user')
+    .populate('project', 'name')
+    .sort({ dueDate: 1 });
 };

@@ -1210,6 +1210,40 @@ const taskService = {
       throw error.response?.data || error.message;
     }
   },
+  getAllDoneTasks: async (token) => {
+    try {
+      const response = await axios.get(`${API_URL}/done/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  
+  getDoneTasksForUser: async (userId, token) => {
+    try {
+      const response = await axios.get(`${API_URL}/done/user`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { userId }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  
+  getTasksByAssignedUser: async (userId, token) => {
+    try {
+      const response = await axios.get(`${API_URL}/assigned/user`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { userId }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   /**
    * Change task status
    * @param {string} taskId - Task ID

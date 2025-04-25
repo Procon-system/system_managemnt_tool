@@ -25,47 +25,52 @@ export const createTask = createAsyncThunk(
 );
 export const getTasksByAssignedUser = createAsyncThunk(
   'tasks/getTasksByAssignedUser',
-  async (userId, { getState,dispatch, rejectWithValue }) => {
+  async (userId, { getState, dispatch, rejectWithValue }) => {
     try {
-      const token = getState().auth.token; // Get the token from Redux state
+      const token = getState().auth.token;
       if (checkTokenAndLogout(token, dispatch)) {
-        return null; // Exit if the token is expired
+        return null;
       }
-      // return await taskService.getTasksByAssignedUser(userId, token); // Call the service function
+      return await taskService.getTasksByAssignedUser(userId, token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error fetching tasks for assigned user');
     }
   }
 );
+
 export const getTasksDoneByAssignedUser = createAsyncThunk(
   'tasks/getTasksDoneByAssignedUser',
-  async (userId, { getState,dispatch, rejectWithValue }) => {
+  async (userId, { getState, dispatch, rejectWithValue }) => {
     try {
-      const token = getState().auth.token; // Get the token from Redux state
+      const token = getState().auth.token;
       if (checkTokenAndLogout(token, dispatch)) {
-        return null; // Exit if the token is expired
+        return null;
       }
-      // return await taskService.getTasksDoneByAssignedUser(userId, token); // Call the service function
+      return await taskService.getDoneTasksForUser(userId, token);
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Error fetching tasks for assigned user');
+      return rejectWithValue(error.response?.data || 'Error fetching done tasks for assigned user');
     }
   }
-); //getAllDoneTasks
+);
+
 export const getAllDoneTasks = createAsyncThunk(
   'tasks/getAllDoneTasks',
-  async (_, { rejectWithValue }) => {
-    
+  async (_, { getState, dispatch, rejectWithValue }) => {
     try {
-      // return await taskService.getAllDoneTasks();
+      const token = getState().auth.token;
+      if (checkTokenAndLogout(token, dispatch)) {
+        return null;
+      }
+      return await taskService.getAllDoneTasks(token);
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Error fetching tasks');
+      return rejectWithValue(error.response?.data || 'Error fetching all done tasks');
     }
   }
 );
 // Fetch Tasks
 export const fetchOrganizationTasks = createAsyncThunk(
   'tasks/fetchOrganizationTasks',
-  async ({ page = 1, limit = 10 }, { rejectWithValue, dispatch, getState }) =>{
+  async ({ page = 1, limit = 100 }, { rejectWithValue, dispatch, getState }) =>{
       try {
         const token = getState().auth.token; // Get the token from Redux state
         if (checkTokenAndLogout(token, dispatch)) {
@@ -115,8 +120,7 @@ export const fetchImageMetadata = createAsyncThunk(
 
     try {
       const response = await taskService.fetchImageMetadata(fileIds, token);
-      console.log('Metadata response:', response); // Add this
-      return response;
+        return response;
       
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -300,7 +304,6 @@ const taskSlice = createSlice({
       })
       .addCase(filterTasks.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        console.log("action.payload",action.payload.data.tasks)
         state.filteredTasks = action.payload.data.tasks;
         state.currentView = 'filteredTasks'; // ✅ Switch view to filtered tasks
       })
@@ -361,35 +364,64 @@ const taskSlice = createSlice({
         state.status = 'loading';
       })
       .addCase(getTasksByAssignedUser.fulfilled, (state, action) => {
-        console.log("Fetched Tasks:", action.payload); // Log the fetched tasks
         state.status = 'succeeded';
-        state.tasks = action.payload; // Set the tasks to those fetched for the assigned user
+        
+        // Validate and sanitize payload
+        if (!Array.isArray(action.payload?.data)) {
+          console.error('Invalid tasks payload:', action.payload);
+          state.tasks = [];
+          return;
+        }
+      
+        state.tasks = action.payload.data.filter(task => 
+          task?._id && task?.assignee // Ensure tasks have both ID and assignee
+        );
       })
       .addCase(getTasksByAssignedUser.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload;
+        state.error = action.payload || 'Failed to fetch assigned tasks';
       })
+      
       .addCase(getTasksDoneByAssignedUser.pending, (state) => {
         state.status = 'loading';
       })
       .addCase(getTasksDoneByAssignedUser.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.tasks = action.payload; // Set the tasks to those fetched for the assigned user
+        
+        if (!Array.isArray(action.payload?.data)) {
+          console.error('Invalid done tasks payload:', action.payload);
+          state.tasks = [];
+          return;
+        }
+      
+        state.tasks = action.payload.data.filter(task => 
+          task?._id && task?.status === 'done' // Ensure tasks are marked as done
+        );
       })
       .addCase(getTasksDoneByAssignedUser.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload;
+        state.error = action.payload || 'Failed to fetch done tasks';
       })
+      
       .addCase(getAllDoneTasks.pending, (state) => {
         state.status = 'loading';
       })
       .addCase(getAllDoneTasks.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.tasks = action.payload; // Set the tasks to those fetched for the assigned user
+        
+        if (!Array.isArray(action.payload?.data)) {
+          console.error('Invalid all done tasks payload:', action.payload);
+          state.tasks = [];
+          return;
+        }
+      
+        state.tasks = action.payload.data.filter(task => 
+          task?._id && task?.status === 'done' // Ensure all tasks are done
+        );
       })
       .addCase(getAllDoneTasks.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload;
+        state.error = action.payload || 'Failed to fetch all done tasks';
       })
       .addCase(bulkUpdateTasks.pending, (state) => {
         state.status = 'loading';

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import FieldEditor from '../../Components/resourceTypeComponents/fieldEditor';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch} from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { createResourceType } from '../../features/resourceTypeSlice';
 import IconExplorer from '../../Components/common/IconPicker'; // adjust the path as needed

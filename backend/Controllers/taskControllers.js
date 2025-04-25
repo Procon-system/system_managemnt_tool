@@ -82,73 +82,6 @@ exports.createTask = async (req, res) => {
     });
   }
 };
-// exports.createTask = async (req, res) => {
-//   try {
-//     // 1. Validate required fields
-//     console.log("req.body",req.body)
-//     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Missing required fields: title, schedule.start, or schedule.end",
-//         data: null
-//       });
-//     }
-
-//     // 2. Prepare task data (for both single and recurring)
-//     const taskData = {
-//       title: req.body.title,
-//       organization: req.user.organization,
-//       createdBy: req.user._id,
-//       schedule: {
-//         start: new Date(req.body.schedule.start),
-//         end: new Date(req.body.schedule.end),
-//         timezone: req.body.schedule.timezone || 'UTC'
-//       },
-//       // Optional fields with defaults
-//       status: req.body.status || 'pending',
-//       priority: req.body.priority || 'medium',
-//       notes: req.body.notes || '',
-//       // Only include if provided
-//       ...(req.body.resources && { resources: req.body.resources }),
-//       ...(req.body.repeat_frequency && { repeat_frequency: req.body.repeat_frequency }),
-//       ...(req.body.task_period && { task_period: req.body.task_period })
-//     };
-
-//     // 3. Handle task creation based on frequency
-//     let createdTask;
-//     if (taskData.repeat_frequency && taskData.task_period) {
-//       // Recurring task path
-      
-//       const periodEndDate = calculateTaskPeriod(taskData.schedule.start, taskData.task_period);
-//       createdTask = await taskService.createRecurringTasks({
-//         baseTask: taskData,
-//         frequency: taskData.repeat_frequency,
-//         endDate: periodEndDate
-//       });
-//     } else {
-//       // Single task path - simplified
-//       console.log("Creating single task with data:", taskData);
-//       createdTask = await taskService.createTask(taskData);
-//     }
-
-//     // 4. Send appropriate response
-//     return res.status(201).json({
-//       success: true,
-//       message: Array.isArray(createdTask) 
-//         ? 'Recurring tasks created successfully'
-//         : 'Task created successfully',
-//       data: createdTask
-//     });
-
-//   } catch (error) {
-//     console.error('Task creation error:', error);
-//     return res.status(error.statusCode || 500).json({
-//       success: false,
-//       message: error.message || 'Internal server error',
-//       data: null
-//     });
-//   }
-// };
 exports.updateTask = async (req, res) => {
   try {
     const taskId = req.params.id;
@@ -295,8 +228,6 @@ exports.getTasksByOrganization = async (req, res) => {
 };
 exports.filterTasksByOrganization = async (req, res) => {
   try {
-    console.log('Raw request body:', req.body.filters);
-
     // Handle both POST (body) and GET (query) requests
     const requestData = req.method === 'POST' ? req.body.filters : req.query;
 
@@ -311,8 +242,6 @@ exports.filterTasksByOrganization = async (req, res) => {
     const filters = typeof requestFilters === 'string' 
       ? JSON.parse(requestFilters) 
       : requestFilters;
-
-    console.log('Extracted filters:', filters);
 
     // Process filters
     const parsedFilters = {};
@@ -369,5 +298,61 @@ exports.changeTaskStatus = async (req, res) => {
     sendResponse(res, 200, 'Task status updated successfully', updatedTask);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
+  }
+};
+// Get all done tasks
+exports.getAllDoneTasks = async (req, res) => {
+  try {
+    const tasks = await taskService.fetchAllDoneTasks(req.user.organization);
+    
+    if (!tasks || tasks.length === 0) {
+      return sendResponse(res, 404, 'No done tasks found', null);
+    }
+    
+    sendResponse(res, 200, 'Done tasks retrieved successfully', tasks);
+  } catch (error) {
+    sendResponse(res, error.statusCode || 500, error.message, null);
+  }
+};
+
+// Get done tasks for specific user
+exports.getDoneTasksForUser = async (req, res) => {
+  const { userId } = req.query;
+
+  if (!userId) {
+    return sendResponse(res, 400, 'User ID is required', null);
+  }
+
+  try {
+    const tasks = await taskService.fetchDoneTasksForUser(userId, req.user.organization);
+    
+    if (!tasks || tasks.length === 0) {
+      return sendResponse(res, 404, 'No done tasks found for this user', null);
+    }
+    
+    sendResponse(res, 200, 'Done tasks retrieved successfully', tasks);
+  } catch (error) {
+    sendResponse(res, error.statusCode || 500, error.message, null);
+  }
+};
+
+// Get tasks assigned to a user
+exports.getTasksByAssignedUser = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return sendResponse(res, 400, 'User ID is required', null);
+    }
+
+    const tasks = await taskService.getTasksByAssignedUser(userId, req.user.organization);
+    
+    if (tasks.length === 0) {
+      return sendResponse(res, 404, 'No tasks found for the given user', null);
+    }
+    
+    sendResponse(res, 200, 'Assigned tasks retrieved successfully', tasks);
+  } catch (error) {
+    sendResponse(res, 500, 'Failed to fetch tasks', { details: error.message });
   }
 };
