@@ -90,7 +90,7 @@ const resourceService = {
         } catch (dbError) {
           console.error('Local DB sync error:', dbError);
         }
-        console.log("response.data",response.data)
+       
         
         return response.data;
       } else {

@@ -29,7 +29,7 @@ export const fetchResourcesByType = createAsyncThunk(
     }
     try {
       const response = await resourceService.getResourcesByType(typeId, token);
-      console.log("response.data1",response.data)
+      
       return response.data; 
     } catch (error) {
       return rejectWithValue(error.message || 'Error fetching resources');

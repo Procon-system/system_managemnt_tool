@@ -1033,7 +1033,6 @@
 // };
 // export default taskService;
 import axios from 'axios';
-import { filterTasks } from '../features/taskSlice';
 
 const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/tasks`;
 
@@ -1146,15 +1145,13 @@ const taskService = {
   updateTask: async (taskId, updateData, token) => {
 
     try {
-      console.log("updateData",updateData)
       const response = await axios.put(`${API_URL}/${taskId}`, updateData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       
-      }); 
-      console.log("adtadatata",response.data)
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -1168,18 +1165,20 @@ const taskService = {
    * @param {string} token - Auth token
    * @returns {Promise<boolean>} True if successful
    */
-  deleteTask: async (taskId, organizationId, token) => {
+
+  deleteTask: async (taskId, token) => {
     try {
       await axios.delete(`${API_URL}/${taskId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { organizationId }
+        headers: { 
+          Authorization: `Bearer ${token}` 
+        }
+        // No need for organizationId in params since backend gets it from token
       });
       return true;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
-
   /**
    * Get tasks by organization
    * @param {string} organizationId - Organization ID

@@ -57,134 +57,123 @@ const HomePage = () => {
     console.log("Incoming update data:", updatedEvents);
     
     setFilteredEvents((prevEvents) => {
-        let currentEvents = prevEvents || tasks || [];
-        
-        // Handle deletion
-        if (deletedEventId) {
-            handleTaskDeletion(deletedEventId);
-            const updatedEvents = currentEvents.filter(
-                (event) => event._id !== deletedEventId
-            );
-            eventsRef.current = updatedEvents;
-            return updatedEvents;
-        }
-
-        // Handle updates or additions
-        if (updatedEvents?.length > 0) {
-            const eventMap = new Map(
-                currentEvents.map((event) => [event._id, event])
-            );
-
-            updatedEvents.forEach((event) => {
-                if (event?._id) {
-                    // Ensure assigned_resources is always an array
-                    const safeAssignedResources = Array.isArray(event.assigned_resources) 
-                        ? event.assigned_resources 
-                        : [];
-                    
-                    // Ensure resources is always an array
-                    const safeResources = Array.isArray(event.resources) 
-                        ? event.resources 
-                        : [];
-
-                    // Normalize the event structure
-                    const normalizedEvent = {
-                        ...event,
-                        // Normalize schedule
-                        schedule: {
-                            start: event.schedule?.start || event.start_time || event.start,
-                            end: event.schedule?.end || event.end_time || event.end,
-                            timezone: event.schedule?.timezone || event.timezone || 'UTC'
-                        },
-                        // Normalize assignments to assigned_resources if they exist
-                        assigned_resources: event.assignments?.map(assignment => ({
-                            user: assignment.user,
-                            role: assignment.role
-                        })) || safeAssignedResources,
-                        // Normalize resources
-                        resources: safeResources.map(resource => ({
-                            ...resource,
-                            resource: {
-                                ...resource.resource,
-                                type: resource.resource.type || {
-                                    _id: resource.resource.type?._id,
-                                    name: resource.resource.type?.name,
-                                    icon: resource.resource.type?.icon,
-                                    color: resource.resource.type?.color
-                                }
-                            }
-                        })),
-                        // Remove old fields
-                        ...(event.start_time && { start_time: undefined }),
-                        ...(event.end_time && { end_time: undefined }),
-                        ...(event.start && { start: undefined }),
-                        ...(event.end && { end: undefined }),
-                        ...(event.timezone && { timezone: undefined }),
-                        ...(event.assignments && { assignments: undefined })
-                    };
-
-                    // Merge with existing event
-                    const existing = eventMap.get(event._id) || {};
-                    
-                    // Ensure existing.assigned_resources is an array
-                    const existingAssignedResources = Array.isArray(existing.assigned_resources) 
-                        ? existing.assigned_resources 
-                        : [];
-                    
-                    // Ensure existing.resources is an array
-                    const existingResources = Array.isArray(existing.resources) 
-                        ? existing.resources 
-                        : [];
-
-                    eventMap.set(event._id, {
-                        ...existing,
-                        ...normalizedEvent,
-                        schedule: {
-                            ...existing.schedule,
-                            ...normalizedEvent.schedule
-                        },
-                        assigned_resources: [
-                            ...existingAssignedResources,
-                            ...(normalizedEvent.assigned_resources || [])
-                        ].reduce((acc, curr) => {
-                            // Remove duplicates by user ID and role
-                            const exists = acc.some(item => 
-                                item.user?._id === curr.user?._id && 
-                                item.role === curr.role
-                            );
-                            return exists ? acc : [...acc, curr];
-                        }, []),
-                        resources: [
-                            ...existingResources,
-                            ...(normalizedEvent.resources || [])
-                        ].reduce((acc, curr) => {
-                            // Remove duplicates by resource ID
-                            const exists = acc.some(item => 
-                                item._id === curr._id || 
-                                item.resource?._id === curr.resource?._id
-                            );
-                            return exists ? acc : [...acc, curr];
-                        }, [])
-                    });
-                }
+      let currentEvents = prevEvents || tasks || [];
+      
+      // Handle deletion
+      if (deletedEventId) {
+        handleTaskDeletion(deletedEventId);
+        const updatedEvents = currentEvents.filter(
+          (event) => event._id !== deletedEventId
+        );
+        eventsRef.current = updatedEvents;
+        return updatedEvents;
+      }
+  
+      // Handle updates or additions
+      if (Array.isArray(updatedEvents) && updatedEvents.length > 0) {
+        const eventMap = new Map(
+          currentEvents.map((event) => [event._id, event])
+        );
+  
+        updatedEvents.forEach((task) => {
+          if (task?._id) {
+            // Format assigned resources with full details (matching calendarEvents)
+            const assignedResources = {
+              assigned_to: task.assignments?.map(assignment => ({
+                _id: assignment._id,
+                user: assignment.user ? {
+                  id: assignment.user._id,
+                  name: assignment.user.full_name || 
+                        `${assignment.user.first_name} ${assignment.user.last_name}`,
+                  email: assignment.user.email
+                } : null,
+                team: assignment.team,
+                role: assignment.role
+              })) || [],
+              resources: task.resources?.map(resource => ({
+                _id: resource._id,
+                relationshipType: resource.relationshipType,
+                required: resource.required,
+                resource: resource.resource ? {
+                  _id: resource.resource._id,
+                  type: resource.resource.type,
+                  displayName: resource.resource.displayName || 
+                             resource.resource.fields?.['Machine Name'] || 
+                             resource.resource.name ||
+                             'Unnamed Resource',
+                  fields: resource.resource.fields || {},
+                  status: resource.resource.status
+                } : null
+              })) || []
+            };
+  
+            // Create normalized event matching calendar format
+            const normalizedEvent = {
+              _id: task._id,
+              title: task.title || 'No Title',
+              schedule: {
+                start: task.schedule?.start || task.start_time || task.start,
+                end: task.schedule?.end || task.end_time || task.end,
+                timezone: task.schedule?.timezone || task.timezone || 'UTC'
+              },
+              color: task.color_code || task.color || '#fbbf24',
+              images: task.images || [],
+              task_period: task.task_period,
+              repeat_frequency: task.repeat_frequency,
+              created_by: task.createdBy ? {
+                id: task.createdBy._id || task.createdBy,
+                name: typeof task.createdBy === 'object' 
+                  ? (task.createdBy.full_name || 
+                     `${task.createdBy.first_name} ${task.createdBy.last_name}`)
+                  : 'Unknown Creator',
+                email: typeof task.createdBy === 'object' ? task.createdBy.email : undefined
+              } : null,
+              priority: task.priority,
+              visibility: task.visibility,
+              status: task.status,
+              organization: task.organization,
+              assigned_resources: assignedResources,
+              resourceIds: [
+                ...(task.assignments?.map(a => a.user?._id).filter(Boolean) || []),
+                ...(task.resources?.map(r => r.resource?._id).filter(Boolean) || [])
+              ],
+              dependencies: task.dependencies || [],
+              tags: task.tags || [],
+              notes: task.notes || '',
+              createdAt: task.createdAt,
+              updatedAt: task.updatedAt
+            };
+  
+            // Merge with existing event
+            const existing = eventMap.get(task._id) || {};
+            eventMap.set(task._id, {
+              ...existing,
+              ...normalizedEvent,
+              schedule: {
+                ...existing.schedule,
+                ...normalizedEvent.schedule
+              },
+              // Preserve arrays if not provided in update
+              assigned_resources: normalizedEvent.assigned_resources || existing.assigned_resources || { assigned_to: [], resources: [] },
+              resourceIds: normalizedEvent.resourceIds || existing.resourceIds || [],
+              dependencies: normalizedEvent.dependencies || existing.dependencies || [],
+              tags: normalizedEvent.tags || existing.tags || []
             });
-
-            const finalEvents = Array.from(eventMap.values()).filter(
-                (event) =>
-                    event._id &&
-                    event.title &&
-                    event.schedule?.start &&
-                    event.schedule?.end
-            );
-            
-            console.log("Normalized events:", finalEvents);
-            eventsRef.current = finalEvents;
-            return finalEvents;
-        }
-
-        return currentEvents;
+          }
+        });
+  
+        const finalEvents = Array.from(eventMap.values()).filter(
+          (event) => event._id && event.title && event.schedule?.start && event.schedule?.end
+        );
+        
+        console.log("Normalized events:", finalEvents);
+        eventsRef.current = finalEvents;
+        return finalEvents;
+      }
+  
+      return currentEvents;
     });
-}, [tasks, handleTaskDeletion, eventsRef]);
+  }, [tasks, handleTaskDeletion, eventsRef]);
   // const updateEventState = useCallback((updatedEvents = [], deletedEventId = null) => {
   //   console.log("Incoming update data:", updatedEvents);
     
@@ -381,8 +370,7 @@ useEffect(() => {
   });
 }, [tasks]);
 const calendarEvents = useMemo(() => {
-  console.log("tasks?.data?.tasks",tasks)
-
+ 
   return Array.isArray(tasks)
       ? tasks
         .filter((task) => !deletedTaskIds.has(task._id))
@@ -684,21 +672,24 @@ if (mergedEvent.newImages && mergedEvent.newImages.length > 0) {
       });
   };
   const handleDelete = async (id) => {
-  try {
-    // Dispatch delete action and wait for it to succeed
-    await dispatch(deleteTask(id));
-    setFilteredEvents((prevEvents) =>
-      prevEvents.filter((event) => event._id !== id)
-    );
-
-    // Close the modal and show success toast
-    closeModal();
-    toast.success("Task deleted successfully!");
-  } catch (error) {
-    // Show error toast if deletion fails
-    toast.error(`Failed to delete task: ${error.message}`);
-  }
-};
+    try {
+      // Optimistic update first
+      updateEventState(null, id); // Passing null for updatedEvents, id for deletion
+      
+      // Then perform actual deletion
+      await dispatch(deleteTask(id));
+      
+      // Note: The state is already updated by updateEventState
+      // so we don't need the additional filter here
+      
+      closeModal();
+      toast.success("Task deleted successfully!");
+    } catch (error) {
+      // Revert optimistic update on error
+      updateEventState(tasks); // Reset to original tasks
+      toast.error(`Failed to delete task: ${error.message}`);
+    }
+  };
 
 useEffect(() => {
   console.log("Filtered events initialized:", filteredEvents);

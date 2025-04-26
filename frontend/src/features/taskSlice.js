@@ -93,11 +93,7 @@ export const updateTask = createAsyncThunk(
       return null; // Exit if the token is expired
     }
 
-    console.log("🟢 FormData before sending to service:");
-    for (let pair of updatedData.entries()) {
-        console.log(pair[0], pair[1]);
-    }
-
+   
     try {
       // return await taskService.updateTask(taskId, updatedData, token);
       const response = await taskService.updateTask(taskId, updatedData, token);
@@ -147,14 +143,15 @@ return response;
 // Delete Task
 export const deleteTask = createAsyncThunk(
   'tasks/deleteTask',
-  async (taskId, { getState,dispatch,rejectWithValue }) => {
+  async (taskId, { getState, dispatch, rejectWithValue }) => {
     const token = getState().auth.token;
+    
     if (checkTokenAndLogout(token, dispatch)) {
-      return null; // Exit if the token is expired
+      return null; // Exit if token is expired
     }
+    
     try {
-      console.log("delete",taskId,token)
-      return await taskService.deleteTask(taskId,token );
+      return await taskService.deleteTask(taskId, token);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Error deleting task');
     }

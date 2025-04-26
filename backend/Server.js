@@ -74,8 +74,7 @@ async function getContainerIdWithRetry(maxRetries = 3, retryDelay = 4000) {
 async function fetchAdminUsers() {
   try {
     const response = await axios.get(ADMIN_API_URL);
-    // console.log("response", response.data);  // Note: response.data contains the actual data
-    return response.data.users;  // Access data property
+        return response.data.users;  // Access data property
   } catch (error) {
     console.error('Failed to fetch admin users:', error.message);
     return [];
