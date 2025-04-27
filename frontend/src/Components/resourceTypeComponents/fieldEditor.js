@@ -80,12 +80,12 @@ const FieldEditor = ({ index, field, onUpdate, onRemove, resourceType }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none transition-all"
               >
                 <option value="string">String</option>
-                <option value="number">Number</option>
+                {/* <option value="number">Number</option>
                 <option value="boolean">Boolean</option>
                 <option value="date">Date</option>
                 <option value="array">Array</option>
                 <option value="object">Object</option>
-                <option value="reference">Reference</option>
+                <option value="reference">Reference</option> */}
               </select>
               <FiChevronDown className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
             </div>
