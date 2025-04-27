@@ -156,7 +156,6 @@ const handleChange = (e) => {
     const cleanPayload = Object.fromEntries(
       Object.entries(payload).filter(([_, v]) => v != null)
     );
-     console.log("payload",payload)
     handleFormSubmit(cleanPayload);
   };
   const [isEditMode, setIsEditMode] = useState(false);
@@ -177,6 +176,7 @@ const handleChange = (e) => {
     }
     return result;
   };
+  console.log("editableEvent?.assigned_resources?.assigned_to?",editableEvent?.assigned_resources?.assigned_to)
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="relative bg-white p-6 rounded-lg max-w-5xl w-full">

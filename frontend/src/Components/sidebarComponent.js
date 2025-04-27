@@ -316,7 +316,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
             icon={<FiTool size={18} />} 
             label="Resource" 
             onClick={() => {
-              handleNavigation('/create-resource-type');
+              handleNavigation('/show-resource-type');
               setShowAddOptions(false);
             }}
           />

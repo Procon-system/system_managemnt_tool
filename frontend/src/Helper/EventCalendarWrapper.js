@@ -117,7 +117,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
           _id: assignment._id,
           role: assignment.role,
           team: assignment.team,
-          id: assignment.user?._id, // Use _id instead of id
+          id: assignment.user?.id, // Use _id instead of id
           name: assignment.user?.name,
           email: assignment.user?.email
         })) || [],

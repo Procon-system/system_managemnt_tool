@@ -5,6 +5,7 @@ const { authenticateUser, authorize } = require('../Middleware/authMiddleware');
 const multer = require('multer');
 const mongoose = require('mongoose');
 const { GridFSBucket } = require('mongodb');
+const { getFromCache, setToCache, deleteFromCache } = require('../redisUtils');
 
 // Configure Multer for memory storage
 const storage = multer.memoryStorage();
@@ -23,50 +24,92 @@ router.post('/filter', authorize([ 2, 3, 4, 5]), taskController.filterTasksByOrg
 router.get('/done/all', authorize([2, 3, 4, 5]), taskController.getAllDoneTasks);
 router.get('/done/user', authorize([2, 3, 4, 5]), taskController.getDoneTasksForUser);
 router.get('/assigned/user', authorize([2, 3, 4, 5]), taskController.getTasksByAssignedUser);
+// Cache TTL for image metadata (1 day)
+const IMAGE_META_TTL = 86400;
+
+// Single image route with Redis caching
 router.get('/image/:fileId', async (req, res) => {
-    try {
-      const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
-      const fileId = new mongoose.Types.ObjectId(req.params.fileId);
-  
-      // Check if file exists
-      const file = await bucket.find({ _id: fileId }).next();
-      if (!file) {
-        return res.status(404).json({ success: false, message: "Image not found" });
-      }
-  
-      // Set Content-Type dynamically (e.g., image/jpeg, image/png)
-      res.set('Content-Type', file.contentType || 'image/jpeg');
-  
-      // Stream the image to the client
-      const downloadStream = bucket.openDownloadStream(fileId);
-      downloadStream.pipe(res);
-    } catch (error) {
-        console.log("error",error)
-      console.error("Error fetching image:", error);
-      res.status(500).json({ success: false, message: "Failed to fetch image" });
+  try {
+    const fileId = req.params.fileId;
+    const cacheKey = `image:meta:${fileId}`;
+
+    // Try to get metadata from cache first
+    const cachedMeta = await getFromCache(cacheKey);
+    const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+
+    if (cachedMeta) {
+      console.log(`[Cache] Serving image metadata from cache for ${fileId}`);
+      res.set('Content-Type', cachedMeta.contentType || 'image/jpeg');
+      const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(fileId));
+      return downloadStream.pipe(res);
     }
-  });
-  // routes/taskRoutes.js
+
+    // No cache hit, fetch from database
+    const file = await bucket.find({ _id: new mongoose.Types.ObjectId(fileId) }).next();
+    if (!file) {
+      return res.status(404).json({ success: false, message: "Image not found" });
+    }
+
+    // Cache the metadata (not the image data itself)
+    const metaData = {
+      contentType: file.contentType,
+      filename: file.filename,
+      uploadDate: file.uploadDate,
+      length: file.length
+    };
+    await setToCache(cacheKey, metaData, IMAGE_META_TTL);
+    console.log(`[Cache] Cached metadata for image ${fileId}`);
+
+    res.set('Content-Type', file.contentType || 'image/jpeg');
+    const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(fileId));
+    downloadStream.pipe(res);
+  } catch (error) {
+    console.error("Error fetching image:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch image" });
+  }
+});
+
+// Bulk images metadata route with Redis caching
 router.get('/images/bulk', async (req, res) => {
-    try {
-      const { fileIds } = req.query; // Expects ?fileIds=id1,id2,id3
-      console.log("fileIds",fileIds)
-      const ids = fileIds.split(',').map(id => new mongoose.Types.ObjectId(id));
-  
-      const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
-      const files = await bucket.find({ _id: { $in: ids } }).toArray();
-  
-      // Return metadata (frontend will fetch each image separately)
-      res.status(200).json({
+  try {
+    const { fileIds } = req.query;
+    const ids = fileIds.split(',').map(id => new mongoose.Types.ObjectId(id));
+    const cacheKey = `images:bulk:${fileIds.replace(/,/g, ':')}`;
+
+    // Try cache first
+    const cachedResult = await getFromCache(cacheKey);
+    if (cachedResult) {
+      console.log(`[Cache] Serving bulk images metadata from cache`);
+      return res.status(200).json({
         success: true,
-        data: files.map(file => ({
-          fileId: file._id,
-          contentType: file.contentType,
-          filename: file.filename
-        }))
+        data: cachedResult,
+        fromCache: true
       });
-    } catch (error) {
-      res.status(500).json({ success: false, message: "Failed to fetch images" });
     }
-  });
+
+    const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+    const files = await bucket.find({ _id: { $in: ids } }).toArray();
+
+    const result = files.map(file => ({
+      fileId: file._id,
+      contentType: file.contentType,
+      filename: file.filename,
+      uploadDate: file.uploadDate,
+      length: file.length
+    }));
+
+    // Cache the bulk metadata
+    await setToCache(cacheKey, result, IMAGE_META_TTL);
+    console.log(`[Cache] Cached bulk metadata for ${fileIds}`);
+
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error("Error fetching bulk images:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch images" });
+  }
+});
+
 module.exports = router;

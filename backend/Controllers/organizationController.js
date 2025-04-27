@@ -4,7 +4,6 @@ const { sendResponse } = require('../utils/responseHandler');
 // Admin-only operations
 exports.createOrganization = async (req, res) => {
     try {
-        console.log("req.body",req.body)
       // Validate required fields
       if (!req.body.name) {
         return sendResponse(res, 400, 'Organization name is required', null);

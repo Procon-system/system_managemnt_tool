@@ -1,7 +1,25 @@
 const resourceTypeService = require('../Services/resourceTypeService');
 const { sendResponse } = require('../utils/responseHandler');
+const { 
+  getFromCache, 
+  setToCache, 
+  deleteFromCache, 
+  clearPattern,
+  generateCacheKey,
+  ogs 
+} = require('../redisUtils');
+
+let io; // Socket.io instance
+
 exports.setResourceTypeSocketIoInstance = (ioInstance) => {
   io = ioInstance;
+};
+
+// Cache TTL configuration
+const CACHE_TTL = {
+  SHORT: 300, // 5 minutes
+  LONG: 3600, // 1 hour
+  DEFAULT: 1800 // 30 minutes
 };
 
 exports.createResourceType = async (req, res) => {
@@ -20,6 +38,9 @@ exports.createResourceType = async (req, res) => {
     }
 
     const resourceType = await resourceTypeService.createResourceType(typeData);
+     // Clear relevant cache entries
+     await clearPattern(`resource_types:org:${req.user.organization}*`);
+     console.log(`[Cache] Cleared resource types cache for org ${req.user.organization}`);
     
     // Emit socket event to organization room
     if (io) {
@@ -38,11 +59,23 @@ exports.createResourceType = async (req, res) => {
   }
 };
 exports.getResourceTypes = async (req, res) => {
-  try {
-    console.log(" req.user.organization", req.user.organization)
+  try { 
+    const orgId = req.user.organization;
+    const cacheKey = generateCacheKey('resource_types', orgId);
+
+    // Try cache first
+    const cachedData = await getFromCache(cacheKey);
+    if (cachedData) {
+      console.log(`[Cache] Hit for resource types in org ${orgId}`);
+      return sendResponse(res, 200, 'Resource types retrieved from cache', cachedData);
+    }
     const resourceTypes = await resourceTypeService.getResourceTypesByOrganization(
       req.user.organization
     );
+    // Cache the results
+    await setToCache(cacheKey, resourceTypes, CACHE_TTL.LIST);
+    console.log(`[Cache] Set resource types cache for org ${orgId}`);
+    
     sendResponse(res, 200, 'Resource types retrieved successfully', resourceTypes);
   } catch (error) {
     sendResponse(res, 500, error.message, null);
@@ -51,14 +84,26 @@ exports.getResourceTypes = async (req, res) => {
 
 exports.getResourceTypeById = async (req, res) => {
   try {
-    const resourceType = await resourceTypeService.getResourceTypeById(
-      req.params.id,
-      req.user.organization
-    );
+    const orgId = req.user.organization;
+    const typeId = req.params.id;
+    const cacheKey = generateCacheKey('resource_type', orgId, { id: typeId });
+
+    // Try cache first
+    const cachedType = await getFromCache(cacheKey);
+    if (cachedType) {
+      console.log(`[Cache] Hit for resource type ${typeId}`);
+      return sendResponse(res, 200, 'Resource type retrieved from cache', cachedType);
+    }
+
+    const resourceType = await resourceTypeService.getResourceTypeById(typeId, orgId);
     
     if (!resourceType) {
       return sendResponse(res, 404, 'Resource type not found', null);
     }
+    
+    // Cache the result
+    await setToCache(cacheKey, resourceType, CACHE_TTL.DETAIL);
+    console.log(`[Cache] Set cache for resource type ${typeId}`);
     
     sendResponse(res, 200, 'Resource type retrieved successfully', resourceType);
   } catch (error) {
@@ -66,26 +111,43 @@ exports.getResourceTypeById = async (req, res) => {
   }
 };
 
+
 exports.updateResourceType = async (req, res) => {
   try {
+    const orgId = req.user.organization;
+    const typeId = req.params.id;
+
     const updatedType = await resourceTypeService.updateResourceType(
-      req.params.id,
+      typeId,
       req.body,
-      req.user.organization
+      orgId
     );
+    
+    // Clear relevant cache entries
+    await Promise.all([
+      deleteFromCache(generateCacheKey('resource_type', orgId, { id: typeId })),
+      clearPattern(`resource_types:org:${orgId}*`)
+    ]);
+    console.log(`[Cache] Cleared cache for updated resource type ${typeId}`);
     
     sendResponse(res, 200, 'Resource type updated successfully', updatedType);
   } catch (error) {
     sendResponse(res, 500, error.message, null);
   }
 };
-
 exports.deleteResourceType = async (req, res) => {
   try {
-    await resourceTypeService.deleteResourceType(
-      req.params.id,
-      req.user.organization
-    );
+    const orgId = req.user.organization;
+    const typeId = req.params.id;
+
+    await resourceTypeService.deleteResourceType(typeId, orgId);
+    
+    // Clear relevant cache entries
+    await Promise.all([
+      deleteFromCache(generateCacheKey('resource_type', orgId, { id: typeId })),
+      clearPattern(`resource_types:org:${orgId}*`)
+    ]);
+    console.log(`[Cache] Cleared cache for deleted resource type ${typeId}`);
     
     sendResponse(res, 200, 'Resource type deleted successfully', null);
   } catch (error) {

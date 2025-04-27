@@ -231,7 +231,7 @@ exports.getTasksByOrganization = async (organizationId, options = {}) => {
 };
 
 exports.filterTasksByOrganization = async (organizationId, options = {}) => {
-  const { page = 1, limit = 10, filters = {} } = options;
+  const { page = 1, limit = 100, filters = {} } = options;
  
   // Base query with organization
   const query = { organization: new mongoose.Types.ObjectId(organizationId) };
@@ -242,19 +242,39 @@ exports.filterTasksByOrganization = async (organizationId, options = {}) => {
     if (filters._id) {
       query._id = new mongoose.Types.ObjectId(filters._id);
     }
+    // if (filters.resource) {
+    //   // Handle both single resource and array of resources
+    //   const resourceIds = Array.isArray(filters.resource) 
+    //     ? filters.resource.map(id => new mongoose.Types.ObjectId(id))
+    //     : [new mongoose.Types.ObjectId(filters.resource)];
+    
+    //   query.resources = {
+    //     $elemMatch: {
+    //       resource: { $in: resourceIds }
+    //     }
+    //   };
+    // }
     if (filters.resource) {
-      // Handle both single resource and array of resources
       const resourceIds = Array.isArray(filters.resource) 
         ? filters.resource.map(id => new mongoose.Types.ObjectId(id))
         : [new mongoose.Types.ObjectId(filters.resource)];
-    
-      query.resources = {
-        $elemMatch: {
-          resource: { $in: resourceIds }
+  
+      // For intersection (ALL resources must exist)
+      query.$and = resourceIds.map(resourceId => ({
+        resources: {
+          $elemMatch: {
+            resource: resourceId,
+            // Optional additional conditions
+            ...(filters.resourceRelationship && { 
+              relationshipType: filters.resourceRelationship 
+            }),
+            ...(filters.hasRequiredResources !== undefined && { 
+              required: filters.hasRequiredResources 
+            })
+          }
         }
-      };
+      }));
     }
-    
     // For combined resource filters with multiple resources
     if (filters.resource && (filters.resourceRelationship || filters.hasRequiredResources !== undefined)) {
       const resourceConditions = {
