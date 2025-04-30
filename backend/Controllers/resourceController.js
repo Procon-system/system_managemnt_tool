@@ -65,8 +65,8 @@ exports.createResource = async (req, res) => {
     const resource = await resourceService.createResource(resourceData);
 
     // 2. Cache invalidation (fire-and-forget with error handling)
-    invalidateResourceCaches(orgId, null, type)
-      .catch(err => console.error('Cache invalidation error:', err));
+    // invalidateResourceCaches(orgId, null, type)
+    //   .catch(err => console.error('Cache invalidation error:', err));
 
     // 3. Send response immediately
     sendResponse(res, 201, 'Resource created successfully', resource);
@@ -85,19 +85,19 @@ exports.getResourceById = async (req, res) => {
   try {
     const resourceId = req.params.id;
     const orgId = req.user.organization;
-    const cacheKey = generateCacheKey('resource', orgId, { id: resourceId });
+    // const cacheKey = generateCacheKey('resource', orgId, { id: resourceId });
 
-    const cachedResource = await getFromCache(cacheKey);
-    if (cachedResource) {
-      console.log(`[Cache] Hit for resource ${resourceId}`);
-      return sendResponse(res, 200, 'Resource retrieved from cache', cachedResource);
-    }
+    // const cachedResource = await getFromCache(cacheKey);
+    // if (cachedResource) {
+    //   console.log(`[Cache] Hit for resource ${resourceId}`);
+    //   return sendResponse(res, 200, 'Resource retrieved from cache', cachedResource);
+    // }
 
     const resource = await resourceService.getResourceById(resourceId, orgId);
     if (!resource) return sendResponse(res, 404, 'Resource not found', null);
 
-    await setToCache(cacheKey, resource, CACHE_TTL.RESOURCE);
-    console.log(`[Cache] Set cache for resource ${resourceId}`);
+    // await setToCache(cacheKey, resource, CACHE_TTL.RESOURCE);
+    // console.log(`[Cache] Set cache for resource ${resourceId}`);
 
     sendResponse(res, 200, 'Resource retrieved successfully', resource);
   } catch (error) {
@@ -111,18 +111,18 @@ exports.getResourcesByType = async (req, res) => {
     const orgId = req.user.organization;
     const { page = 1, limit = 10 } = req.query;
 
-    const cacheKey = generateCacheKey('resource:type', orgId, { typeId, page, limit });
+    // const cacheKey = generateCacheKey('resource:type', orgId, { typeId, page, limit });
 
-    const cachedResources = await getFromCache(cacheKey);
-    if (cachedResources) {
-      console.log(`[Cache] Hit for resources of type ${typeId}, page ${page}`);
-      return sendResponse(res, 200, 'Resources retrieved from cache', cachedResources);
-    }
+    // const cachedResources = await getFromCache(cacheKey);
+    // if (cachedResources) {
+    //   console.log(`[Cache] Hit for resources of type ${typeId}, page ${page}`);
+    //   return sendResponse(res, 200, 'Resources retrieved from cache', cachedResources);
+    // }
 
     const resources = await resourceService.getResourcesByType(typeId, orgId, { page, limit });
 
-    await setToCache(cacheKey, resources, CACHE_TTL.RESOURCE_LIST);
-    console.log(`[Cache] Set cache for resources of type ${typeId}, page ${page}`);
+    // await setToCache(cacheKey, resources, CACHE_TTL.RESOURCE_LIST);
+    // console.log(`[Cache] Set cache for resources of type ${typeId}, page ${page}`);
 
     sendResponse(res, 200, 'Resources retrieved successfully', resources);
   } catch (error) {
@@ -140,7 +140,7 @@ exports.updateResource = async (req, res) => {
 
     const updatedResource = await resourceService.updateResource(resourceId, req.body, orgId);
 
-    await invalidateResourceCaches(orgId, resourceId, resource.type);
+    // await invalidateResourceCaches(orgId, resourceId, resource.type);
     sendResponse(res, 200, 'Resource updated successfully', updatedResource);
   } catch (error) {
     sendResponse(res, 500, error.message, null);
@@ -157,7 +157,7 @@ exports.deleteResource = async (req, res) => {
 
     await resourceService.deleteResource(resourceId, orgId);
 
-    await invalidateResourceCaches(orgId, resourceId, resource.type);
+    // await invalidateResourceCaches(orgId, resourceId, resource.type);
     sendResponse(res, 200, 'Resource deleted successfully', null);
   } catch (error) {
     sendResponse(res, 500, error.message, null);
