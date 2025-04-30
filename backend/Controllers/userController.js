@@ -103,22 +103,22 @@ class UserController {
       const cacheKey = generateCacheKey('users', req.user.organization);
       
       // Try cache first
-      const cachedUsers = await getFromCache(cacheKey);
-      if (cachedUsers) {
-        console.log(`[Cache] Returning users from cache for org ${req.user.organization}`);
-        return res.status(200).json({
-          success: true,
-          count: cachedUsers.length,
-          data: cachedUsers,
-          fromCache: true
-        });
-      }
+      // const cachedUsers = await getFromCache(cacheKey);
+      // if (cachedUsers) {
+      //   console.log(`[Cache] Returning users from cache for org ${req.user.organization}`);
+      //   return res.status(200).json({
+      //     success: true,
+      //     count: cachedUsers.length,
+      //     data: cachedUsers,
+      //     fromCache: true
+      //   });
+      // }
 
       const users = await userService.getAllUsers(req.user);
       
       // Cache the results
-      await setToCache(cacheKey, users, CACHE_TTL.USER_LIST);
-      console.log(`[Cache] Cached users for org ${req.user.organization}`);
+      // await setToCache(cacheKey, users, CACHE_TTL.USER_LIST);
+      // console.log(`[Cache] Cached users for org ${req.user.organization}`);
 
       res.status(200).json({
         success: true,
@@ -136,21 +136,21 @@ class UserController {
       const cacheKey = generateCacheKey('user', req.user.organization, { id: req.params.id });
       
       // Try cache first
-      const cachedUser = await getFromCache(cacheKey);
-      if (cachedUser) {
-        console.log(`[Cache] Returning user ${req.params.id} from cache`);
-        return res.status(200).json({
-          success: true,
-          data: cachedUser,
-          fromCache: true
-        });
-      }
+      // const cachedUser = await getFromCache(cacheKey);
+      // if (cachedUser) {
+      //   console.log(`[Cache] Returning user ${req.params.id} from cache`);
+      //   return res.status(200).json({
+      //     success: true,
+      //     data: cachedUser,
+      //     fromCache: true
+      //   });
+      // }
 
       const user = await userService.getUser(req.params.id, req.user);
       
       // Cache the result
-      await setToCache(cacheKey, user, CACHE_TTL.USER);
-      console.log(`[Cache] Cached user ${req.params.id}`);
+      // await setToCache(cacheKey, user, CACHE_TTL.USER);
+      // console.log(`[Cache] Cached user ${req.params.id}`);
 
       res.status(200).json({
         success: true,
@@ -171,11 +171,11 @@ class UserController {
       );
       
       // Clear relevant cache entries
-      await Promise.all([
-        deleteFromCache(generateCacheKey('user', req.user.organization, { id: req.params.id })),
-        clearPattern(`users:org:${req.user.organization}*`)
-      ]);
-      console.log(`[Cache] Cleared cache for updated user ${req.params.id}`);
+      // await Promise.all([
+      //   deleteFromCache(generateCacheKey('user', req.user.organization, { id: req.params.id })),
+      //   clearPattern(`users:org:${req.user.organization}*`)
+      // ]);
+      // console.log(`[Cache] Cleared cache for updated user ${req.params.id}`);
 
       res.status(200).json({
         success: true,
@@ -197,11 +197,11 @@ class UserController {
       );
       
       // Clear relevant cache entries
-      await Promise.all([
-        deleteFromCache(generateCacheKey('user', req.user.organization, { id: req.params.id })),
-        clearPattern(`users:org:${req.user.organization}*`)
-      ]);
-      console.log(`[Cache] Cleared cache for admin-updated user ${req.params.id}`);
+      // await Promise.all([
+      //   deleteFromCache(generateCacheKey('user', req.user.organization, { id: req.params.id })),
+      //   clearPattern(`users:org:${req.user.organization}*`)
+      // ]);
+      // console.log(`[Cache] Cleared cache for admin-updated user ${req.params.id}`);
 
       res.status(200).json({
         success: true,
@@ -219,11 +219,11 @@ class UserController {
       await userService.deleteUser(req.params.id, req.user);
       
       // Clear relevant cache entries
-      await Promise.all([
-        deleteFromCache(generateCacheKey('user', req.user.organization, { id: req.params.id })),
-        clearPattern(`users:org:${req.user.organization}*`)
-      ]);
-      console.log(`[Cache] Cleared cache for deleted user ${req.params.id}`);
+      // await Promise.all([
+      //   deleteFromCache(generateCacheKey('user', req.user.organization, { id: req.params.id })),
+      //   clearPattern(`users:org:${req.user.organization}*`)
+      // ]);
+      // console.log(`[Cache] Cleared cache for deleted user ${req.params.id}`);
 
       res.status(200).json({
         success: true,

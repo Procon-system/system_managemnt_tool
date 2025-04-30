@@ -77,8 +77,8 @@ exports.createResourceType = async (req, res) => {
     const resourceType = await resourceTypeService.createResourceType(typeData);
 
     // Fire-and-forget cache invalidation
-    // invalidateResourceTypeCaches(orgId, resourceType._id)
-    //   .catch(err => console.error('Cache invalidation error:', err));
+    invalidateResourceTypeCaches(orgId, resourceType._id)
+      .catch(err => console.error('Cache invalidation error:', err));
 
     // Socket notification
     if (io) {
@@ -101,17 +101,17 @@ exports.createResourceType = async (req, res) => {
 exports.getResourceTypes = async (req, res) => {
   try {
     const orgId = req.user.organization;
-    // const cacheKey = generateCacheKey('resource_types', orgId);
+    const cacheKey = generateCacheKey('resource_types', orgId);
 
-    // const cachedData = await getFromCache(cacheKey);
-    // if (cachedData) {
-    //   console.log(`[Cache] Hit: ${cacheKey}`);
-    //   return sendResponse(res, 200, 'Resource types retrieved from cache', cachedData);
-    // }
+    const cachedData = await getFromCache(cacheKey);
+    if (cachedData) {
+      console.log(`[Cache] Hit: ${cacheKey}`);
+      return sendResponse(res, 200, 'Resource types retrieved from cache', cachedData);
+    }
 
     const resourceTypes = await resourceTypeService.getResourceTypesByOrganization(orgId);
-    // await setToCache(cacheKey, resourceTypes, CACHE_TTL.LIST);
-    // console.log(`[Cache] Set: ${cacheKey}`);
+    await setToCache(cacheKey, resourceTypes, CACHE_TTL.LIST);
+    console.log(`[Cache] Set: ${cacheKey}`);
 
     sendResponse(res, 200, 'Resource types retrieved successfully', resourceTypes);
   } catch (error) {
@@ -123,19 +123,19 @@ exports.getResourceTypeById = async (req, res) => {
   try {
     const orgId = req.user.organization;
     const typeId = req.params.id;
-    // const cacheKey = generateCacheKey('resource_type', orgId, { id: typeId });
+    const cacheKey = generateCacheKey('resource_type', orgId, { id: typeId });
 
-    // const cachedType = await getFromCache(cacheKey);
-    // if (cachedType) {
-    //   console.log(`[Cache] Hit: ${cacheKey}`);
-    //   return sendResponse(res, 200, 'Resource type retrieved from cache', cachedType);
-    // }
+    const cachedType = await getFromCache(cacheKey);
+    if (cachedType) {
+      console.log(`[Cache] Hit: ${cacheKey}`);
+      return sendResponse(res, 200, 'Resource type retrieved from cache', cachedType);
+    }
 
     const resourceType = await resourceTypeService.getResourceTypeById(typeId, orgId);
     if (!resourceType) return sendResponse(res, 404, 'Resource type not found', null);
 
-    // await setToCache(cacheKey, resourceType, CACHE_TTL.DETAIL);
-    // console.log(`[Cache] Set: ${cacheKey}`);
+    await setToCache(cacheKey, resourceType, CACHE_TTL.DETAIL);
+    console.log(`[Cache] Set: ${cacheKey}`);
 
     sendResponse(res, 200, 'Resource type retrieved successfully', resourceType);
   } catch (error) {
@@ -149,7 +149,7 @@ exports.updateResourceType = async (req, res) => {
     const typeId = req.params.id;
 
     const updatedType = await resourceTypeService.updateResourceType(typeId, req.body, orgId);
-    // await invalidateResourceTypeCaches(orgId, typeId);
+    await invalidateResourceTypeCaches(orgId, typeId);
 
     sendResponse(res, 200, 'Resource type updated successfully', updatedType);
   } catch (error) {
@@ -163,7 +163,7 @@ exports.deleteResourceType = async (req, res) => {
     const typeId = req.params.id;
 
     await resourceTypeService.deleteResourceType(typeId, orgId);
-    // await invalidateResourceTypeCaches(orgId, typeId);
+    await invalidateResourceTypeCaches(orgId, typeId);
 
     sendResponse(res, 200, 'Resource type deleted successfully', null);
   } catch (error) {

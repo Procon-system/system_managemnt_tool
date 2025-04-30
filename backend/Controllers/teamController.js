@@ -135,8 +135,8 @@ exports.createTeam = async (req, res) => {
     const team = await teamService.createTeam(teamData);
     
     // Clear relevant cache entries
-    await clearPattern(`teams:org:${req.user.organization}*`);
-    console.log(`[Cache] Cleared teams cache for org ${req.user.organization}`);
+    // await clearPattern(`teams:org:${req.user.organization}*`);
+    // console.log(`[Cache] Cleared teams cache for org ${req.user.organization}`);
 
     sendResponse(res, 201, 'Team created successfully', team);
   } catch (error) {
@@ -150,18 +150,18 @@ exports.getTeam = async (req, res) => {
     const orgId = req.user.organization;
     const cacheKey = generateCacheKey('team', orgId, { id: teamId });
 
-    // Try cache first
-    const cachedTeam = await getFromCache(cacheKey);
-    if (cachedTeam) {
-      console.log(`[Cache] Hit for team ${teamId}`);
-      return sendResponse(res, 200, 'Team retrieved from cache', cachedTeam);
-    }
+    // // Try cache first
+    // const cachedTeam = await getFromCache(cacheKey);
+    // if (cachedTeam) {
+    //   console.log(`[Cache] Hit for team ${teamId}`);
+    //   return sendResponse(res, 200, 'Team retrieved from cache', cachedTeam);
+    // }
 
     const team = await teamService.getTeamById(teamId, orgId);
     
     // Cache the result
-    await setToCache(cacheKey, team, CACHE_TTL.TEAM);
-    console.log(`[Cache] Set cache for team ${teamId}`);
+    // await setToCache(cacheKey, team, CACHE_TTL.TEAM);
+    // console.log(`[Cache] Set cache for team ${teamId}`);
     
     sendResponse(res, 200, 'Team retrieved successfully', team);
   } catch (error) {
@@ -176,17 +176,17 @@ exports.getOrganizationTeams = async (req, res) => {
     const cacheKey = generateCacheKey('teams', orgId, { page, limit, search });
 
     // Try cache first
-    const cachedTeams = await getFromCache(cacheKey);
-    if (cachedTeams) {
-      console.log(`[Cache] Hit for teams in org ${orgId}, page ${page}`);
-      return sendResponse(res, 200, 'Teams retrieved from cache', cachedTeams);
-    }
+    // const cachedTeams = await getFromCache(cacheKey);
+    // if (cachedTeams) {
+    //   console.log(`[Cache] Hit for teams in org ${orgId}, page ${page}`);
+    //   return sendResponse(res, 200, 'Teams retrieved from cache', cachedTeams);
+    // }
 
     const teams = await teamService.getTeamsByOrganization(orgId, { page, limit, search });
     
     // Cache the results
-    await setToCache(cacheKey, teams, CACHE_TTL.TEAM_LIST);
-    console.log(`[Cache] Set cache for teams in org ${orgId}, page ${page}`);
+    // await setToCache(cacheKey, teams, CACHE_TTL.TEAM_LIST);
+    // console.log(`[Cache] Set cache for teams in org ${orgId}, page ${page}`);
     
     sendResponse(res, 200, 'Teams retrieved successfully', teams);
   } catch (error) {
@@ -202,11 +202,11 @@ exports.updateTeam = async (req, res) => {
     const team = await teamService.updateTeam(teamId, req.body, orgId);
     
     // Clear relevant cache entries
-    await Promise.all([
-      deleteFromCache(generateCacheKey('team', orgId, { id: teamId })),
-      clearPattern(`teams:org:${orgId}*`)
-    ]);
-    console.log(`[Cache] Cleared cache for updated team ${teamId}`);
+    // await Promise.all([
+    //   deleteFromCache(generateCacheKey('team', orgId, { id: teamId })),
+    //   clearPattern(`teams:org:${orgId}*`)
+    // ]);
+    // console.log(`[Cache] Cleared cache for updated team ${teamId}`);
 
     sendResponse(res, 200, 'Team updated successfully', team);
   } catch (error) {
@@ -222,11 +222,11 @@ exports.deleteTeam = async (req, res) => {
     await teamService.deleteTeam(teamId, orgId);
     
     // Clear relevant cache entries
-    await Promise.all([
-      deleteFromCache(generateCacheKey('team', orgId, { id: teamId })),
-      clearPattern(`teams:org:${orgId}*`)
-    ]);
-    console.log(`[Cache] Cleared cache for deleted team ${teamId}`);
+    // await Promise.all([
+    //   deleteFromCache(generateCacheKey('team', orgId, { id: teamId })),
+    //   clearPattern(`teams:org:${orgId}*`)
+    // ]);
+    // console.log(`[Cache] Cleared cache for deleted team ${teamId}`);
 
     sendResponse(res, 200, 'Team deleted successfully', null);
   } catch (error) {
@@ -247,11 +247,11 @@ exports.addMember = async (req, res) => {
     );
     
     // Clear relevant cache entries
-    await Promise.all([
-      deleteFromCache(generateCacheKey('team', orgId, { id: teamId })),
-      clearPattern(`teams:org:${orgId}*`)
-    ]);
-    console.log(`[Cache] Cleared cache for team ${teamId} after adding member`);
+    // await Promise.all([
+    //   deleteFromCache(generateCacheKey('team', orgId, { id: teamId })),
+    //   clearPattern(`teams:org:${orgId}*`)
+    // ]);
+    // console.log(`[Cache] Cleared cache for team ${teamId} after adding member`);
 
     sendResponse(res, 200, 'Member added successfully', team);
   } catch (error) {

@@ -5,7 +5,7 @@ const getColorForStatus =require('../utils/getColorForStatus');
 const uploadFileToGridFS = require('../utils/uploadImage'); // Import the upload function
 const mongoose = require('mongoose');
 const {getFromCache, setToCache, deleteFromCache, 
-  clearPattern,generateCacheKey,cachePaginatedResults } =require('../redisUtils');
+  clearPattern,generateCacheKey,cachePaginatedResults,invalidateTaskCaches } =require('../redisUtils');
 const cleanObjectId = (id) => {
   if (!id) return null;
   const possibleIds = id.split('_').filter(mongoose.Types.ObjectId.isValid);
@@ -67,17 +67,10 @@ exports.createTask = async (req, res) => {
       console.log("Creating single task");
       createdTask = await taskService.createTask(taskData);
     }
-    // Clear relevant cache entries
-    await Promise.all([
-      clearPattern(`tasks:org:${req.user.organization}:*`),
-      clearPattern(`user_tasks:${req.user._id}:*`),
-      // Clear image cache if task contains images
-      ...(createdTask.images?.length ? 
-        createdTask.images.map(imageId => 
-          deleteFromCache(`image:meta:${imageId}`)
-        ) : []
-      )
-    ]);
+    // Fire-and-forget cache invalidation
+  // invalidateTaskCaches(task.organization, task._id, task.createdBy)
+  // .catch(err => console.error('Background cache invalidation failed:', err));
+
     
     // Ensure we're sending a response
     return res.status(201).json({
@@ -183,23 +176,23 @@ updateData.resources = assignedResources.resources
       req.user.organization
     );
      // Clear cache for this task and related lists
-     await Promise.all([
-      deleteFromCache(`task:${taskId}:org:${req.user.organization}`),
-      clearPattern(`tasks:org:${req.user.organization}:*`),
-      clearPattern(`user_tasks:*:${taskId}`),
-      // Clear image cache for any modified images
-      ...(updatedTask.images?.length ? 
-        updatedTask.images.map(imageId => 
-          deleteFromCache(`image:meta:${imageId}`)
-        ) : []
-      ),
+    //  await Promise.all([
+    //   deleteFromCache(`task:${taskId}:org:${req.user.organization}`),
+    //   clearPattern(`tasks:org:${req.user.organization}:*`),
+    //   clearPattern(`user_tasks:*:${taskId}`),
+    //   // Clear image cache for any modified images
+    //   ...(updatedTask.images?.length ? 
+    //     updatedTask.images.map(imageId => 
+    //       deleteFromCache(`image:meta:${imageId}`)
+    //     ) : []
+    //   ),
       // Clear cache for any removed images
-      ...(req.body.removedImages?.length ?
-        req.body.removedImages.map(imageId =>
-          deleteFromCache(`image:meta:${imageId}`)
-        ) : []
-      )
-    ]);
+    //   ...(req.body.removedImages?.length ?
+    //     req.body.removedImages.map(imageId =>
+    //       deleteFromCache(`image:meta:${imageId}`)
+    //     ) : []
+    //   )
+    // ]);
     const responseTask = {
       ...updatedTask.toObject(), // Convert Mongoose document to plain object
       // Ensure all necessary fields are included
@@ -249,18 +242,18 @@ exports.deleteTask = async (req, res) => {
   try {
     await taskService.deleteTask(req.params.id, req.user.organization);
         // Clear all relevant cache entries
-        await Promise.all([
-          deleteFromCache(`task:${taskId}:org:${orgId}`),
-          clearPattern(`tasks:org:${orgId}:*`),
-          clearPattern(`user_tasks:*:${taskId}`),
-          clearPattern(`filtered_tasks:org:${orgId}:*`),
-          // Clear image cache for any task images
-          ...(task?.images?.length ? 
-            task.images.map(imageId => 
-              deleteFromCache(`image:meta:${imageId}`)
-            ) : []
-          )
-        ]);
+        // await Promise.all([
+        //   deleteFromCache(`task:${taskId}:org:${orgId}`),
+        //   clearPattern(`tasks:org:${orgId}:*`),
+        //   clearPattern(`user_tasks:*:${taskId}`),
+        //   clearPattern(`filtered_tasks:org:${orgId}:*`),
+        //   // Clear image cache for any task images
+        //   ...(task?.images?.length ? 
+        //     task.images.map(imageId => 
+        //       deleteFromCache(`image:meta:${imageId}`)
+        //     ) : []
+        //   )
+        // ]);
     sendResponse(res, 200, 'Task deleted successfully', null);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
@@ -274,10 +267,10 @@ exports.getTasksByOrganization = async (req, res) => {
     const cacheKey = generateCacheKey('tasks', orgId, { page, limit });
     
     // Try cache first
-    const cachedTasks = await getFromCache(cacheKey);
-    if (cachedTasks) {
-      return sendResponse(res, 200, 'Tasks retrieved from cache', cachedTasks);
-    }
+    // const cachedTasks = await getFromCache(cacheKey);
+    // if (cachedTasks) {
+    //   return sendResponse(res, 200, 'Tasks retrieved from cache', cachedTasks);
+    // }
     
     const tasks = await taskService.getTasksByOrganization(
       orgId,
@@ -285,7 +278,7 @@ exports.getTasksByOrganization = async (req, res) => {
     );
     
     // Cache the results
-    await cachePaginatedResults(cacheKey, tasks);
+    // await cachePaginatedResults(cacheKey, tasks);
     
     sendResponse(res, 200, 'Tasks retrieved successfully', tasks);
   } catch (error) {
@@ -335,17 +328,17 @@ exports.filterTasksByOrganization = async (req, res) => {
     }
     
     // Generate cache key based on filters and pagination
-    const cacheKey = generateCacheKey('filtered_tasks', orgId, {
-      ...parsedFilters,
-      page,
-      limit
-    });
+    // const cacheKey = generateCacheKey('filtered_tasks', orgId, {
+    //   ...parsedFilters,
+    //   page,
+    //   limit
+    // });
 
     // Try cache first
-    const cachedResults = await getFromCache(cacheKey);
-    if (cachedResults) {
-      return sendResponse(res, 200, 'Filtered tasks retrieved from cache', cachedResults);
-    }
+    // const cachedResults = await getFromCache(cacheKey);
+    // if (cachedResults) {
+    //   return sendResponse(res, 200, 'Filtered tasks retrieved from cache', cachedResults);
+    // }
 
     const result = await taskService.filterTasksByOrganization(
       orgId,
@@ -357,7 +350,7 @@ exports.filterTasksByOrganization = async (req, res) => {
     );
 
     // Cache filtered results with shorter TTL (as filters may change more often)
-    await cachePaginatedResults(cacheKey, result, 60); // 1 minute TTL
+    // await cachePaginatedResults(cacheKey, result, 60); // 1 minute TTL
 
    
     sendResponse(res, 200, 'Tasks filtered successfully', result);
