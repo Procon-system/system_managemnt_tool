@@ -7,7 +7,7 @@ const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
   const dispatch = useDispatch();
   const { register, handleSubmit, formState: { errors }, setError } = useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+    console.log("reresourceType",resourceType);
   const onSubmit = async (formData) => {
     setIsSubmitting(true);
     try {
@@ -55,8 +55,6 @@ const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
         }
       };
 
-      console.log('Submitting payload:', payload);
-      
       await dispatch(createResource(payload)).unwrap();
       onSuccess();
     } catch (error) {

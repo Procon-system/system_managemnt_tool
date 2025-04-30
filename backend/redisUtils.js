@@ -21,22 +21,39 @@ const setToCache = async (key, data, ttl = 3600) => {
 
 const deleteFromCache = async (key) => {
   try {
+    console.log(`[Cache] Deleting key: ${key}`);
     await redisClient.del(key);
   } catch (error) {
     console.error('Redis delete error:', error);
   }
 };
-
 const clearPattern = async (pattern) => {
   try {
-    const keys = await redisClient.keys(pattern);
-    if (keys.length) {
-      await redisClient.del(keys);
+    let cursor = '0';
+    let totalDeleted = 0;
+
+    do {
+      const { cursor: nextCursor, keys } = await redisClient.scan(cursor, {
+        MATCH: pattern,
+        COUNT: 100
+      });
+      cursor = nextCursor;
+
+      if (keys.length) {
+        console.log(`[Cache] Deleting keys for pattern "${pattern}":`, keys);
+        await redisClient.del(...keys);
+        totalDeleted += keys.length;
+      }
+    } while (cursor !== '0');
+
+    if (totalDeleted === 0) {
+      console.warn(`[Cache] No keys matched pattern "${pattern}"`);
     }
   } catch (error) {
     console.error('Redis clear pattern error:', error);
   }
 };
+
 // Add to redisUtils.js
 const generateCacheKey = (prefix, orgId, additionalParams = {}) => {
     const paramsString = Object.entries(additionalParams)

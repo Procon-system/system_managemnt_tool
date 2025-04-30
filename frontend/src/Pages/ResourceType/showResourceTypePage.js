@@ -6,6 +6,7 @@ import {
   deleteResourceType,
   resetResourceTypeState,
   resourceTypeDeleted,
+  fetchResourceTypes,
   addResourceTypeFromSocket
 } from '../../features/resourceTypeSlice';
 import { io } from 'socket.io-client';

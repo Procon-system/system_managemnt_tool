@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import ResourceEditModal from './resourceEditModal'; // We'll create this component
 
+import { fetchResourceTypes } from '../../features/resourceTypeSlice'; // Adjust the import path as needed
+import { useDispatch } from 'react-redux';
 const ResourceTable = ({ resources, resourceType, onEdit, onDelete }) => {
   const [selectedResource, setSelectedResource] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-
+  const dispatch = useDispatch();
   // Safely extract the resources array from the response
   const resourcesArray = Array.isArray(resources) 
     ? resources 
@@ -20,7 +22,13 @@ const ResourceTable = ({ resources, resourceType, onEdit, onDelete }) => {
     setShowEditModal(false);
     setSelectedResource(null);
   };
-
+  useEffect(() => {
+    if (!resourceType) {
+      console.log('Resource type missing, attempting refetch...');
+      dispatch(fetchResourceTypes());
+    }
+  }, [resourceType ,dispatch]);
+  
   const handleSave = async (updatedData) => {
     try {
       await onEdit(selectedResource._id, updatedData);

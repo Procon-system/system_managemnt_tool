@@ -55,6 +55,7 @@ const CreateResourceTypePage = ({ onCancel }) => {
     e.preventDefault();
     try {
       await dispatch(createResourceType(resourceType)).unwrap();
+      await new Promise(resolve => setTimeout(resolve, 200));
       navigate('/show-resource-type');
     } catch (error) {
       
