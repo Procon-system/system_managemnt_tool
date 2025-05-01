@@ -1,29 +1,86 @@
+// In your main database (not tenant databases)
+// This model tracks tenant metadata but doesn't contain operational data
 const mongoose = require('mongoose');
-const organizationSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  industry: String,
-  settings: {
-    taskSettings: {
-      defaultStatuses: [String],
-      defaultPriorities: [String],
-      customWorkflows: mongoose.Schema.Types.Mixed
+module.exports = (connection) => {
+  const organizationSchema = new mongoose.Schema({
+    name: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true
     },
-    uiPreferences: mongoose.Schema.Types.Mixed
-  },
-  subscription: {
-    plan: String,
-    expiresAt: Date,
-    features: [String]
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
+    subdomain: {
+      type: String,
+      unique: true,
+      trim: true
+    },
+    status: {
+      type: String,
+      enum: ['active', 'suspended', 'pending'],
+      default: 'pending'
+    },
+    industry: String,
+    contactEmail: {
+      type: String,
+      validate: {
+        validator: function(v) {
+          return /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
+        },
+        message: props => `${props.value} is not a valid email!`
+      }
+    },
+    // Tenant configuration
+    config: {
+      databaseName: {
+        type: String,
+        required: true,
+        unique: true
+      },
+      features: {
+        tasks: { type: Boolean, default: true },
+        resources: { type: Boolean, default: true },
+        teams: { type: Boolean, default: true }
+      }
+    },
+    // Subscription info
+    subscription: {
+      plan: {
+        type: String,
+        enum: ['free', 'basic', 'pro', 'enterprise'],
+        default: 'free'
+      },
+      startsAt: Date,
+      expiresAt: Date,
+      renewalPeriod: {
+        type: String,
+        enum: ['monthly', 'yearly'],
+        default: 'monthly'
+      }
+    },
+    // Usage tracking
+    usage: {
+      users: {
+        current: Number,
+        max: Number
+      },
+      lastActive: Date
+    }
+  }, {
+    timestamps: true,
+    toJSON: {
+      transform: function(doc, ret) {
+        delete ret.__v;
+        return ret;
+      }
+    }
+  });
 
-const Organization = mongoose.model('Organization', organizationSchema);
-module.exports= Organization;
+  // Indexes
+  organizationSchema.index({ name: 1 });
+  organizationSchema.index({ subdomain: 1 }, { unique: true });
+  organizationSchema.index({ status: 1 });
+  organizationSchema.index({ 'subscription.plan': 1 });
+  organizationSchema.index({ 'subscription.expiresAt': 1 });
+
+  return connection.model('Organization', organizationSchema);
+};

@@ -1,38 +1,50 @@
 const mongoose = require('mongoose');
-const resourceSchema = new mongoose.Schema({
-  type: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'ResourceType',
-    required: true
-  },
-  organization: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Organization',
-    required: true
-  },
-  displayName: {
-    type: String,
-    required: false
-  },
-  fields: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed
-  },
-  status: String,
-  tags: [String],
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  updatedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }
-}, { 
-  timestamps: true,
-  toObject: { virtuals: true },
-  toJSON: { virtuals: true }
-});
+module.exports = (connection) => {
+  const resourceSchema = new mongoose.Schema({
+    type: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ResourceType',  // Reference within same tenant
+      required: true
+    },
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: true
+    },
+    displayName: {
+      type: String,
+      required: false
+    },
+    fields: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed
+    },
+    status: String,
+    tags: [String],
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'  // Reference within same tenant
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'  // Reference within same tenant
+    }
+  }, { 
+    timestamps: true,
+    toObject: { virtuals: true },
+    toJSON: { 
+      virtuals: true,
+      transform: function(doc, ret) {
+        delete ret.__v;
+        return ret;
+      }
+    }
+  });
 
-const Resource = mongoose.model('Resource', resourceSchema);
-module.exports = Resource;
+  // Indexes
+  resourceSchema.index({ type: 1 });
+  resourceSchema.index({ tags: 1 });
+  resourceSchema.index({ status: 1 });
+
+  return connection.model('Resource', resourceSchema);
+};

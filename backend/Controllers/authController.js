@@ -11,7 +11,7 @@ const User = require('../Models/UserSchema');
 
 const registerController = async (req, res) => {
   try {
-    console.log(req.user)
+    const tenantId = req.user.tenantId;
     const adminUser = await User.findById(req.user._id);
     if (!adminUser || adminUser.access_level !== 5) {
       return res.status(403).json({
@@ -20,9 +20,7 @@ const registerController = async (req, res) => {
       });
     }
     const { email, password, last_name, first_name, personal_number,access_level,
-      // max_permitted_user_amount,
-      // max_permitted_resource_amount,
-      // subscription_type,
+      
       isConfirmed,
       isActive,
     } = req.body;
@@ -35,13 +33,10 @@ const registerController = async (req, res) => {
       organization: adminUser.organization,
       personal_number,
       access_level,
-      // max_permitted_user_amount: max_permitted_user_amount || 1, // Default to 1
-      // max_permitted_resource_amount: max_permitted_resource_amount || 1, // Default to 5
-      // subscription_type: subscription_type || 'free', // Default to free
-      isConfirmed: isConfirmed || false, // Default false for normal users
+          isConfirmed: isConfirmed || false, // Default false for normal users
       isActive: isActive || true, // Default true
 
-    });
+    },tenantId);
 
     res.status(201).json({
       success: true,
@@ -58,16 +53,22 @@ const registerController = async (req, res) => {
     });
   }
 };
+// controllers/authController.js
 const registerAdminController = async (req, res) => {
   try {
-    const { email, password, last_name, first_name, organizationName ,personal_number,access_level,
+    const { 
+      email, 
+      password, 
+      last_name, 
+      first_name, 
+      organizationName,
+      personal_number,
+      access_level,
       max_permitted_user_amount,
       max_permitted_resource_amount,
-      subscription_type,
-      isConfirmed,
-      isActive,
+      subscription_type
     } = req.body;
-console.log("req.body",req.body)
+
     const user = await registerAdminUser({
       email,
       password,
@@ -76,22 +77,37 @@ console.log("req.body",req.body)
       organizationName,
       personal_number,
       access_level,
-      max_permitted_user_amount: max_permitted_user_amount || 1, // Default to 1
-      max_permitted_resource_amount: max_permitted_resource_amount || 1, // Default to 5
-      subscription_type: subscription_type || 'free', // Default to free
-      isConfirmed: isConfirmed || false, // Default false for normal users
-      isActive: isActive || true, // Default true
-
+      max_permitted_user_amount,
+      max_permitted_resource_amount,
+      subscription_type
     });
+
+    // Generate token with tenant context
+    const token = jwt.sign(
+      {
+        _id: user._id,
+        email: user.email,
+        tenantId: user.tenantId,
+        access_level: user.access_level
+      },
+      process.env.JWT_TOKEN_KEY,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
 
     res.status(201).json({
       success: true,
-      data: user,
-      message: "User registered successfully. Please check your email to confirm."
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        access_level: user.access_level
+      },
+      message: "Admin registered successfully"
     });
   } catch (err) {
-    console.error("Registration Error:", err);
-    
+    console.error("Admin Registration Error:", err);
     const statusCode = err.message.includes('already exists') ? 400 : 500;
     res.status(statusCode).json({ 
       success: false,

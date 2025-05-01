@@ -2,7 +2,7 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const User = require('../Models/UserSchema');
+const { getOrganizationDB } = require('../config/dbManager');
 const Organization = require('../Models/OrganizationSchema');
 const {
   sendConfirmationEmail,
@@ -12,11 +12,10 @@ const {
 const { validateRegistration } = require('../Helper/validators');
 
 // Service to register a new user
-const registerUser = async (userData) => {
+const registerUser = async (userData,tenantId) => {
+  const tenantDB = await getOrganizationDB(tenantId);
+  const User = tenantDB.model('User');
   const { email, password, last_name, first_name, organization, personal_number,access_level,
-    // max_permitted_user_amount,
-    //   max_permitted_resource_amount,
-    //   subscription_type,
       isConfirmed,
       isActive,
    } = userData;
@@ -41,15 +40,7 @@ const registerUser = async (userData) => {
     }
   }
 
-  // Find or create organization
-  // let organization = await Organization.findOne({ name: organizationName });
-  // if (!organization) {
-  //   organization = await Organization.create({ name: organizationName });
-  // }
-
-  // Hash password
-  // const hashedPassword = await bcrypt.hash(password, 10);
-
+ 
   // Create new user
   const newUser = new User({
     email,
@@ -59,9 +50,6 @@ const registerUser = async (userData) => {
     access_level: access_level,
     personal_number: personal_number || null,
     organization: organization,
-    // max_permitted_user_amount: userData.max_permitted_user_amount || 1,
-    // max_permitted_resource_amount: userData.max_permitted_resource_amount || 1,
-    // subscription_type: userData.subscription_type || 'free',
     isConfirmed: userData.isConfirmed || false,
     confirmationCode: crypto.randomBytes(20).toString('hex')
   });
@@ -76,58 +64,73 @@ const registerUser = async (userData) => {
     organization: organization
   };
 };
+// services/authService.js
 const registerAdminUser = async (userData) => {
-  const { email, password, last_name, first_name, organizationName, personal_number,access_level,
-    max_permitted_user_amount,
-      max_permitted_resource_amount,
-      subscription_type,
-      isConfirmed,
-      isActive,
-   } = userData;
-  
+  const { 
+    email, 
+    password, 
+    last_name, 
+    first_name, 
+    organizationName,
+    personal_number,
+    access_level = 5, // Default to admin access
+    max_permitted_user_amount = 1,
+    max_permitted_resource_amount = 1,
+    subscription_type = 'free'
+  } = userData;
+
   // Validate input
   const validation = validateRegistration({ email, password });
   if (validation.error) {
     throw new Error(validation.error.details.map(d => d.message).join('<br>'));
   }
 
-  // Check if user exists by email
+  // Check if organization exists in main DB
+  const Organization = mongoose.model('Organization');
+  let organization = await Organization.findOne({ name: organizationName });
+  
+  if (!organization) {
+    // Create new organization in main DB
+    organization = await Organization.create({
+      name: organizationName,
+      subdomain: organizationName.toLowerCase().replace(/\s+/g, '-'),
+      config: {
+        databaseName: `org_${mongoose.Types.ObjectId()}`, // Unique DB name
+        features: {
+          tasks: true,
+          resources: true,
+          teams: true
+        }
+      },
+      subscription: {
+        plan: subscription_type
+      }
+    });
+  }
+
+  // Get tenant-specific DB connection
+  const tenantDB = await getOrganizationDB(organization._id);
+  const User = tenantDB.model('User');
+
+  // Check if user exists by email in tenant DB
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new Error('User already exists with this email');
   }
 
-  // Check if personal_number is provided and unique
-  if (personal_number) {
-    const existingWithPN = await User.findOne({ personal_number });
-    if (existingWithPN) {
-      throw new Error('This personal number is already in use');
-    }
-  }
-
-  // Find or create organization
-  let organization = await Organization.findOne({ name: organizationName });
-  if (!organization) {
-    organization = await Organization.create({ name: organizationName });
-  }
-
-  // Hash password
-  // const hashedPassword = await bcrypt.hash(password, 10);
-
-  // Create new user
+  // Create admin user in tenant DB
   const newUser = new User({
     email,
-    password: password,
+    password,
     last_name,
     first_name,
-    access_level: access_level,
+    access_level,
     personal_number: personal_number || null,
-    organization: organization._id,
-    max_permitted_user_amount: userData.max_permitted_user_amount || 1,
-    max_permitted_resource_amount: userData.max_permitted_resource_amount || 1,
-    subscription_type: userData.subscription_type || 'free',
-    isConfirmed: userData.isConfirmed || false,
-    confirmationCode: crypto.randomBytes(20).toString('hex')
+    max_permitted_user_amount,
+    max_permitted_resource_amount,
+    subscription_type,
+    isConfirmed: true, // Admin users are auto-confirmed
+    isActive: true    // Admin users are auto-activated
   });
 
   await newUser.save();
@@ -137,7 +140,7 @@ const registerAdminUser = async (userData) => {
     email: newUser.email,
     first_name: newUser.first_name,
     last_name: newUser.last_name,
-    organization: organization
+    tenantId: organization._id // Return tenant ID for JWT
   };
 };
 const loginUser = async (email, password, rememberMe) => {

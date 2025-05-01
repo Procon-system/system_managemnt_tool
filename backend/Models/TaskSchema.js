@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
-const taskSchema = new mongoose.Schema({
+module.exports = (connection) => {
+  const taskSchema = new mongoose.Schema({
   // Core Task Metadata
   title: { type: String, required: true, trim: true, maxlength: 120 },
   organization: { 
@@ -124,5 +125,5 @@ taskSchema.index({ tags: 1 });
 //   return this.time.logged / this.time.estimated * 100;
 // });
 
-const Task = mongoose.model('Task', taskSchema);
-module.exports = Task;
+return connection.model('Task', taskSchema);
+};

@@ -1,35 +1,64 @@
 
 const mongoose = require('mongoose');
-const teamSchema = new mongoose.Schema({
-    name: {
-      type: String,
-      required: true
-    },
-    organization: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organization',
-      required: true
-    },
-    members: [{
-      user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-      },
-      role: {
+  module.exports = (connection) => {
+    const teamSchema = new mongoose.Schema({
+      name: {
         type: String,
-        enum: ['member', 'manager', 'admin'],
-        default: 'member'
+        required: true,
+        trim: true
+      },
+      organization: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        required: true
+      },
+      // Removed organization field - implicit by database
+      members: [{
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',  // Reference within same tenant
+          required: true
+        },
+        role: {
+          type: String,
+          enum: ['member', 'manager', 'admin'],
+          default: 'member'
+        }
+      }],
+      permissions: {
+        taskAccess: {
+          type: String,
+          enum: ['read', 'write', 'admin'],
+          default: 'read'
+        },
+        resourceAccess: {
+          type: String,
+          enum: ['read', 'write', 'admin'],
+          default: 'read'
+        }
+      },
+      description: {
+        type: String,
+        trim: true
+      },
+      tags: [{
+        type: String,
+        trim: true
+      }]
+    }, {
+      timestamps: true,
+      toJSON: {
+        transform: function(doc, ret) {
+          delete ret.__v;
+          return ret;
+        }
       }
-    }],
-    permissions: {
-      taskAccess: String,
-      resourceAccess: String
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  });
+    });
   
-  const Team = mongoose.model('Team', teamSchema);
-  module.exports = Team;
+    // Indexes
+    teamSchema.index({ name: 1 }); // Non-unique since uniqueness is per tenant
+    teamSchema.index({ 'members.user': 1 });
+    teamSchema.index({ tags: 1 });
+  
+    return connection.model('Team', teamSchema);
+  };

@@ -68,4 +68,76 @@ const cachePaginatedResults = async (cacheKey, data, ttl = 300) => {
     if (!data || !data.results || data.results.length === 0) return;
     await setToCache(cacheKey, data, ttl);
   };
-module.exports = { getFromCache, setToCache, deleteFromCache, clearPattern,generateCacheKey,cachePaginatedResults  };
+  /**
+ * Invalidates task-related caches using existing Redis utils
+ * @param {string} orgId - Organization ID
+ * @param {string|null} taskId - Specific task ID (optional)
+ * @param {string|null} userId - Specific user ID (optional)
+ */
+const invalidateTaskCaches = async (orgId, taskId = null, userId = null) => {
+  const operations = [];
+  const cacheLog = [];
+  
+  // 1. Base patterns for task caches
+  const basePatterns = [
+    `tasks:org:${orgId}*`,          // All organization tasks
+    `task_calendar:org:${orgId}*`,   // Calendar views
+    `task_stats:org:${orgId}*`       // Statistics
+  ];
+
+  basePatterns.forEach(pattern => {
+    operations.push(
+      clearPattern(pattern)
+        .then(() => cacheLog.push(`Cleared pattern: ${pattern}`))
+        .catch(err => cacheLog.push(`ERROR clearing ${pattern}: ${err.message}`))
+    );
+  });
+
+  // 2. User-specific caches if userId provided
+  if (userId) {
+    const userPatterns = [
+      `user_tasks:${userId}:*`,
+      `user_task_stats:${userId}:*`
+    ];
+    
+    userPatterns.forEach(pattern => {
+      operations.push(
+        clearPattern(pattern)
+          .then(() => cacheLog.push(`Cleared user pattern: ${pattern}`))
+          .catch(err => cacheLog.push(`ERROR clearing user ${pattern}: ${err.message}`))
+      );
+    });
+  }
+
+  // 3. Specific task keys if taskId provided
+  if (taskId) {
+    const taskKeys = [
+      `task:${taskId}`,
+      `task_dependencies:${taskId}`,
+      `task_assignees:${taskId}`
+    ];
+    
+    taskKeys.forEach(key => {
+      operations.push(
+        deleteFromCache(key)
+          .then(() => cacheLog.push(`Deleted key: ${key}`))
+          .catch(err => cacheLog.push(`ERROR deleting ${key}: ${err.message}`))
+      );
+    });
+  }
+
+  // Execute all operations with timeout protection
+  try {
+    await Promise.race([
+      Promise.allSettled(operations),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Cache invalidation timeout after 3s')), 3000)
+      )
+    ]);
+    
+    console.log('[Task Cache] Invalidation results:\n' + cacheLog.join('\n'));
+  } catch (err) {
+    console.error('[Task Cache] Invalidation timeout:', err.message);
+  }
+};
+module.exports = { getFromCache, setToCache, deleteFromCache, clearPattern,generateCacheKey,cachePaginatedResults ,invalidateTaskCaches };

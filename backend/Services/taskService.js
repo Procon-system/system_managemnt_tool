@@ -82,6 +82,7 @@ exports.createRecurringTasks = async ({ baseTask, frequency, endDate }) => {
 // Simplified createTask for single tasks
 exports.createTask = async (taskData) => {
   try {
+    const Task = req.orgDB.model('Task', taskSchema);
     // Basic validation
     if (!taskData.title?.trim()) {
       throw { statusCode: 400, message: 'Title is required' };

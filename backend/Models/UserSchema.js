@@ -3,8 +3,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
-const userSchema = new mongoose.Schema({
+module.exports = (connection) => {
+  const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
@@ -43,11 +43,7 @@ const userSchema = new mongoose.Schema({
     enum: [1, 2, 3, 4, 5],
     default: 2 // Default to standard user access
   },
-  organization: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Organization',
-    required: true
-  },
+ 
   max_permitted_user_amount: { type: Number},
   max_permitted_resource_amount: { type: Number},
   subscription_type: { type: String, default: 'free' },
@@ -179,8 +175,10 @@ userSchema.methods.resetLoginAttempts = function() {
   return this.save(); // Make sure to return the save() promise
 };
 
-// In your UserSchema
-userSchema.index({ organization: 1, isActive: 1 });
-const User = mongoose.model('User', userSchema);
+ // Indexes (removed organization-related indexes)
+ userSchema.index({ email: 1 }, { unique: true });
+ userSchema.index({ isActive: 1 });
+ userSchema.index({ 'teams': 1 });
 
-module.exports = User;
+ return connection.model('User', userSchema);
+};

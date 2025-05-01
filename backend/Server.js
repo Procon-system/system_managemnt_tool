@@ -19,7 +19,7 @@ const {registerAdminController}= require('./Controllers/authController')
 const app = express();
 const server = http.createServer(app);
 const { redisClient, connectRedis } = require("./redisClient");
-
+const { getOrganizationDB } = require('./config/dbManager');
 const ADMIN_API_URL = 'http://admin-api:8000/api/users';  // Use service name
 const ADMIN_ACCESS_LEVEL = 5; // Your admin access level
 // In your backend code
@@ -73,47 +73,60 @@ async function getContainerIdWithRetry(maxRetries = 3, retryDelay = 4000) {
 }
 async function fetchAdminUsers() {
   try {
-    const response = await axios.get(ADMIN_API_URL);
-        return response.data.users;  // Access data property
+    const response = await axios.get(ADMIN_API_URL, {
+      headers: {
+        'Authorization': `Bearer ${process.env.ADMIN_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 5000 // 5 second timeout
+    });
+    
+    if (!response.data || !Array.isArray(response.data.users)) {
+      throw new Error('Invalid response format from admin API');
+    }
+    return response.data.users;
   } catch (error) {
     console.error('Failed to fetch admin users:', error.message);
-    return [];
+    throw error; // Rethrow to be handled by caller
   }
 }
+
 async function handleAdminRegistration(extUser) {
-  const registrationData = {
-    email: extUser.email,
-    password: 'tempPassword123!',
-    first_name: extUser.name.split(' ')[0] || 'Admin',
-    last_name: extUser.name.split(' ')[1] || 'User',
-    personal_number: extUser.id.toString(),
-    access_level: ADMIN_ACCESS_LEVEL,
-    organizationName: extUser.organization_name || 'procon',
-    max_permitted_user_amount: extUser.max_permitted_user_amount || 1,
-    max_permitted_resource_amount: extUser.max_permitted_resource_amount || 1,
-    subscription_type: extUser.subscription_type || 'free',
-    isConfirmed: true
-  };
-
-  const mockReq = {
-    body: registrationData
-  };
-
-  const mockRes = {
-    status: function(statusCode) {
-      this.statusCode = statusCode;
-      return this;
-    },
-    json: function(data) {
-      if (data.success) {
-        return data.data;
-      }
-      throw new Error(data.error || 'Registration failed');
-    }
-  };
-
   try {
-    const existingUser = await User.findOne({
+    // First check if organization exists in main DB
+    const Organization = mongoose.model('Organization');
+    let organization = await Organization.findOne({ name: extUser.organization_name });
+    
+    if (!organization) {
+      // Create new organization in main DB
+      organization = await Organization.create({
+        name: extUser.organization_name,
+        subdomain: extUser.organization_name.toLowerCase().replace(/\s+/g, '-'),
+        contactEmail: extUser.email,
+        config: {
+          databaseName: `tenant_${new mongoose.Types.ObjectId()}`,
+          features: {
+            tasks: true,
+            resources: true,
+            teams: true
+          }
+        },
+        subscription: {
+          plan: extUser.subscription_type || 'free',
+          startsAt: new Date(),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+        }
+      });
+    }
+
+    // Get tenant-specific DB connection
+    const tenantDB = await getOrganizationDB(organization._id);
+    
+    // Initialize User model for this tenant connection
+    const User = require('./Models/UserSchema')(tenantDB);
+
+    // Check if user exists
+    const existingUser = await User.findOne({ 
       $or: [
         { email: extUser.email },
         { personal_number: extUser.id.toString() }
@@ -121,148 +134,324 @@ async function handleAdminRegistration(extUser) {
     });
 
     if (existingUser) {
-      // Silently return the existing user without throwing an error
-      return existingUser;
-    } else {
-      return await registerAdminController(mockReq, mockRes);
+      return {
+        user: existingUser,
+        organization
+      };
     }
+
+    // Hash password before saving
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(extUser.password || 'tempPassword123!', salt);
+
+    // Create new admin user in tenant DB
+    const newUser = new User({
+      email: extUser.email,
+      password: hashedPassword,
+      first_name: extUser.name?.split(' ')[0] || 'Admin',
+      last_name: extUser.name?.split(' ').slice(1).join(' ') || 'User',
+      personal_number: extUser.id.toString(),
+      access_level: ADMIN_ACCESS_LEVEL,
+      max_permitted_user_amount: extUser.max_permitted_user_amount || 1,
+      max_permitted_resource_amount: extUser.max_permitted_resource_amount || 1,
+      subscription_type: extUser.subscription_type || 'free',
+      isConfirmed: true,
+      isActive: true
+    });
+
+    await newUser.save();
+    
+    return {
+      user: newUser.toObject(),
+      organization
+    };
+    
   } catch (error) {
-    // Only log unexpected errors, not "user exists" errors
-    if (!error.message.includes('User already exists')) {
-      console.error('Registration error:', error.message);
-    }
-    throw error; // Re-throw to let syncAdminUsers handle fallback
+    console.error('Admin registration error:', error);
+    throw error;
   }
 }
 
 async function syncAdminUsers() {
   try {
     const externalUsers = await fetchAdminUsers();
-    const currentContainerId = await getContainerIdWithRetry(); // Now async
+    const currentContainerId = await getContainerIdWithRetry();
     
+    console.log("External users:", externalUsers);
+    console.log("Current container ID:", currentContainerId);
+
     if (!currentContainerId) {
-      console.warn('Could not determine container ID - using fallback admin');
-      return createFallbackAdmin();
+      throw new Error('Could not determine container ID');
     }
 
-    for (const extUser of externalUsers) {
-      if (extUser.user_container_id === currentContainerId) {
-      
-        try {
-          return await handleAdminRegistration(extUser);
-        } catch (error) {
-          if (!error.message.includes('User already exists')) {
-            console.error('Error syncing admin user:', error.message);
-          }
-          return createFallbackAdmin();
-        }
-      }
+    // Find admin user for this container
+    const adminUser = externalUsers.find(user => 
+      user.user_container_id === currentContainerId
+    );
+
+    if (!adminUser) {
+      throw new Error(`No admin user found for container ${currentContainerId}`);
     }
 
-    console.warn('No admin user found for container ID - using fallback admin');
-    return createFallbackAdmin();
+    const result = await handleAdminRegistration(adminUser);
+    
+    if (!result?.user || !result?.organization) {
+      throw new Error('Admin registration returned invalid result');
+    }
+
+    return {
+      ...result.user,
+      organization: result.organization
+    };
+
   } catch (error) {
-    if (!error.message.includes('User already exists')) {
-      console.error('Admin sync failed:', error.message);
+    console.error('Admin sync failed:', error.message);
+    const fallback = await createFallbackAdmin();
+    
+    if (!fallback?.user || !fallback?.organization) {
+      throw new Error('Fallback admin creation failed');
     }
-    return createFallbackAdmin();
+
+    return {
+      ...fallback.user,
+      organization: fallback.organization
+    };
   }
 }
-function createFallbackAdmin() {
-  const fallbackEmail = `admin-${Date.now()}@fallback.com`;
-  console.warn(`Creating fallback admin: ${fallbackEmail}`);
-  
-  // Fixed the undefined extUser reference here
-  return User.findOneAndUpdate(
-    { email: fallbackEmail },
-    {
-      email: fallbackEmail,
-      password: 'fallbackPassword123!',
-      first_name: 'Fallback',
-      last_name: 'Admin',
-      personal_number: '00000000',
-      access_level: ADMIN_ACCESS_LEVEL,
-      organizationName: 'procon',
-      max_permitted_user_amount: 1,
-      max_permitted_resource_amount: 1,
-      subscription_type: 'free',
-      isConfirmed: true,
-      isActive: true
-    },
-    { upsert: true, new: true }
-  );
+
+async function createFallbackAdmin() {
+  try {
+    const Organization = mongoose.model('Organization');
+    const fallbackEmail = `admin-${Date.now()}@fallback.com`;
+    
+    // Find or create fallback organization
+    let organization = await Organization.findOne({ 
+      name: /^Fallback Organization/
+    });
+
+    if (!organization) {
+      organization = await Organization.create({
+        name: `Fallback Organization ${Date.now()}`,
+        subdomain: `fallback-${Date.now()}`,
+        status: 'active',
+        contactEmail: fallbackEmail,
+        config: {
+          databaseName: `tenant_fallback_${Date.now()}`,
+          features: {
+            tasks: true,
+            resources: true,
+            teams: true
+          }
+        },
+        subscription: {
+          plan: 'free',
+          startsAt: new Date()
+        }
+      });
+    }
+
+    // Initialize tenant database connection
+    const tenantDB = await getOrganizationDB(organization._id);
+    
+    // Initialize and get the User model instance
+    const User = require('./Models/UserSchema')(tenantDB);
+
+    // Create or update admin user
+    const adminUser = await User.findOneAndUpdate(
+      { email: fallbackEmail },
+      {
+        email: fallbackEmail,
+        password: await bcrypt.hash('fallbackPassword123!', 10),
+        first_name: 'Fallback',
+        last_name: 'Admin',
+        personal_number: '00000000',
+        access_level: ADMIN_ACCESS_LEVEL,
+        isConfirmed: true,
+        isActive: true
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    console.warn(`Created fallback admin: ${fallbackEmail}`);
+    return {
+      user: adminUser.toObject(),
+      organization
+    };
+  } catch (error) {
+    console.error('CRITICAL: Fallback admin creation failed:', error);
+    throw error;
+  }
+}
+async function createFallbackAdmin() {
+  try {
+    const Organization = mongoose.model('Organization');
+    const fallbackEmail = `admin-${Date.now()}@fallback.com`;
+    
+    // Find or create fallback organization
+    let organization = await Organization.findOne({ 
+      name: 'Fallback Organization'
+    });
+
+    if (!organization) {
+      organization = await Organization.create({
+        name: `Fallback Organization ${Date.now()}`,
+        subdomain: `fallback-${Date.now()}`,
+        status: 'active',
+        contactEmail: fallbackEmail,
+        config: {
+          databaseName: `tenant_fallback_${Date.now()}`,
+          features: {
+            tasks: true,
+            resources: true,
+            teams: true
+          }
+        }
+      });
+    }
+
+    // Initialize tenant database connection
+    const tenantDB = await getOrganizationDB(organization._id);
+    // Initialize and get the User model instance
+    const User = require('./Models/UserSchema')(tenantDB);
+ 
+    require('./Models/TeamSchema')(tenantDB);
+    require('./Models/TaskSchema')(tenantDB);
+    require('./Models/ResourceSchema')(tenantDB);
+    require('./Models/ResourceTypeSchema')(tenantDB);
+
+    // Create or update admin user
+    const adminUser = await User.findOneAndUpdate(
+      { email: fallbackEmail },
+      {
+        email: fallbackEmail,
+        password: 'fallbackPassword123!',
+        first_name: 'Fallback',
+        last_name: 'Admin',
+        personal_number: '00000000',
+        access_level: ADMIN_ACCESS_LEVEL,
+        isConfirmed: true,
+        isActive: true
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    console.warn(`Created fallback admin: ${fallbackEmail}`);
+    return {
+      ...adminUser.toObject(),
+      organization,
+      tenantId: organization._id
+    };
+  } catch (error) {
+    console.error('CRITICAL: Fallback admin creation failed:', error);
+    throw error;
+  }
 }
 // Initialize the application
 async function initializeApplication() {
   try {
     const containerId = await getContainerIdWithRetry();
-    
     await connectRedis();
-    await mongoose.connect(config.mongoURI);
     
-    try {
-      const adminUser = await syncAdminUsers();
-      console.log(`Admin user: ${adminUser.email}`);
-    } catch (adminError) {
-      console.error('Admin sync failed, but continuing:', adminError.message);
+    // Connect to main database
+    await mongoose.connect(config.mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      maxPoolSize: 10,
+      socketTimeoutMS: 30000
+    });
+
+    // Initialize Organization model in main DB
+    const Organization = require('./Models/OrganizationSchema')(mongoose.connection);
+
+    // Get admin user data from external API
+    const adminUser = await syncAdminUsers();
+    if (!adminUser || !adminUser.organization) {
+      throw new Error('Admin user or organization not properly initialized');
     }
+    
+    console.log(`Admin user initialized: ${adminUser.email}`);
+
+    // Initialize tenant database connection
+    const tenantDB = await getOrganizationDB(adminUser.organization._id);
+    
+    // Initialize tenant models
+    const User = require('./Models/UserSchema')(tenantDB);
+    const Team = require('./Models/TeamSchema')(tenantDB);
+    const Task = require('./Models/TaskSchema')(tenantDB);
+    const Resource = require('./Models/ResourceSchema')(tenantDB);
+    const ResourceType = require('./Models/ResourceTypeSchema')(tenantDB);
+
+    // Verify all models initialized correctly
+    if (!User || !Team || !Task || !Resource || !ResourceType) {
+      throw new Error('Failed to initialize tenant models');
+    }
+
+    // Setup Socket.IO with multi-tenant support
     const io = new Server(server, {
-        cors: {
-          origin: "*", // Allow all origins
-          methods: ["GET", "POST","DELETE","PUT"], // Allow specific methods
-        },
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST", "DELETE", "PUT"],
+      },
+    });
+
+    io.on('connection', (socket) => {
+      console.log(`Client connected: ${socket.id}`);
+      
+      // Extract tenant from handshake
+      const tenantId = socket.handshake.auth.tenantId || 
+                     socket.handshake.headers['x-tenant-id'];
+      
+      if (!tenantId) {
+        console.log('No tenantId provided, disconnecting socket');
+        socket.disconnect(true);
+        return;
+      }
+
+      // Join tenant-specific room
+      const tenantRoom = `tenant_${tenantId}`;
+      socket.join(tenantRoom);
+      
+      socket.on('joinRoom', (roomId, callback) => {
+        const fullRoomId = `${tenantRoom}_${roomId}`;
+        socket.join(fullRoomId);
+        console.log(`Client ${socket.id} joined room ${fullRoomId}`);
+        if (callback) callback({ status: 'success', room: fullRoomId });
       });
-      // Add this right after creating the io instance
-      io.on('connection', (socket) => {
-        console.log(`Client connected: ${socket.id}`);
       
-        // Handle room joining
-        socket.on('joinRoom', (roomId, callback) => {
-          socket.join(roomId);
-          console.log(`Client ${socket.id} joined room ${roomId}`);
-          if (callback) {
-            callback({ status: 'success', room: roomId });
-          }
-        });
-      
-        // Handle room leaving
-        socket.on('leaveRoom', (roomId, callback) => {
-          socket.leave(roomId);
-          console.log(`Client ${socket.id} left room ${roomId}`);
-          if (callback) {
-            callback({ status: 'success', room: roomId });
-          }
-        });
-      
-        socket.on('disconnect', () => {
-          console.log(`Client disconnected: ${socket.id}`);
-        });
+      socket.on('leaveRoom', (roomId, callback) => {
+        const fullRoomId = `${tenantRoom}_${roomId}`;
+        socket.leave(fullRoomId);
+        console.log(`Client ${socket.id} left room ${fullRoomId}`);
+        if (callback) callback({ status: 'success', room: fullRoomId });
       });
-      setTaskSocketIoInstance (io);
-      setResourceTypeSocketIoInstance(io);
-      
-      app.use(bodyParser.json());
-      app.use(express.json());
-      app.use(express.urlencoded({ extended: true }));
-      app.use(
-        cors({
-          origin: "*",
-          credentials: true,
-        })
-      );
-      app.use(cookieParser());
-      // Routes
-      app.use('/api', routes);
-      
-      // Error Handling Middleware
-      app.use(errorHandler);
-      
+
+      socket.on('disconnect', () => {
+        console.log(`Client disconnected: ${socket.id}`);
+      });
+    });
+
+    setTaskSocketIoInstance(io);
+    setResourceTypeSocketIoInstance(io);
+    
+    // Express middleware
+    app.use(bodyParser.json());
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+    app.use(cors({
+      origin: "*",
+      credentials: true,
+    }));
+    app.use(cookieParser());
+
+    // Routes
+    app.use('/api', routes);
+    app.use(errorHandler);
       
     server.listen(config.port, () => {
       console.log(`Server running on port ${config.port}`);
     });
 
-    // Add process error handlers
+    // Error handlers
     process.on('unhandledRejection', (error) => {
       console.error('Unhandled rejection:', error);
     });
@@ -273,7 +462,12 @@ async function initializeApplication() {
     
   } catch (error) {
     console.error('Initialization failed:', error);
-    // Instead of exiting, attempt to start in limited mode
+    // Fallback mode
+    app.use((req, res, next) => {
+      req.orgDB = mongoose.connection;
+      next();
+    });
+    
     server.listen(config.port, () => {
       console.log(`Server running in fallback mode on port ${config.port}`);
     });
