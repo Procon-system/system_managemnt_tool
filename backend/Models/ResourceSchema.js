@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 module.exports = (connection) => {
+  if (connection.models['Resource']) {
+    return connection.models['Resource'];
+  }
   const resourceSchema = new mongoose.Schema({
+    
     type: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ResourceType',  // Reference within same tenant

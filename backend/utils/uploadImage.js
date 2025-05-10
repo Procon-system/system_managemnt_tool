@@ -3,9 +3,9 @@
 const { GridFSBucket } = require('mongodb');
 const mongoose = require('mongoose');
 const stream = require('stream');
-const uploadFileToGridFS = (file) => {
+const uploadFileToGridFS = (file,tenantDb) => {
     return new Promise((resolve, reject) => {
-      const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+      const bucket = new GridFSBucket(tenantDb, { bucketName: 'uploads' });
       
       // Store metadata (optional but useful)
       const metadata = {

@@ -1,12 +1,9 @@
-const Resource = require('../Models/ResourceSchema');
-const ResourceType = require('../Models/ResourceTypeSchema');
 const Task = require('../Models/TaskSchema');
 
-exports.createResource = async (resourceData) => {
+exports.createResource = async (resourceData, ResourceModel, ResourceTypeModel) => {
   // Verify the resource type exists
-  const resourceType = await ResourceType.findOne({
-    _id: resourceData.type,
-    organization: resourceData.organization
+  const resourceType = await ResourceTypeModel.findOne({
+    _id: resourceData.type
   }).lean();
 
   if (!resourceType) {
@@ -45,7 +42,7 @@ exports.createResource = async (resourceData) => {
   }
 
   // Create resource with explicit field mapping
-  const resource = new Resource({
+  const resource = new ResourceModel({
     displayName: resourceData.displayName, // Explicitly include
     type: resourceData.type,
     organization: resourceData.organization,
@@ -79,8 +76,8 @@ function checkFieldType(value, expectedType) {
   }
 }
 
-exports.getResourceById = async (resourceId, organizationId) => {
-  return await Resource.findOne({
+exports.getResourceById = async (resourceId, organizationId,ResourceModel) => {
+  return await ResourceModel.findOne({
     _id: resourceId,
     organization: organizationId
   })
@@ -88,19 +85,19 @@ exports.getResourceById = async (resourceId, organizationId) => {
     .populate('createdBy', 'first_name last_name');
 };
 
-exports.getResourcesByType = async (typeId, organizationId, options = {}) => {
+exports.getResourcesByType = async (typeId, organizationId, options = {},ResourceModel) => {
   const { page = 1, limit = 10 } = options;
   
-  const resources = await Resource.find({
+  const resources = await ResourceModel.find({
     type: typeId,
-    organization: organizationId
+    
   })
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
     .populate('type')
     .populate('createdBy', 'first_name last_name');
     
-  const count = await Resource.countDocuments({
+  const count = await ResourceModel.countDocuments({
     type: typeId,
     organization: organizationId
   });
@@ -113,13 +110,13 @@ exports.getResourcesByType = async (typeId, organizationId, options = {}) => {
   };
 };
 
-exports.updateResource = async (resourceId, updateData, organizationId) => {
+exports.updateResource = async (resourceId, updateData, organizationId,ResourceModel) => {
   // Don't allow changing the resource type
   if (updateData.type) {
     throw new Error('Cannot change resource type after creation');
   }
   
-  const resource = await Resource.findOneAndUpdate(
+  const resource = await ResourceModel.findOneAndUpdate(
     { _id: resourceId, organization: organizationId },
     updateData,
     { new: true, runValidators: true }
@@ -132,7 +129,7 @@ exports.updateResource = async (resourceId, updateData, organizationId) => {
   return resource;
 };
 
-exports.deleteResource = async (resourceId, organizationId) => {
+exports.deleteResource = async (resourceId, organizationId,ResourceModel) => {
   // Check if the resource is referenced in any tasks
   const taskCount = await Task.countDocuments({
     'relatedResources.resource': resourceId,
@@ -143,7 +140,7 @@ exports.deleteResource = async (resourceId, organizationId) => {
     throw new Error('Cannot delete resource referenced in tasks');
   }
   
-  const resource = await Resource.findOneAndDelete({
+  const resource = await ResourceModel.findOneAndDelete({
     _id: resourceId,
     organization: organizationId
   });

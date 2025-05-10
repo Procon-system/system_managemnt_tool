@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 
 module.exports = (connection) => {
+  if (connection.models['Task']) {
+    return connection.models['Task'];
+  }
   const taskSchema = new mongoose.Schema({
   // Core Task Metadata
   title: { type: String, required: true, trim: true, maxlength: 120 },

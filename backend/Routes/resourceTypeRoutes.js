@@ -5,7 +5,7 @@ const { authenticateUser, authorize } = require('../Middleware/authMiddleware');
 const checkResourceTypeLimit = require('../Middleware/resourceLimits');
 
 // Apply authentication to all routes
-router.use(authenticateUser);
+// router.use(authenticateUser);
 
 // Routes with role-based authorization
 router.post('/', authorize([5]),checkResourceTypeLimit, resourceTypeController.createResourceType); // Only admin (level 5)

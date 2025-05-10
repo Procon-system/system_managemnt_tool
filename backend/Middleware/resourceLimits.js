@@ -1,34 +1,51 @@
-// middleware/resourceLimits.js
-const ResourceType = require('../Models/ResourceTypeSchema');
-const User = require('../Models/UserSchema');
+const mongoose = require('mongoose');
 
-async function checkResourceTypeLimit(req, res, next) {
+const checkResourceTypeLimit = async (req, res, next) => {
   try {
-    // Get the admin user who is making the request
-    const adminUser = await User.findById(req.user._id);
-    
-    // If user is not admin or doesn't have limit set, skip check
-    if (!adminUser || adminUser.access_level !== 5 || !adminUser.max_permitted_resource_amount) {
+    const isGlobalAdmin = req.user?.isGlobalAdmin;
+
+    // Get the correct User model (global DB)
+    const UserModel = req.mainModels?.Superadmin;
+    if (!UserModel) {
+      return res.status(500).json({ success: false, message: 'User model not available' });
+    }
+
+    const adminUser = await UserModel.findById(req.user._id);
+    if (!adminUser) {
+      return res.status(401).json({ success: false, message: 'Admin user not found' });
+    }
+
+    // Skip limit check if not admin, no limit set, or global admin
+    if (
+      adminUser.access_level !== 5 || 
+      !adminUser.max_permitted_resource_amount || 
+      isGlobalAdmin
+    ) {
       return next();
     }
 
-    // Count existing resource types for this organization
-    const currentResourceTypes = await ResourceType.countDocuments({
-      organization: req.user.organization
+    // Get tenant ResourceType model
+    const ResourceTypeModel = req.tenantModels?.ResourceType || (req.tenantDB && req.tenantDB.model('ResourceType'));
+    if (!ResourceTypeModel) {
+      return res.status(500).json({ success: false, message: 'ResourceType model not available' });
+    }
+
+    // Count resource types in this organization
+    const currentCount = await ResourceTypeModel.countDocuments({
+      organization: adminUser.organization || adminUser.org_id
     });
 
-    // Check if limit reached
-    if (currentResourceTypes >= adminUser.max_permitted_resource_amount) {
+    if (currentCount >= adminUser.max_permitted_resource_amount) {
       return res.status(403).json({
         success: false,
         error: {
           code: 'RESOURCE_LIMIT_REACHED',
           message: 'Maximum resource type limit reached',
           details: {
-            currentCount: currentResourceTypes,
+            currentCount,
             maxAllowed: adminUser.max_permitted_resource_amount,
-            resourceType: 'resourceType', // You can make this dynamic if needed
-            limitType: 'organization', // or 'user' depending on your logic
+            resourceType: 'resourceType',
+            limitType: 'organization',
             upgradeAvailable: adminUser.subscription_type === 'free'
           },
           actions: [
@@ -49,8 +66,9 @@ async function checkResourceTypeLimit(req, res, next) {
 
     next();
   } catch (error) {
+    console.error('Resource type limit middleware error:', error);
     next(error);
   }
-}
+};
 
 module.exports = checkResourceTypeLimit;

@@ -1,5 +1,3 @@
-const User = require('../Models/UserSchema');
-const Organization = require('../Models/OrganizationSchema');
 const {
   NotFoundError,
   AuthorizationError,
@@ -10,29 +8,26 @@ const {
 
 class UserService {
   // Get all users (for admin dashboard)
-  async getAllUsers(requester) {
+  async getAllUsers(requester, UserModel) {
     try {
-      // If user is admin but not super admin, only show users from their organization
-      const filter = requester.access_level >= 3 ? { organization: requester.organization } : {};
-      const users = await User.find(filter)
-        .select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire')
-        .populate('organization', 'name');
-
+      const users = await UserModel.find({})
+        .select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire');
+        
       return users;
     } catch (error) {
+      console.error('Error fetching users:', error);
       throw new DatabaseError('Failed to fetch users');
     }
   }
-
   // Get single user
-  async getUser(userId, requester) {
+  async getUser(userId, requester,UserModel) {
     try {
       // Users can only view their own profile unless they're admin
       if (userId !== requester.id && requester.access_level < 3) {
         throw new AuthorizationError('Not authorized to view this user');
       }
 
-      const user = await User.findById(userId)
+      const user = await UserModel.findById(userId)
         .select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire')
         .populate('organization', 'name');
 
@@ -47,7 +42,7 @@ class UserService {
   }
 
   // Update user (regular update for own profile)
-  async updateUser(userId, updateData, requester) {
+  async updateUser(userId, updateData, requester,UserModel) {
     try {
       // Users can only update their own profile
       if (userId !== requester.id) {
@@ -71,9 +66,9 @@ class UserService {
   }
 
   // Admin update user (for managers/admins)
-  async adminUpdateUser(userId, updateData, requester) {
+  async adminUpdateUser(userId, updateData, requester,UserModel) {
     try {
-      const userToUpdate = await User.findById(userId);
+      const userToUpdate = await UserModel.findById(userId);
       if (!userToUpdate) throw new NotFoundError('User not found');
 
       // Admins can't update super admins
@@ -104,9 +99,9 @@ class UserService {
   }
 
   // Private method for actual update operation
-  async _updateUser(userId, updateData) {
+  async _updateUser(userId, updateData,UserModel) {
     try {
-      const user = await User.findByIdAndUpdate(
+      const user = await UserModel.findByIdAndUpdate(
         userId,
         updateData,
         { new: true, runValidators: true }
@@ -126,9 +121,9 @@ class UserService {
   }
 
   // Delete user
-  async deleteUser(userId, requester) {
+  async deleteUser(userId, requester,UserModel) {
     try {
-      const user = await User.findById(userId);
+      const user = await UserModel.findById(userId);
       if (!user) throw new NotFoundError('User not found');
 
       // Can't delete yourself

@@ -12,7 +12,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Apply authentication to all routes
-router.use(authenticateUser);
+// router.use(authenticateUser);
 
 router.post('/',authorize([3, 4, 5]), taskController.createTask);
 router.get('/', authorize([1, 2, 3, 4, 5]),taskController.getTasksByOrganization);
@@ -32,10 +32,10 @@ router.get('/image/:fileId', async (req, res) => {
   try {
     const fileId = req.params.fileId;
     const cacheKey = `image:meta:${fileId}`;
-
+    const db = req.tenantDb;
     // Try to get metadata from cache first
     const cachedMeta = await getFromCache(cacheKey);
-    const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+    const bucket = new GridFSBucket(db, { bucketName: 'uploads' });
 
     if (cachedMeta) {
       console.log(`[Cache] Serving image metadata from cache for ${fileId}`);
@@ -75,7 +75,7 @@ router.get('/images/bulk', async (req, res) => {
     const { fileIds } = req.query;
     const ids = fileIds.split(',').map(id => new mongoose.Types.ObjectId(id));
     const cacheKey = `images:bulk:${fileIds.replace(/,/g, ':')}`;
-
+    const db = req.tenantDb;
     // Try cache first
     const cachedResult = await getFromCache(cacheKey);
     if (cachedResult) {
@@ -87,7 +87,7 @@ router.get('/images/bulk', async (req, res) => {
       });
     }
 
-    const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+    const bucket = new GridFSBucket(db, { bucketName: 'uploads' });
     const files = await bucket.find({ _id: { $in: ids } }).toArray();
 
     const result = files.map(file => ({

@@ -60,7 +60,7 @@ const generateRecurringInstances = (baseTask, frequency, endDate) => {
   return tasks;
 };
 
-exports.createRecurringTasks = async ({ baseTask, frequency, endDate }) => {
+exports.createRecurringTasks = async ({ baseTask, frequency, endDate ,TaskModel, ResourceModel}) => {
   // First create the root task
   const rootTask = await this.createTask({
     ...baseTask,
@@ -75,14 +75,14 @@ exports.createRecurringTasks = async ({ baseTask, frequency, endDate }) => {
   );
   
   // Save all instances
-  const createdInstances = await Task.insertMany(recurringInstances);
+  const createdInstances = await TaskModel.insertMany(recurringInstances);
   
   return [rootTask, ...createdInstances];
 };
 // Simplified createTask for single tasks
-exports.createTask = async (taskData) => {
+exports.createTask = async (taskData, TaskModel, ResourceModel) => {
   try {
-    const Task = req.orgDB.model('Task', taskSchema);
+  
     // Basic validation
     if (!taskData.title?.trim()) {
       throw { statusCode: 400, message: 'Title is required' };
@@ -100,7 +100,7 @@ exports.createTask = async (taskData) => {
     }
 
     // Create task without transaction
-    const task = new Task({
+    const task = new TaskModel({
       ...taskData,
       isRecurringRoot: false,
       isRecurringInstance: false
@@ -109,7 +109,7 @@ exports.createTask = async (taskData) => {
     // Validate resources if they exist
     if (taskData.resources?.length > 0) {
       const resourceIds = taskData.resources.map(r => r.resource);
-      const existingResources = await Resource.countDocuments({
+      const existingResources = await ResourceModel.countDocuments({
         _id: { $in: resourceIds },
         organization: taskData.organization
       });
@@ -127,10 +127,10 @@ exports.createTask = async (taskData) => {
     throw error;
   }
 };
-exports.getTaskById = async (taskId, organizationId) => {
-  const task = await Task.findOne({
+exports.getTaskById = async (taskId, TaskModel) => {
+  const task = await TaskModel.findOne({
     _id: taskId,
-    organization: organizationId
+    
   })
     .populate('resources.resource')
     .populate('assignments.user')
@@ -145,7 +145,7 @@ exports.getTaskById = async (taskId, organizationId) => {
   return task;
 };
 
-exports.updateTask = async (taskId, updateData, organizationId) => {
+exports.updateTask = async (taskId, updateData, TaskModel) => {
   // Prevent changing organization or createdBy
   if (updateData.organization || updateData.createdBy) {
     throw { 
@@ -153,9 +153,9 @@ exports.updateTask = async (taskId, updateData, organizationId) => {
       statusCode: 400
     };
   }
-  console.log("updateData",updateData)
-  const task = await Task.findOneAndUpdate(
-    { _id: taskId, organization: organizationId },
+  
+  const task = await TaskModel.findOneAndUpdate(
+    { _id: taskId },
     updateData,
     { new: true, runValidators: true }
   )
@@ -179,10 +179,10 @@ exports.updateTask = async (taskId, updateData, organizationId) => {
   return task;
 };
 
-exports.deleteTask = async (taskId, organizationId) => {
-  const task = await Task.findOneAndDelete({
+exports.deleteTask = async (taskId, TaskModel) => {
+  const task = await TaskModel.findOneAndDelete({
     _id: taskId,
-    organization: organizationId
+    
   });
   
   if (!task) {
@@ -196,11 +196,11 @@ exports.deleteTask = async (taskId, organizationId) => {
   );
 };
 
-exports.getTasksByOrganization = async (organizationId, options = {}) => {
+exports.getTasksByOrganization = async (TaskModel, options = {}) => {
   const { page = 1, limit = 100 } = options;
   
-  const tasks = await Task.find({ 
-    organization: organizationId,
+  const tasks = await TaskModel.find({ 
+    
     status: { $ne: 'done' } // Exclude done tasks
   })
     .skip((page - 1) * limit)
@@ -218,8 +218,8 @@ exports.getTasksByOrganization = async (organizationId, options = {}) => {
       select: 'first_name last_name email avatar'
     })
     
-  const count = await Task.countDocuments({ 
-    organization: organizationId,
+  const count = await TaskModel.countDocuments({ 
+    
     status: { $ne: 'done' } // Consistent count query
   });
   
@@ -231,7 +231,7 @@ exports.getTasksByOrganization = async (organizationId, options = {}) => {
   };
 };
 
-exports.filterTasksByOrganization = async (organizationId, options = {}) => {
+exports.filterTasksByOrganization = async (organizationId,TaskModel, options = {}) => {
   const { page = 1, limit = 100, filters = {} } = options;
  
   // Base query with organization
@@ -405,7 +405,7 @@ exports.filterTasksByOrganization = async (organizationId, options = {}) => {
 
   try {
     const [tasks, count] = await Promise.all([
-      Task.find(query)
+      TaskModel.find(query)
         .skip((page - 1) * limit)
         .limit(limit)
         .populate([
@@ -428,7 +428,7 @@ exports.filterTasksByOrganization = async (organizationId, options = {}) => {
         ])
         .sort({ 'schedule.start': 1 })
         .lean(),
-      Task.countDocuments(query)
+        TaskModel.countDocuments(query)
     ]);
 
     console.log(`Found ${tasks.length} matching tasks`);
@@ -443,8 +443,8 @@ exports.filterTasksByOrganization = async (organizationId, options = {}) => {
     throw error;
   }
 };
-exports.changeTaskStatus = async (taskId, newStatus, changedBy, notes, organizationId) => {
-  const task = await Task.findOne({ _id: taskId, organization: organizationId });
+exports.changeTaskStatus = async (taskId, newStatus, changedBy, notes, TaskModel) => {
+  const task = await TaskModel.findOne({ _id: taskId, organization: organizationId });
   
   if (!task) {
     throw { message: 'Task not found', statusCode: 404 };
@@ -464,8 +464,8 @@ exports.changeTaskStatus = async (taskId, newStatus, changedBy, notes, organizat
   return await task.save();
 };
 
-exports.fetchAllDoneTasks = async (organizationId) => {
-  const tasks = await Task.find({
+exports.fetchAllDoneTasks = async (organizationId,TaskModel) => {
+  const tasks = await TaskModel.find({
     organization: organizationId,
     status: 'done'
   })
@@ -487,8 +487,8 @@ exports.fetchAllDoneTasks = async (organizationId) => {
   return tasks;
 };
 
-exports.fetchDoneTasksForUser = async (userId, organizationId) => {
-  const tasks = await Task.find({
+exports.fetchDoneTasksForUser = async (userId, organizationId,TaskModel) => {
+  const tasks = await TaskModel.find({
     assignee: userId,
     organization: organizationId,
     status: 'done'
@@ -511,8 +511,8 @@ exports.fetchDoneTasksForUser = async (userId, organizationId) => {
   return tasks;
 };
 
-exports.getTasksByAssignedUser = async (userId, organizationId) => {
-  return await Task.find({
+exports.getTasksByAssignedUser = async (userId, organizationId,TaskModel) => {
+  return await TaskModel.find({
     assignee: userId,
     organization: organizationId
   })

@@ -4,6 +4,9 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 module.exports = (connection) => {
+  if (connection.models['User']) {
+    return connection.models['User'];
+  }
   const userSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -134,7 +137,7 @@ userSchema.methods.generateAuthToken = function() {
     { 
       _id: this._id,
       email: this.email,
-      organization: this.organization,
+      tenantId: this.organization,
       access_level: this.access_level 
     },
     process.env.JWT_TOKEN_KEY,
@@ -176,8 +179,7 @@ userSchema.methods.resetLoginAttempts = function() {
 };
 
  // Indexes (removed organization-related indexes)
- userSchema.index({ email: 1 }, { unique: true });
- userSchema.index({ isActive: 1 });
+  userSchema.index({ isActive: 1 });
  userSchema.index({ 'teams': 1 });
 
  return connection.model('User', userSchema);

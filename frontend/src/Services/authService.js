@@ -76,7 +76,7 @@ import { localDB } from '../pouchDb';
 import CryptoJS from 'crypto-js';
 import { saveOfflineRequest } from './offlineService';
 
-const API_URL = 'http://localhost:5000/api/auth';
+const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/auth`;
 const SECRET_KEY = 'your-secret-key'; // Use environment variables for production
 
 // Helper function to check online status

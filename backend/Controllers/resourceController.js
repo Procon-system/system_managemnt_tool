@@ -51,7 +51,7 @@ async function invalidateResourceCaches(orgId, resourceId = null, resourceType =
 exports.createResource = async (req, res) => {
   try {
     const { type, fields, displayName } = req.body;
-    const orgId = req.user.organization;
+    const orgId = req.user.org_id;
 
     const resourceData = {
       type,
@@ -62,7 +62,8 @@ exports.createResource = async (req, res) => {
     };
 
     // 1. Create the resource (critical operation)
-    const resource = await resourceService.createResource(resourceData);
+    const { Resource,ResourceType } = req.tenantModels;
+    const resource = await resourceService.createResource(resourceData, Resource,ResourceType );
 
     // 2. Cache invalidation (fire-and-forget with error handling)
     // invalidateResourceCaches(orgId, null, type)
@@ -84,7 +85,7 @@ exports.createResource = async (req, res) => {
 exports.getResourceById = async (req, res) => {
   try {
     const resourceId = req.params.id;
-    const orgId = req.user.organization;
+    const orgId =req.user.org_id;
     // const cacheKey = generateCacheKey('resource', orgId, { id: resourceId });
 
     // const cachedResource = await getFromCache(cacheKey);
@@ -92,8 +93,8 @@ exports.getResourceById = async (req, res) => {
     //   console.log(`[Cache] Hit for resource ${resourceId}`);
     //   return sendResponse(res, 200, 'Resource retrieved from cache', cachedResource);
     // }
-
-    const resource = await resourceService.getResourceById(resourceId, orgId);
+    const { Resource } = req.tenantModels;
+    const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
     if (!resource) return sendResponse(res, 404, 'Resource not found', null);
 
     // await setToCache(cacheKey, resource, CACHE_TTL.RESOURCE);
@@ -108,7 +109,7 @@ exports.getResourceById = async (req, res) => {
 exports.getResourcesByType = async (req, res) => {
   try {
     const typeId = req.params.typeId;
-    const orgId = req.user.organization;
+    const orgId = req.user.org_id;
     const { page = 1, limit = 10 } = req.query;
 
     // const cacheKey = generateCacheKey('resource:type', orgId, { typeId, page, limit });
@@ -118,8 +119,8 @@ exports.getResourcesByType = async (req, res) => {
     //   console.log(`[Cache] Hit for resources of type ${typeId}, page ${page}`);
     //   return sendResponse(res, 200, 'Resources retrieved from cache', cachedResources);
     // }
-
-    const resources = await resourceService.getResourcesByType(typeId, orgId, { page, limit });
+    const { Resource } = req.tenantModels;
+    const resources = await resourceService.getResourcesByType(typeId, orgId, { page, limit }, Resource);
 
     // await setToCache(cacheKey, resources, CACHE_TTL.RESOURCE_LIST);
     // console.log(`[Cache] Set cache for resources of type ${typeId}, page ${page}`);
@@ -133,12 +134,12 @@ exports.getResourcesByType = async (req, res) => {
 exports.updateResource = async (req, res) => {
   try {
     const resourceId = req.params.id;
-    const orgId = req.user.organization;
-
-    const resource = await resourceService.getResourceById(resourceId, orgId);
+    const orgId = req.user.org_id;
+    const { Resource } = req.tenantModels;
+    const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
+   
     if (!resource) return sendResponse(res, 404, 'Resource not found', null);
-
-    const updatedResource = await resourceService.updateResource(resourceId, req.body, orgId);
+    const updatedResource = await resourceService.updateResource(resourceId, req.body, orgId, Resource);
 
     // await invalidateResourceCaches(orgId, resourceId, resource.type);
     sendResponse(res, 200, 'Resource updated successfully', updatedResource);
@@ -150,12 +151,14 @@ exports.updateResource = async (req, res) => {
 exports.deleteResource = async (req, res) => {
   try {
     const resourceId = req.params.id;
-    const orgId = req.user.organization;
+    const orgId = req.user.org_id;
 
-    const resource = await resourceService.getResourceById(resourceId, orgId);
+    const { Resource } = req.tenantModels;
+    const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
     if (!resource) return sendResponse(res, 404, 'Resource not found', null);
 
-    await resourceService.deleteResource(resourceId, orgId);
+    // 2. Delete the resource
+    await resourceService.deleteResource(resourceId, orgId, Resource);
 
     // await invalidateResourceCaches(orgId, resourceId, resource.type);
     sendResponse(res, 200, 'Resource deleted successfully', null);

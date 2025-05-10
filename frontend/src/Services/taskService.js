@@ -1108,7 +1108,7 @@ const taskService = {
   
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/tasks/images/bulk?fileIds=${fileIds.join(',')}`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/tasks/images/bulk?fileIds=${fileIds.join(',')}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }

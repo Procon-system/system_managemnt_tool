@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 module.exports = (connection) => {
+ 
+  if (connection.models['ResourceType']) {
+    return connection.models['ResourceType'];
+  }
   const resourceTypeSchema = new mongoose.Schema({
     name: {
       type: String,

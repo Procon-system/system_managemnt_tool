@@ -60,9 +60,10 @@ const invalidateResourceTypeCaches = async (orgId, typeId = null) => {
 exports.createResourceType = async (req, res) => {
   try {
     const typeData = req.body;
-    const orgId = req.user.organization;
-    typeData.organization = orgId;
-
+  
+    const tenantId = req.user.org_id;
+    typeData.organization = tenantId;
+    
     // Validation
     if (!typeData.fieldDefinitions?.length) {
       throw new Error('At least one field definition is required');
@@ -74,22 +75,24 @@ exports.createResourceType = async (req, res) => {
     }
 
     // Create the resource type
-    const resourceType = await resourceTypeService.createResourceType(typeData);
+    const { ResourceType } = req.tenantModels;
+   
+    const resourceType = await resourceTypeService.createResourceType(typeData, ResourceType);
 
     // Fire-and-forget cache invalidation
-    invalidateResourceTypeCaches(orgId, resourceType._id)
-      .catch(err => console.error('Cache invalidation error:', err));
+    // invalidateResourceTypeCaches(orgId, resourceType._id)
+    //   .catch(err => console.error('Cache invalidation error:', err));
 
-    // Socket notification
-    if (io) {
-      const roomId = orgId.toString();
-      io.to(roomId).emit('resourceType:created', {
-        resourceType,
-        message: 'New resource type created',
-        createdBy: req.user._id
-      });
-      console.log(`[Socket] Emitted resourceType:created to room ${roomId}`);
-    }
+    // // Socket notification
+    // if (io) {
+    //   const roomId = orgId.toString();
+    //   io.to(roomId).emit('resourceType:created', {
+    //     resourceType,
+    //     message: 'New resource type created',
+    //     createdBy: req.user._id
+    //   });
+    //   console.log(`[Socket] Emitted resourceType:created to room ${roomId}`);
+    // }
 
     // Send response immediately
     sendResponse(res, 201, 'Resource type created successfully', resourceType);
@@ -100,7 +103,7 @@ exports.createResourceType = async (req, res) => {
 };
 exports.getResourceTypes = async (req, res) => {
   try {
-    const orgId = req.user.organization;
+    const orgId = req.user.org_id;
     const cacheKey = generateCacheKey('resource_types', orgId);
 
     const cachedData = await getFromCache(cacheKey);
@@ -109,7 +112,8 @@ exports.getResourceTypes = async (req, res) => {
       return sendResponse(res, 200, 'Resource types retrieved from cache', cachedData);
     }
 
-    const resourceTypes = await resourceTypeService.getResourceTypesByOrganization(orgId);
+    const { ResourceType } = req.tenantModels;
+    const resourceTypes = await resourceTypeService.getResourceTypes(ResourceType);
     await setToCache(cacheKey, resourceTypes, CACHE_TTL.LIST);
     console.log(`[Cache] Set: ${cacheKey}`);
 
@@ -121,7 +125,7 @@ exports.getResourceTypes = async (req, res) => {
 
 exports.getResourceTypeById = async (req, res) => {
   try {
-    const orgId = req.user.organization;
+    const orgId = req.user.org_id;
     const typeId = req.params.id;
     const cacheKey = generateCacheKey('resource_type', orgId, { id: typeId });
 
@@ -131,7 +135,8 @@ exports.getResourceTypeById = async (req, res) => {
       return sendResponse(res, 200, 'Resource type retrieved from cache', cachedType);
     }
 
-    const resourceType = await resourceTypeService.getResourceTypeById(typeId, orgId);
+    const { ResourceType } = req.tenantModels;
+    const resourceType = await resourceTypeService.getResourceTypeById(typeId, ResourceType);
     if (!resourceType) return sendResponse(res, 404, 'Resource type not found', null);
 
     await setToCache(cacheKey, resourceType, CACHE_TTL.DETAIL);
@@ -145,10 +150,10 @@ exports.getResourceTypeById = async (req, res) => {
 
 exports.updateResourceType = async (req, res) => {
   try {
-    const orgId = req.user.organization;
+    const orgId = req.user.org_id;
     const typeId = req.params.id;
-
-    const updatedType = await resourceTypeService.updateResourceType(typeId, req.body, orgId);
+    const { ResourceType } = req.tenantModels;
+    const updatedType = await resourceTypeService.updateResourceType(typeId, req.body, ResourceType);
     await invalidateResourceTypeCaches(orgId, typeId);
 
     sendResponse(res, 200, 'Resource type updated successfully', updatedType);
@@ -159,10 +164,11 @@ exports.updateResourceType = async (req, res) => {
 
 exports.deleteResourceType = async (req, res) => {
   try {
-    const orgId = req.user.organization;
+    const orgId = req.user.org_id;
     const typeId = req.params.id;
 
-    await resourceTypeService.deleteResourceType(typeId, orgId);
+    const { ResourceType, Resource } = req.tenantModels;
+    await resourceTypeService.deleteResourceType(typeId, ResourceType, Resource);
     await invalidateResourceTypeCaches(orgId, typeId);
 
     sendResponse(res, 200, 'Resource type deleted successfully', null);

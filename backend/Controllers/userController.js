@@ -1,85 +1,4 @@
-// const userService = require('../Services/userService');
 
-// class UserController {
-//   // Get all users
-//   async getAllUsers(req, res, next) {
-//     try {
-//       const users = await userService.getAllUsers(req.user);
-//       res.status(200).json({
-//         success: true,
-//         count: users.length,
-//         data: users
-//       });
-//     } catch (err) {
-//       next(err);
-//     }
-//   }
-
-//   // Get single user
-//   async getUser(req, res, next) {
-//     try {
-//       const user = await userService.getUser(req.params.id, req.user);
-//       res.status(200).json({
-//         success: true,
-//         data: user
-//       });
-//     } catch (err) {
-//       next(err);
-//     }
-//   }
-
-//   // Update user
-//   async updateUser(req, res, next) {
-//     try {
-//       const user = await userService.updateUser(
-//         req.params.id, 
-//         req.body, 
-//         req.user
-//       );
-//       res.status(200).json({
-//         success: true,
-//         data: user,
-//         message: "User updated successfully"
-//       });
-//     } catch (err) {
-//       next(err);
-//     }
-//   }
-
-//   // Admin update user
-//   async adminUpdateUser(req, res, next) {
-//     try {
-//       const user = await userService.adminUpdateUser(
-//         req.params.id, 
-//         req.body, 
-//         req.user
-//       );
-//       res.status(200).json({
-//         success: true,
-//         data: user,
-//         message: "User updated successfully"
-//       });
-//     } catch (err) {
-//       next(err);
-//     }
-//   }
-
-//   // Delete user
-//   async deleteUser(req, res, next) {
-//     try {
-//       await userService.deleteUser(req.params.id, req.user);
-//       res.status(200).json({
-//         success: true,
-//         data: {},
-//         message: "User deleted successfully"
-//       });
-//     } catch (err) {
-//       next(err);
-//     }
-//   }
-// }
-
-// module.exports = new UserController();
 const userService = require('../Services/userService');
 const { 
   getFromCache, 
@@ -100,8 +19,9 @@ class UserController {
   // Get all users
   async getAllUsers(req, res, next) {
     try {
-      const cacheKey = generateCacheKey('users', req.user.organization);
-      
+      const cacheKey = generateCacheKey('users', req.user.org_id);
+      const {  User } = req.tenantModels;
+     
       // Try cache first
       // const cachedUsers = await getFromCache(cacheKey);
       // if (cachedUsers) {
@@ -113,8 +33,7 @@ class UserController {
       //     fromCache: true
       //   });
       // }
-
-      const users = await userService.getAllUsers(req.user);
+      const users = await userService.getAllUsers(req.user,User);
       
       // Cache the results
       // await setToCache(cacheKey, users, CACHE_TTL.USER_LIST);
@@ -133,8 +52,8 @@ class UserController {
   // Get single user
   async getUser(req, res, next) {
     try {
-      const cacheKey = generateCacheKey('user', req.user.organization, { id: req.params.id });
-      
+      const cacheKey = generateCacheKey('user', req.user.org_id, { id: req.params.id });
+      const {  User } = req.tenantModels;
       // Try cache first
       // const cachedUser = await getFromCache(cacheKey);
       // if (cachedUser) {
@@ -146,7 +65,7 @@ class UserController {
       //   });
       // }
 
-      const user = await userService.getUser(req.params.id, req.user);
+      const user = await userService.getUser(req.params.id, req.user,User);
       
       // Cache the result
       // await setToCache(cacheKey, user, CACHE_TTL.USER);
@@ -164,10 +83,12 @@ class UserController {
   // Update user
   async updateUser(req, res, next) {
     try {
+      const {  User } = req.tenantModels;
       const user = await userService.updateUser(
         req.params.id, 
         req.body, 
-        req.user
+        req.user,
+        User
       );
       
       // Clear relevant cache entries
@@ -190,10 +111,12 @@ class UserController {
   // Admin update user
   async adminUpdateUser(req, res, next) {
     try {
+      const {  User } = req.tenantModels;
       const user = await userService.adminUpdateUser(
         req.params.id, 
         req.body, 
-        req.user
+        req.user,
+        User
       );
       
       // Clear relevant cache entries
@@ -216,7 +139,8 @@ class UserController {
   // Delete user
   async deleteUser(req, res, next) {
     try {
-      await userService.deleteUser(req.params.id, req.user);
+      const {  User } = req.tenantModels;
+      await userService.deleteUser(req.params.id, req.user,User);
       
       // Clear relevant cache entries
       // await Promise.all([

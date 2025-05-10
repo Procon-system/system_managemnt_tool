@@ -18,6 +18,7 @@ exports.setTaskSocketIoInstance = (ioInstance) => {
 };
 exports.createTask = async (req, res) => {
   try {
+    const { Task, Resource } = req.tenantModels;
     // Validate required fields
     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
       return res.status(400).json({
@@ -30,7 +31,7 @@ exports.createTask = async (req, res) => {
     // Prepare task data
     const taskData = {
       title: req.body.title,
-      organization: req.user.organization,
+      organization: req.user.org_id,
       createdBy: req.user._id,
       schedule: {
         start: new Date(req.body.schedule.start),
@@ -60,12 +61,14 @@ exports.createTask = async (req, res) => {
       createdTask = await taskService.createRecurringTasks({
         baseTask: taskData,
         frequency: taskData.repeat_frequency,
-        endDate: periodEndDate
+        endDate: periodEndDate,
+        Task, 
+        Resource
       });
     } else {
       // Handle single task
-      console.log("Creating single task");
-      createdTask = await taskService.createTask(taskData);
+      
+      createdTask = await taskService.createTask(taskData, Task, Resource);
     }
     // Fire-and-forget cache invalidation
   // invalidateTaskCaches(task.organization, task._id, task.createdBy)
@@ -93,30 +96,37 @@ exports.updateTask = async (req, res) => {
     const taskId = req.params.id;
     const updateData = {};
     const mongoose = require('mongoose');
-   
+    const { Task } = req.tenantModels;
+    console.log('Tenant DB:', req.tenantDb);  // Check if the tenant DB is correctly set
+
     // Parse the assigned_resources if it exists
     if (req.body.assigned_resources) {
       const assignedResources = JSON.parse(req.body.assigned_resources);
       
       // Transform resources to match your DB structure with proper ObjectIds
      // In your updateTask controller:
-updateData.resources = assignedResources.resources
-.filter(resource => resource?.resource?._id) // Filter out invalid resources
-.map(resource => ({
-  resource: new mongoose.Types.ObjectId(resource.resource._id),
-  relationshipType: resource.relationshipType,
-  required: resource.required,
-  _id: resource._id 
-    ? new mongoose.Types.ObjectId(resource._id) 
-    : new mongoose.Types.ObjectId()
-}));
-      
-      // Transform assignments with proper ObjectIds
+     if (assignedResources.resources && Array.isArray(assignedResources.resources)) {
+      updateData.resources = assignedResources.resources
+        .filter(resource => resource?.resource?._id)
+        .map(resource => ({
+          resource: new mongoose.Types.ObjectId(resource.resource._id),
+          relationshipType: resource.relationshipType,
+          required: resource.required,
+          _id: resource._id 
+            ? new mongoose.Types.ObjectId(resource._id) 
+            : new mongoose.Types.ObjectId()
+        }));
+    }
+    
+     // Transform assignments with proper ObjectIds
+     if (Array.isArray(assignedResources.assigned_to)) {
       updateData.assignments = assignedResources.assigned_to.map(user => ({
         user: new mongoose.Types.ObjectId(user._id),
         role: 'assignee',
         _id: new mongoose.Types.ObjectId()
       }));
+    }
+    
     }
 
     // Handle images - keptImages should be an array of image IDs to keep
@@ -129,7 +139,7 @@ updateData.resources = assignedResources.resources
     // Handle new file uploads
     if (req.files && req.files.length > 0) {
       const uploadPromises = req.files.map(file => 
-        uploadFileToGridFS(file).then(result => result.file._id)
+        uploadFileToGridFS(file,req.tenantDb).then(result => result.file._id)
       );
       
       const uploadedImageIds = await Promise.all(uploadPromises);
@@ -173,7 +183,7 @@ updateData.resources = assignedResources.resources
     const updatedTask = await taskService.updateTask(
       taskId,
       updateData,
-      req.user.organization
+      Task
     );
      // Clear cache for this task and related lists
     //  await Promise.all([
@@ -216,8 +226,9 @@ updateData.resources = assignedResources.resources
 };
 exports.getTaskById = async (req, res) => {
   try {
-    const cacheKey = `task:${req.params.id}:org:${req.user.organization}`;
+    const cacheKey = `task:${req.params.id}:org:${req.user.org_id}`;
     
+    const { Task } = req.tenantModels;
     // Try to get from cache first
     const cachedTask = await getFromCache(cacheKey);
     if (cachedTask) {
@@ -225,7 +236,7 @@ exports.getTaskById = async (req, res) => {
     }
     
     // If not in cache, get from DB
-    const task = await taskService.getTaskById(req.params.id, req.user.organization);
+    const task = await taskService.getTaskById(req.params.id, Task);
     if (!task) {
       return sendResponse(res, 404, 'Task not found', null);
     }
@@ -240,7 +251,11 @@ exports.getTaskById = async (req, res) => {
 };
 exports.deleteTask = async (req, res) => {
   try {
-    await taskService.deleteTask(req.params.id, req.user.organization);
+    const taskId = req.params.id;
+    const { Task } = req.tenantModels;
+
+    await taskService.deleteTask(taskId, Task);
+
         // Clear all relevant cache entries
         // await Promise.all([
         //   deleteFromCache(`task:${taskId}:org:${orgId}`),
@@ -262,7 +277,9 @@ exports.deleteTask = async (req, res) => {
 exports.getTasksByOrganization = async (req, res) => {
   try {
     const { page = 1, limit = 100 } = req.query;
-    const orgId = req.user.organization;
+    const { Task } = req.tenantModels;
+
+    const orgId = req.user.org_id;
     
     const cacheKey = generateCacheKey('tasks', orgId, { page, limit });
     
@@ -273,7 +290,7 @@ exports.getTasksByOrganization = async (req, res) => {
     // }
     
     const tasks = await taskService.getTasksByOrganization(
-      orgId,
+      Task,
       { page, limit }
     );
     
@@ -289,8 +306,8 @@ exports.filterTasksByOrganization = async (req, res) => {
   try {
     // Handle both POST (body) and GET (query) requests
     const requestData = req.method === 'POST' ? req.body.filters : req.query;
-    const orgId = req.user.organization;
-    
+    const orgId = req.user.org_id;
+    const { Task } = req.tenantModels;
     // Properly extract filters and pagination
     const { 
       page = 1, 
@@ -342,6 +359,7 @@ exports.filterTasksByOrganization = async (req, res) => {
 
     const result = await taskService.filterTasksByOrganization(
       orgId,
+      Task,
       { 
         page: parseInt(page), 
         limit: Math.min(parseInt(limit), 100),
@@ -362,12 +380,14 @@ exports.filterTasksByOrganization = async (req, res) => {
 exports.changeTaskStatus = async (req, res) => {
   try {
     const { status, notes } = req.body;
+    const { Task } = req.tenantModels;
     const updatedTask = await taskService.changeTaskStatus(
       req.params.id,
       status,
       req.user._id,
       notes,
-      req.user.organization
+      req.user.org_id,
+      Task
     );
     sendResponse(res, 200, 'Task status updated successfully', updatedTask);
   } catch (error) {
@@ -377,7 +397,8 @@ exports.changeTaskStatus = async (req, res) => {
 // Get all done tasks
 exports.getAllDoneTasks = async (req, res) => {
   try {
-    const tasks = await taskService.fetchAllDoneTasks(req.user.organization);
+    const { Task } = req.tenantModels;
+    const tasks = await taskService.fetchAllDoneTasks(req.user.org_id,Task);
     
     if (!tasks || tasks.length === 0) {
       return sendResponse(res, 404, 'No done tasks found', null);
@@ -392,13 +413,13 @@ exports.getAllDoneTasks = async (req, res) => {
 // Get done tasks for specific user
 exports.getDoneTasksForUser = async (req, res) => {
   const { userId } = req.query;
-
+  const { Task } = req.tenantModels;
   if (!userId) {
     return sendResponse(res, 400, 'User ID is required', null);
   }
 
   try {
-    const tasks = await taskService.fetchDoneTasksForUser(userId, req.user.organization);
+    const tasks = await taskService.fetchDoneTasksForUser(userId, req.user.org_id,Task);
     
     if (!tasks || tasks.length === 0) {
       return sendResponse(res, 404, 'No done tasks found for this user', null);
@@ -414,12 +435,12 @@ exports.getDoneTasksForUser = async (req, res) => {
 exports.getTasksByAssignedUser = async (req, res) => {
   try {
     const { userId } = req.query;
-
+    const { Task } = req.tenantModels;
     if (!userId) {
       return sendResponse(res, 400, 'User ID is required', null);
     }
 
-    const tasks = await taskService.getTasksByAssignedUser(userId, req.user.organization);
+    const tasks = await taskService.getTasksByAssignedUser(userId,req.user.org_id,Task);
     
     if (tasks.length === 0) {
       return sendResponse(res, 404, 'No tasks found for the given user', null);

@@ -1,6 +1,9 @@
 
 const mongoose = require('mongoose');
   module.exports = (connection) => {
+    if (connection.models['Team']) {
+      return connection.models['Team'];
+    }
     const teamSchema = new mongoose.Schema({
       name: {
         type: String,
