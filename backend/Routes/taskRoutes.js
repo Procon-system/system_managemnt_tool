@@ -32,7 +32,7 @@ router.get('/image/:fileId', async (req, res) => {
   try {
     const fileId = req.params.fileId;
     const cacheKey = `image:meta:${fileId}`;
-    const db = req.tenantDb;
+    const db = req.tenantDB;
     // Try to get metadata from cache first
     const cachedMeta = await getFromCache(cacheKey);
     const bucket = new GridFSBucket(db, { bucketName: 'uploads' });
@@ -75,7 +75,7 @@ router.get('/images/bulk', async (req, res) => {
     const { fileIds } = req.query;
     const ids = fileIds.split(',').map(id => new mongoose.Types.ObjectId(id));
     const cacheKey = `images:bulk:${fileIds.replace(/,/g, ':')}`;
-    const db = req.tenantDb;
+    const db = req.tenantDB;
     // Try cache first
     const cachedResult = await getFromCache(cacheKey);
     if (cachedResult) {

@@ -135,11 +135,10 @@ exports.updateTask = async (req, res) => {
        new mongoose.Types.ObjectId(id)
       );
     }
-
-    // Handle new file uploads
+   
     if (req.files && req.files.length > 0) {
       const uploadPromises = req.files.map(file => 
-        uploadFileToGridFS(file,req.tenantDb).then(result => result.file._id)
+        uploadFileToGridFS(file,req.tenantDB).then(result => result.file._id)
       );
       
       const uploadedImageIds = await Promise.all(uploadPromises);
@@ -398,39 +397,28 @@ exports.changeTaskStatus = async (req, res) => {
 exports.getAllDoneTasks = async (req, res) => {
   try {
     const { Task } = req.tenantModels;
-    const tasks = await taskService.fetchAllDoneTasks(req.user.org_id,Task);
-    
-    if (!tasks || tasks.length === 0) {
-      return sendResponse(res, 404, 'No done tasks found', null);
-    }
-    
+    const tasks = await taskService.fetchAllDoneTasks(req.user.org_id, Task);
     sendResponse(res, 200, 'Done tasks retrieved successfully', tasks);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
-
 // Get done tasks for specific user
 exports.getDoneTasksForUser = async (req, res) => {
   const { userId } = req.query;
   const { Task } = req.tenantModels;
+
   if (!userId) {
     return sendResponse(res, 400, 'User ID is required', null);
   }
 
   try {
-    const tasks = await taskService.fetchDoneTasksForUser(userId, req.user.org_id,Task);
-    
-    if (!tasks || tasks.length === 0) {
-      return sendResponse(res, 404, 'No done tasks found for this user', null);
-    }
-    
+    const tasks = await taskService.fetchDoneTasksForUser(userId, req.user.org_id, Task);
     sendResponse(res, 200, 'Done tasks retrieved successfully', tasks);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
-
 // Get tasks assigned to a user
 exports.getTasksByAssignedUser = async (req, res) => {
   try {
@@ -440,12 +428,7 @@ exports.getTasksByAssignedUser = async (req, res) => {
       return sendResponse(res, 400, 'User ID is required', null);
     }
 
-    const tasks = await taskService.getTasksByAssignedUser(userId,req.user.org_id,Task);
-    
-    if (tasks.length === 0) {
-      return sendResponse(res, 404, 'No tasks found for the given user', null);
-    }
-    
+    const tasks = await taskService.getTasksByAssignedUser(userId, req.user.org_id, Task);
     sendResponse(res, 200, 'Assigned tasks retrieved successfully', tasks);
   } catch (error) {
     sendResponse(res, 500, 'Failed to fetch tasks', { details: error.message });

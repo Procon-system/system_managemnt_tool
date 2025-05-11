@@ -480,9 +480,7 @@ exports.fetchAllDoneTasks = async (organizationId,TaskModel) => {
     .populate('assignments.user')
     .sort({ completedAt: -1 });
 
-  if (!tasks || tasks.length === 0) {
-    throw { statusCode: 404, message: 'No done tasks found' };
-  }
+ 
 
   return tasks;
 };
@@ -504,9 +502,7 @@ exports.fetchDoneTasksForUser = async (userId, organizationId,TaskModel) => {
     .populate('assignments.user')
     .sort({ completedAt: -1 });
 
-  if (!tasks || tasks.length === 0) {
-    throw { statusCode: 404, message: 'No done tasks found for this user' };
-  }
+ 
 
   return tasks;
 };
