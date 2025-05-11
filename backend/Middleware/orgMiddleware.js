@@ -1,60 +1,4 @@
 
-// const { getOrganizationDB } = require('../config/dbManager');
-// const mongoose = require('mongoose');
-
-// module.exports = async (req, res, next) => {
-//   try {
-//     console.log("middleware",req.user)
-//     // Skip middleware for auth routes
-//     if (req.path.startsWith('/auth/login')) {
-//       return next();
-//     }
-
-//     // Get orgId from:
-//     // - JWT token (if authenticated)
-//     // - Header (x-org-id)
-//     // - Subdomain
-//     const orgId = req.user?.org_id ||  req.tenantId ||
-//                  req.headers['x-org-id'] || 
-//                  req.hostname.split('.')[0];
-
-//     if (!orgId) {
-//       return res.status(400).json({ 
-//         error: 'Organization context required',
-//         suggestions: [
-//           'Include X-Org-ID header',
-//           'Use organization subdomain',
-//           'Authenticate with org-scoped token'
-//         ]
-//       });
-//     }
-//     const tenantDB = await getOrganizationDB(orgId);
-
-//     // Attach to request
-//     req.tenantDB = tenantDB;
-//     req.orgDB = tenantDB;
-//     req.tenantModels = {
-//       User: tenantDB.model('User'),
-//       // Add other models here if needed (e.g., Role, Project, etc.)
-//     };
-
-   
-//     // Optional: Verify organization exists
-//     const Organization = mongoose.model('Organization');
-//     const orgExists = await Organization.exists({ _id: orgId });
-    
-//     if (!orgExists) {
-//       return res.status(404).json({ error: 'Organization not found' });
-//     }
-
-//     next();
-//   } catch (error) {
-//     console.error('Org middleware error:', error);
-//     next(error);
-//   }
-// };
-// middleware/tenantResolver.js
-
 const { getOrganizationDB } = require('../config/dbManager');
 const mongoose = require('mongoose');
 
@@ -84,18 +28,18 @@ module.exports = async (req, res, next) => {
       });
     }
 
-    // Get tenant database
-    const tenantDB = await getOrganizationDB(orgId);
-    req.tenantDB = tenantDB;
+    // Get tenant connection
+    const tenantConn = await getOrganizationDB(orgId);
 
-    // Attach commonly used tenant models
+    // Attach tenant connection and models
+    req.tenantConnection = tenantConn;
+    req.tenantDB = tenantConn.connection;
     req.tenantModels = {
-      User: tenantDB.model('User'),
-      ResourceType: tenantDB.model('ResourceType'),
-      Resource: tenantDB.model('Resource'),
-      Task: tenantDB.model('Task'),
-      Team: tenantDB.model('Team'),
-      // Add others as needed
+      User: tenantConn.models.get('User'),
+      ResourceType: tenantConn.models.get('ResourceType'),
+      Resource: tenantConn.models.get('Resource'),
+      Task: tenantConn.models.get('Task'),
+      Team: tenantConn.models.get('Team')
     };
 
     // Optionally validate that the organization exists globally

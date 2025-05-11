@@ -53,7 +53,8 @@ async function getOrganizationDB(orgId) {
   const orgIdStr = orgId.toString();
 
   if (tenantConnections.has(orgIdStr)) {
-    return tenantConnections.get(orgIdStr).connection;
+    // ✅ Return the whole TenantConnection object
+    return tenantConnections.get(orgIdStr);
   }
 
   const dbName = `org_${orgIdStr}`;
@@ -73,19 +74,35 @@ async function getOrganizationDB(orgId) {
 
   try {
     await new Promise((resolve, reject) => {
-      connection.on('connected', resolve);
-      connection.on('error', reject);
-      setTimeout(() => reject(new Error('Connection timeout')), 10000);
+      const timeout = setTimeout(() => reject(new Error('Connection timeout')), 10000);
+    
+      connection.once('connected', () => {
+        clearTimeout(timeout);
+        if (connection.readyState === 1) {
+          resolve();
+        } else {
+          reject(new Error('Connection is not fully ready'));
+        }
+      });
+    
+      connection.once('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
     });
 
     await tenantConn.initializeModels();
     tenantConnections.set(orgIdStr, tenantConn);
-    return connection;
+
+    // ✅ Return full TenantConnection instance
+    return tenantConn;
+
   } catch (error) {
     await tenantConn.close();
     throw error;
   }
 }
+
 async function closeAllConnections() {
   const closing = [];
   for (const tenantConn of tenantConnections.values()) {

@@ -8,7 +8,7 @@ module.exports = (connection) => {
     name: {
       type: String,
       required: true,
-      unique: true  // Unique within tenant
+     
     },
     organization: {
       type: mongoose.Schema.Types.ObjectId,

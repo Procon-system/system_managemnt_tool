@@ -94,79 +94,7 @@ async function fetchAdminUsers() {
   }
 }
 
-// async function handleAdminRegistration(extUser) {
-//   try {
-//     // First check if organization exists in main DB
-//     const Organization = mongoose.model('Organization');
-//     let organization = await Organization.findOne({ name: extUser.organization_name });
-    
-//     if (!organization) {
-//       // Create new organization in main DB
-//       organization = await Organization.create({
-//         name: extUser.organization_name,
-//         subdomain: extUser.organization_name.toLowerCase().replace(/\s+/g, '-'),
-//         contactEmail: extUser.email,
-//         config: {
-//           databaseName: `tenant_${new mongoose.Types.ObjectId()}`,
-//           features: {
-//             tasks: true,
-//             resources: true,
-//             teams: true
-//           }
-//         },
-//         subscription: {
-//           plan: extUser.subscription_type || 'free',
-//           startsAt: new Date(),
-//           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-//         }
-//       });
-//     }
 
-//  // Get tenant DB connection (models will be auto-initialized)
-//  const tenantDB = await getOrganizationDB(organization._id);
-    
-//  // Access the already initialized User model
-//  const User = tenantDB.model('User');
-
-//  // Check if user exists
-//  const existingUser = await User.findOne({ 
-//    $or: [
-//      { email: extUser.email },
-//      { personal_number: extUser.id.toString() }
-//    ]
-//  });
-
-//  if (existingUser) {
-//    return { user: existingUser, organization };
-//  }
-
-//     // Create new admin user in tenant DB
-//     const newUser = new User({
-//       email: extUser.email,
-//       password: extUser.password || 'tempPassword123!',
-//       first_name: extUser.name?.split(' ')[0] || 'Admin',
-//       last_name: extUser.name?.split(' ').slice(1).join(' ') || 'User',
-//       personal_number: extUser.id.toString(),
-//       access_level: ADMIN_ACCESS_LEVEL,
-//       max_permitted_user_amount: extUser.max_permitted_user_amount || 1,
-//       max_permitted_resource_amount: extUser.max_permitted_resource_amount || 1,
-//       subscription_type: extUser.subscription_type || 'free',
-//       isConfirmed: true,
-//       isActive: true
-//     });
-
-//     await newUser.save();
-    
-//     return {
-//       user: newUser.toObject(),
-//       organization
-//     };
-    
-//   } catch (error) {
-//     console.error('Admin registration error:', error);
-//     throw error;
-//   }
-// }
 async function handleAdminRegistration(extUser) {
   try {
     // 1. Check/Create Organization in Main DB
@@ -222,9 +150,11 @@ async function handleAdminRegistration(extUser) {
       isActive: true
     });
 
-    // 4. Initialize tenant DB (for regular users)
-    const tenantDB = await getOrganizationDB(organization._id);
-    
+    // Ensure models are initialized for the tenant
+    const tenantConn = await getOrganizationDB(organization._id);
+    if (!tenantConn.models.has('User')) {
+      throw new Error(`User model not found for org ${organization._id}`);
+    }
     return {
       user: newSuperadmin.toObject(),
       organization
@@ -240,9 +170,6 @@ async function syncAdminUsers() {
     const externalUsers = await fetchAdminUsers();
     const currentContainerId = await getContainerIdWithRetry();
     
-    console.log("External users:", externalUsers);
-    console.log("Current container ID:", currentContainerId);
-
     if (!currentContainerId) {
       throw new Error('Could not determine container ID');
     }
@@ -328,15 +255,18 @@ async function createFallbackAdmin() {
       console.warn('Using existing fallback organization');
     }
 
-    // 3. Initialize tenant database connection
-    const tenantDB = await getOrganizationDB(organization._id);
-    
-    // 4. Initialize models
-    const User = require('./Models/UserSchema')(tenantDB);
-    require('./Models/TeamSchema')(tenantDB);
-    require('./Models/TaskSchema')(tenantDB);
-    require('./Models/ResourceSchema')(tenantDB);
-    require('./Models/ResourceTypeSchema')(tenantDB);
+    const tenantConn = await getOrganizationDB(organization._id);
+    const User = tenantConn.models.get('User');
+    if (!User) {
+      throw new Error('Fallback tenant User model not initialized');
+    }
+
+    // // 4. Initialize models
+    // const User = require('./Models/UserSchema')(tenantDB);
+    // require('./Models/TeamSchema')(tenantDB);
+    // require('./Models/TaskSchema')(tenantDB);
+    // require('./Models/ResourceSchema')(tenantDB);
+    // require('./Models/ResourceTypeSchema')(tenantDB);
 
     // 5. Find or create THE fallback admin user
     const adminUser = await User.findOneAndUpdate(
@@ -392,19 +322,22 @@ app.use(async (req, res, next) => {
       Superadmin: mongoose.model('Superadmin')
     };
     
-    // Tenant DB connection is attached when tenantId is present
-    if (req.headers['x-tenant-id'] || req.query.tenantId) {
-      const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
-      req.tenantDB = await getOrganizationDB(tenantId);
+    // Tenant DB injection if tenantId is present
+    const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+    if (tenantId) {
+      const tenantConn = await getOrganizationDB(tenantId);
+
+      req.tenantConnection = tenantConn; // Optional: keep for debugging/advanced usage
+      req.tenantDB = tenantConn.connection;
       req.tenantModels = {
-        User: req.tenantDB.model('User'),
-        Team: req.tenantDB.model('Team'),
-        Task: req.tenantDB.model('Task'),
-        Resource: req.tenantDB.model('Resource'),
-        ResourceType: req.tenantDB.model('ResourceType')
+        User: tenantConn.models.get('User'),
+        Team: tenantConn.models.get('Team'),
+        Task: tenantConn.models.get('Task'),
+        Resource: tenantConn.models.get('Resource'),
+        ResourceType: tenantConn.models.get('ResourceType')
       };
     }
-    
+
     next();
   } catch (error) {
     console.error('Database middleware error:', error);
@@ -462,7 +395,7 @@ function setupSocketIO() {
 // Main Initialization
 async function initializeApplication() {
   try {
-    // Connect to main MongoDB
+    // 1. Connect to main MongoDB
     await mongoose.connect(config.mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -470,62 +403,69 @@ async function initializeApplication() {
       socketTimeoutMS: 30000
     });
 
-    const { Organization,Superadmin } = initializeMainModels(mongoose.connection);
+    // 2. Initialize main DB models
+    const { Organization, Superadmin } = initializeMainModels(mongoose.connection);
 
-    // Admin user setup
+    // 3. Sync or create default superadmin user
     const adminUser = await syncAdminUsers();
-    if (!adminUser?._doc?.email || !adminUser.organization) {
-      throw new Error('Admin initialization failed');
+    console.log("Admin user initialized:", adminUser?.email);
+
+    if (!adminUser || !adminUser.organization?._id) {
+      throw new Error('Admin initialization failed: Missing organization reference');
     }
 
-    // Initialize tenant DB (models are auto-initialized by dbManager)
-    await getOrganizationDB(adminUser.organization._id);
+    // 4. Initialize tenant DB and confirm model availability
+    const tenantConn = await getOrganizationDB(adminUser.organization._id);
 
-    // Express middleware
+    if (!tenantConn.models.has('User')) {
+      throw new Error('Tenant DB not ready: User model missing');
+    }
+
+    // 5. Set up Express middlewares
     app.use(bodyParser.json());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use(cors({ origin: config.corsOrigin, credentials: true }));
     app.use(cookieParser());
 
-    // Routes
+    // 6. Register routes and error handler
     app.use('/api', routes);
     app.use(errorHandler);
-    // This MUST come after all routes
-    app.use('*', (req, res) => {
-  res.status(404).send('Not Found');
-});
-    // Socket.IO
-    // setupSocketIO();
 
-    // Start server
+    // 7. Catch-all for unknown routes
+    app.use('*', (req, res) => {
+      res.status(404).send('Not Found');
+    });
+
+    // 8. Start the server
     server.listen(config.port, () => {
       console.log(`
-        Server running on port ${config.port}
-        Active tenants: ${getActiveTenantCount()}
-        Main DB: ${config.mongoURI}
+        ✅ Server running on port ${config.port}
+        🏢 Active tenants: ${getActiveTenantCount()}
+        🌐 Main DB URI: ${config.mongoURI}
       `);
     });
 
   } catch (error) {
-    console.error('Initialization failed:', error);
-    
-    // Fallback mode with only main DB access
+    console.error('❌ Initialization failed:', error);
+
+    // Fallback: allow only main DB access
     if (mongoose.connection.readyState === 1) {
       app.use((req, res, next) => {
         req.mainModels = { Organization: mongoose.model('Organization') };
         next();
       });
-      
+
       server.listen(config.port, () => {
-        console.log(`Server running in fallback mode on port ${config.port}`);
+        console.log(`⚠️ Server running in fallback mode on port ${config.port}`);
       });
     } else {
-      console.error('CRITICAL: Cannot start in fallback mode - no database connection');
+      console.error('🚨 CRITICAL: No database connection. Exiting...');
       process.exit(1);
     }
   }
 }
+
 
 async function shutdown() {
   console.log('Shutting down gracefully...');

@@ -12,13 +12,8 @@ const User = require('../Models/UserSchema');
 const registerController = async (req, res) => {
   try {
     const tenantId = req.user.org_id;
-    // const adminUser = await User.findById(req.user._id);
-    // if (!adminUser || adminUser.access_level !== 5) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: 'Only admins can register users'
-    //   });
-    // }
+    const {  User } = req.tenantModels;
+    
     const { email, password, last_name, first_name, personal_number,access_level,
       
       isConfirmed,
@@ -36,7 +31,7 @@ const registerController = async (req, res) => {
       isConfirmed: isConfirmed || false, // Default false for normal users
       isActive: isActive || true, // Default true
 
-    },tenantId);
+    },tenantId,User);
 
     res.status(201).json({
       success: true,

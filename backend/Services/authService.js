@@ -15,9 +15,8 @@ const {
 const { validateRegistration } = require('../Helper/validators');
 
 // Service to register a new user
-const registerUser = async (userData,tenantId) => {
-  const tenantDB = await getOrganizationDB(tenantId);
-  const User = tenantDB.model('User');
+const registerUser = async (userData,tenantId,User) => {
+  
   const { email, password, last_name, first_name, organization, personal_number,access_level,
       isConfirmed,
       isActive,
