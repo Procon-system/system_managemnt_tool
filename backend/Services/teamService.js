@@ -42,7 +42,7 @@ exports.getTeamsByOrganization = async (organizationId, options = {},TeamModel) 
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
     .populate('members.user', 'first_name last_name email')
-    .populate('organization', 'name');
+    .populate('name');
     
   const count = await TeamModel.countDocuments(query);
   
