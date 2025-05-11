@@ -7,7 +7,6 @@ const {
   forgotPassword,
   resetPassword
 } = require('../Services/authService');
-const User = require('../Models/UserSchema');
 
 const registerController = async (req, res) => {
   try {
@@ -112,24 +111,19 @@ const registerAdminController = async (req, res) => {
 };
 const loginController = async (req, res) => {
   try {
-    const { email, password, rememberMe, orgId } = req.body;
+    const { email, password, rememberMe } = req.body;
 
-    // 1. Resolve organization identifier (in priority order)
-    const orgIdentifier = req.headers['x-org-id'] || orgId /*|| req.hostname.split('.')[0]*/;
+    const result = await loginUser(email, password, rememberMe);
 
-    const result = await loginUser(email, password, rememberMe, orgIdentifier);
-
-    // 2. Set auth token in cookie
     res.cookie('jwt', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000, // 30d vs 1h
+      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
       path: '/',
       domain: process.env.COOKIE_DOMAIN || undefined
     });
 
-    // 3. Return user info & token
     res.json({
       success: true,
       data: result.user,
@@ -153,123 +147,6 @@ const loginController = async (req, res) => {
     });
   }
 };
-
-// const loginController = async (req, res) => {
-//   try {
-//     const { email, password, rememberMe } = req.body;
-    
-//     // Get organization context from:
-//     // 1. Subdomain (org1.yourdomain.com)
-//     // 2. Header (X-Org-ID)
-//     // 3. Request body
-//     // const orgIdentifier = req.headers['x-org-id'] || 
-//     //                     req.body.orgId || 
-//     //                     req.hostname.split('.')[0];
-
-//     const result = await loginUser(email, password, rememberMe);
-
-//     // Set cookie with tenant context
-//     res.cookie('jwt', result.token, {
-//       httpOnly: true,
-//       secure: process.env.NODE_ENV === 'production',
-//       sameSite: 'strict',
-//       maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
-//       path: '/',
-//       domain: process.env.COOKIE_DOMAIN || undefined
-//     });
-
-//     res.json({
-//       success: true,
-//       data: result.user,
-//       token: result.token,
-//       message: 'Login successful'
-//     });
-
-//   } catch (error) {
-//     const statusCode = error.message.includes('not found') || 
-//                      error.message.includes('Incorrect') ? 401 : 400;
-//     res.status(statusCode).json({ 
-//       success: false,
-//       error: error.message 
-//     });
-//   }
-// };
-// const loginController = async (req, res) => {
-//   try {
-//     const { email, password, rememberMe } = req.body;
-//     console.log(" req.body", req.body)
-//     // Get organization context from:
-//     // 1. Subdomain (org1.yourdomain.com)
-//     // 2. Header (X-Org-ID)
-//     // 3. Request body
-//     const orgId = req.headers['x-org-id'] || req.body.orgId || req.hostname.split('.')[0];
-
-//     if (!orgId) {
-//       return res.status(400).json({
-//         success: false,
-//         error: 'Organization context required for login'
-//       });
-//     }
-
-//     const result = await loginUser(email, password, rememberMe, orgId);
-
-//     // Set cookie with tenant context
-//     res.cookie('jwt', result.token, {
-//       httpOnly: true,
-//       secure: process.env.NODE_ENV === 'production',
-//       sameSite: 'strict',
-//       maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
-//       path: '/',
-//       domain: process.env.COOKIE_DOMAIN || undefined
-//     });
-
-//     res.json({
-//       success: true,
-//       data: result.user,
-//       token: result.token,
-//       message: 'Login successful'
-//     });
-
-//   } catch (error) {
-//     const statusCode = error.message.includes('not found') || 
-//                      error.message.includes('Incorrect') ? 401 : 400;
-//     res.status(statusCode).json({ 
-//       success: false,
-//       error: error.message 
-//     });
-//   }
-// };
-// const loginController = async (req, res) => {
-//   try {
-//     const { email, password, rememberMe } = req.body;
-    
-//     const result = await loginUser(email, password, rememberMe);
-
-//     // Set cookie
-//     res.cookie('jwt', result.token, {
-//       httpOnly: true,
-//       secure: process.env.NODE_ENV === 'production',
-//       sameSite: 'strict',
-//       maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
-//       path: '/'
-//     });
-
-//     res.json({
-//       success: true,
-//       data: result.user,
-//       token: result.token,
-//       message: 'Login successful'
-//     });
-
-//   } catch (error) {
-//     const statusCode = error.message.includes('not found') || 
-//                      error.message.includes('Incorrect') ? 401 : 400;
-//     res.status(statusCode).json({ 
-//       success: false,
-//       error: error.message 
-//     });
-//   }
-// };
 const confirmEmailController = async (req, res) => {
   try {
     const result = await confirmEmail(req.params.confirmationCode);

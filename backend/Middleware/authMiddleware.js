@@ -11,49 +11,6 @@ const ROLES = {
   FREE: 4,
   ADMIN: 5,
 };
-
-// const authenticateUser = async (req, res, next) => {
-//     const authHeader = req.headers.authorization;
-    
-//     // Check for token in header
-//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-//       console.log("Authorization Header Missing or Malformed:", authHeader);
-//       return res.status(401).json({ error: "Token missing or improperly formatted" });
-//     }
-
-//     const token = authHeader.split(" ")[1].trim();
-//     console.log("Extracted Token:", token);
-//     console.log("JWT Secret:", process.env.JWT_TOKEN_KEY);
-
-//     try {
-//       // Verify token
-//       const decoded = jwt.verify(token, process.env.JWT_TOKEN_KEY);
-//       console.log("Decoded Token:", decoded);
-      
-//       // Get tenant-specific DB connection
-//       const tenantDB = await getOrganizationDB(decoded.tenantId || decoded.organization);
-//       const User = tenantDB.model('User');
-      
-//       // Find user in the correct tenant DB
-//       const user = await User.findById(decoded._id);
-//       if (!user) {
-//         return res.status(404).json({ error: "User not found in organization" });
-//       }
-
-//       // Attach user and tenant context to request
-//       req.user = user.toObject();
-//       req.tenantDB = tenantDB;
-//       req.tenantId = decoded.tenantId || decoded.organization;
-      
-//       next();
-//     } catch (error) {
-//       console.error("Token Verification Error:", error.message);
-//       if (error.name === "TokenExpiredError") {
-//         return res.status(401).json({ error: "Token expired. Please log in again." });
-//       }
-//       return res.status(401).json({ error: "Invalid token" });
-//     }
-// };
 const authenticateUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   
@@ -70,7 +27,6 @@ const authenticateUser = async (req, res, next) => {
     let user;
     if (decoded.isGlobalAdmin) {
       // 🔒 Super admin in MAIN DB
-      console.log("req.main",req.mainModels)
       const Superadmin = req.mainModels?.Superadmin;
       if (!Superadmin) {
         return res.status(500).json({ error: "Superadmin model not available" });
@@ -84,7 +40,7 @@ const authenticateUser = async (req, res, next) => {
 
     // 🔐 Regular tenant user
     const tenantDB = await getOrganizationDB(decoded.tenantId || decoded.organization);
-    const User = tenantDB.model('User');
+    const User = tenantDB.models.get('User');
     user = await User.findById(decoded._id);
     if (!user) return res.status(404).json({ error: "Tenant user not found" });
 
@@ -165,36 +121,7 @@ const authorize = (roles) => {
     next();
   };
 };
-// const protect = async (req, res, next) => {
-//   let token;
-  
-//   if (
-//     req.headers.authorization &&
-//     req.headers.authorization.startsWith('Bearer')
-//   ) {
-//     token = req.headers.authorization.split(' ')[1];
-//   } else if (req.cookies.token) {
-//     token = req.cookies.token;
-//   }
-  
-//   if (!token) {
-//     return next(new ErrorResponse('Not authorized to access this route', 401));
-//   }
-  
-//   try {
-//     const decoded = jwt.verify(token, process.env.JWT_TOKEN_KEY);
-//     const user = await User.findById(decoded._id);
-    
-//     if (!user) {
-//       return next(new ErrorResponse('No user found with this id', 404));
-//     }
-    
-//     req.user = user;
-//     next();
-//   } catch (err) {
-//     return next(new ErrorResponse('Not authorized to access this route', 401));
-//   }
-// };
+
 const protect = async (req, res, next) => {
   let token;
 
@@ -233,7 +160,7 @@ const protect = async (req, res, next) => {
 
     // Handle tenant user
     const tenantDB = await getOrganizationDB(decoded.tenantId || decoded.organization);
-    const User = tenantDB.model('User');
+    const User = tenantDB.models.get('User');
 
     user = await User.findById(decoded._id);
     if (!user) {

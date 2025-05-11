@@ -301,8 +301,8 @@ async function createFallbackAdmin() {
 function initializeMainModels(mainConnection) {
   return {
     Organization: require('./Models/OrganizationSchema')(mainConnection),
-    Superadmin: require('./Models/SuperAdminSchema')(mainConnection)
-    
+    Superadmin: require('./Models/SuperAdminSchema')(mainConnection),
+    TenantUser: require('./Models/TenantUserSchema')(mainConnection)
   };
 }
 // Socket.IO setup
@@ -319,7 +319,8 @@ app.use(async (req, res, next) => {
     // Main DB models are always available
     req.mainModels = {
       Organization: mongoose.model('Organization'),
-      Superadmin: mongoose.model('Superadmin')
+      Superadmin: mongoose.model('Superadmin'),
+      TenantUser: mongoose.model('TenantUser')
     };
     
     // Tenant DB injection if tenantId is present
@@ -404,7 +405,7 @@ async function initializeApplication() {
     });
 
     // 2. Initialize main DB models
-    const { Organization, Superadmin } = initializeMainModels(mongoose.connection);
+    const { Organization, Superadmin,TenantUser } = initializeMainModels(mongoose.connection);
 
     // 3. Sync or create default superadmin user
     const adminUser = await syncAdminUsers();
@@ -497,136 +498,4 @@ process.on('uncaughtException', err => {
   console.error('Uncaught exception:', err);
   shutdown();
 });
-// async function initializeApplication() {
-//   try {
-//     // Initial setup
-//     const containerId = await getContainerIdWithRetry();
-//     await connectRedis();
-    
-//     // Main DB connection - only for Organization
-//     await mongoose.connect(config.mongoURI, {
-//       useNewUrlParser: true,
-//       useUnifiedTopology: true,
-//       maxPoolSize: 10,
-//       socketTimeoutMS: 30000
-//     });
-
-//     // Initialize ONLY Organization in main DB
-//     const { Organization } = initializeMainModels(mongoose.connection);
-
-//     const adminUser = await syncAdminUsers();
-    
-//     if (!adminUser?._doc?.email || !adminUser.organization) {
-//       throw new Error('Admin initialization failed');
-//     }
-
-//     // Initialize tenant DB ONLY if needed
-//     const tenantDB = await initializeTenantIfNeeded(adminUser);
-
-//     // Initialize ALL tenant models
-//     const tenantModels = initializeTenantModels(tenantDB);
-    
-//     // Verify tenant models
-//     if (!tenantModels.User || !tenantModels.Team) {
-//       throw new Error('Tenant model initialization failed');
-//     }
-
-
-//     // Setup Socket.IO with multi-tenant support
-//     const io = new Server(server, {
-//       cors: {
-//         origin: "*",
-//         methods: ["GET", "POST", "DELETE", "PUT"],
-//       },
-//     });
-
-//     io.on('connection', (socket) => {
-//       console.log(`Client connected: ${socket.id}`);
-      
-//       // Extract tenant from handshake
-//       const tenantId = socket.handshake.auth.tenantId || 
-//                      socket.handshake.headers['x-tenant-id'];
-      
-//       if (!tenantId) {
-//         console.log('No tenantId provided, disconnecting socket');
-//         socket.disconnect(true);
-//         return;
-//       }
-
-//       // Join tenant-specific room
-//       const tenantRoom = `tenant_${tenantId}`;
-//       socket.join(tenantRoom);
-      
-//       socket.on('joinRoom', (roomId, callback) => {
-//         const fullRoomId = `${tenantRoom}_${roomId}`;
-//         socket.join(fullRoomId);
-//         console.log(`Client ${socket.id} joined room ${fullRoomId}`);
-//         if (callback) callback({ status: 'success', room: fullRoomId });
-//       });
-      
-//       socket.on('leaveRoom', (roomId, callback) => {
-//         const fullRoomId = `${tenantRoom}_${roomId}`;
-//         socket.leave(fullRoomId);
-//         console.log(`Client ${socket.id} left room ${fullRoomId}`);
-//         if (callback) callback({ status: 'success', room: fullRoomId });
-//       });
-
-//       socket.on('disconnect', () => {
-//         console.log(`Client disconnected: ${socket.id}`);
-//       });
-//     });
-
-//     setTaskSocketIoInstance(io);
-//     setResourceTypeSocketIoInstance(io);
-    
-//     // Express middleware
-//     app.use(bodyParser.json());
-//     app.use(express.json());
-//     app.use(express.urlencoded({ extended: true }));
-//     app.use(cors({
-//       origin: "*",
-//       credentials: true,
-//     }));
-//     app.use(cookieParser());
-
-//     // Routes
-//     app.use('/api', routes);
-//     app.use(errorHandler);
-      
-//     server.listen(config.port, () => {
-//       console.log(`Server running on port ${config.port}`);
-//     });
-
-//     // Error handlers
-//     process.on('unhandledRejection', (error) => {
-//       console.error('Unhandled rejection:', error);
-//     });
-
-//     process.on('uncaughtException', (error) => {
-//       console.error('Uncaught exception:', error);
-//     });
-    
-//   } catch (error) {
-//     console.error('Initialization failed:', error);
-    
-//     // Fallback mode - only use main DB Organization
-//     if (mongoose.connection.readyState === 1) {
-//       const { Organization } = initializeMainModels(mongoose.connection);
-      
-//       app.use((req, res, next) => {
-//         req.mainModels = { Organization }; // Only expose Organization
-//         next();
-//       });
-      
-//       server.listen(config.port, () => {
-//         console.log(`Server running in fallback mode on port ${config.port}`);
-//       });
-//     } else {
-//       console.error('CRITICAL: Cannot start in fallback mode - no database connection');
-//       process.exit(1);
-//     }
-//   }
-//   }
-
-// Start the application
 initializeApplication();

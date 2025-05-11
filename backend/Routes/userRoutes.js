@@ -7,7 +7,7 @@ const { protect, authorize } = require('../Middleware/authMiddleware');
 router.use(protect);
 
 // User management routes
-router.get('/', authorize([3, 4, 5]), userController.getAllUsers); // Only managers and above can view all users
+router.get('/', authorize([2,3, 4, 5]), userController.getAllUsers); // Only managers and above can view all users
 router.get('/:id', userController.getUser); // Users can view their own profile
 router.put('/:id', userController.updateUser); // Users can update their own profile
 router.put('/:id/admin', authorize([4, 5]), userController.adminUpdateUser); // Admins can update any user
