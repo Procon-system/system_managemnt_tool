@@ -14,6 +14,7 @@ const config = require('./config/config');
 const {setTaskSocketIoInstance} = require('./Controllers/taskControllers');
 const {setResourceTypeSocketIoInstance} = require('./Controllers/resourceTypeController');
 const User = require('./Models/UserSchema');
+const { WebSocketServer } = require('ws');
 require('dotenv').config();
 const {registerAdminController}= require('./Controllers/authController')
 const app = express();
@@ -23,78 +24,62 @@ const {
   getOrganizationDB, 
   closeAllConnections,
   getActiveTenantCount} = require('./config/dbManager');
+const WebSocket = require('ws');
+// 🌐 WebSocket server instance listening on port 8765
+const wss = new WebSocketServer({ server, path: '/ws' });
+
 const ADMIN_API_URL = process.env.ADMIN_API_URL;  // Use service name
 const ADMIN_ACCESS_LEVEL = 5; // Your admin access level
-// In your backend code
-async function getContainerIdWithRetry(maxRetries = 3, retryDelay = 4000) {
-  let retries = 0;
-  
-  const getContainerId = () => {
-    // Method 1: From HOSTNAME environment variable
-    if (process.env.HOSTNAME) {
-      return process.env.HOSTNAME;
-    }
-    
-    // Method 2: From /proc/self/cgroup (Linux containers)
-    try {
-      const fs = require('fs');
-      const content = fs.readFileSync('/proc/self/cgroup', 'utf-8');
-      const lines = content.split('\n');
-      for (const line of lines) {
-        const match = line.match(/([0-9a-f]{64})/);
-        if (match) return match[1];
-      }
-    } catch (error) {
-      console.error(`Could not read container ID from cgroup:`, error.message);
-    }
-    
-    return null;
-  };
 
-  while (retries < maxRetries) {
-    try {
-      const containerId = getContainerId();
-      if (containerId) {
-        return containerId;
-      }
-      
-      if (retries < maxRetries - 1) {
-        console.log(`Container ID not available yet. Retrying in ${retryDelay/1000} seconds... (Attempt ${retries + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      }
-    } catch (error) {
-      console.error(`Attempt ${retries + 1} failed:`, error.message);
-    }
+
+
+// Socket.IO Handlers
+function setupSocketIO() {
+  io.on('connection', (socket) => {
+    console.log(`Client connected: ${socket.id}`);
     
-    retries++;
-  }
-  
-  // Final fallback options
-  return process.env.DEV_CONTAINER_ID || 
-         process.env.HOSTNAME || 
-         'default-container-id';
-}
-async function fetchAdminUsers() {
-  try {
-    const response = await axios.get(ADMIN_API_URL, {
-      headers: {
-        'Authorization': `Bearer ${process.env.ADMIN_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 5000 // 5 second timeout
+    const tenantId = socket.handshake.auth.tenantId || 
+                   socket.handshake.headers['x-tenant-id'];
+    
+    if (!tenantId) {
+      console.log('No tenantId provided, disconnecting socket');
+      socket.disconnect(true);
+      return;
+    }
+
+    // Get tenant DB connection for socket operations
+    getOrganizationDB(tenantId)
+      .then(tenantDB => {
+        socket.tenantModels = {
+          User: tenantDB.model('User'),
+          Team: tenantDB.model('Team')
+        };
+        
+        const tenantRoom = `tenant_${tenantId}`;
+        socket.join(tenantRoom);
+        
+        socket.on('joinRoom', (roomId, callback) => {
+          const fullRoomId = `${tenantRoom}_${roomId}`;
+          socket.join(fullRoomId);
+          if (callback) callback({ status: 'success', room: fullRoomId });
+        });
+        
+        socket.on('leaveRoom', (roomId, callback) => {
+          const fullRoomId = `${tenantRoom}_${roomId}`;
+          socket.leave(fullRoomId);
+          if (callback) callback({ status: 'success', room: fullRoomId });
+        });
+      })
+      .catch(error => {
+        console.error('Socket tenant DB error:', error);
+        socket.disconnect(true);
+      });
+
+    socket.on('disconnect', () => {
+      console.log(`Client disconnected: ${socket.id}`);
     });
-    
-    if (!response.data || !Array.isArray(response.data.users)) {
-      throw new Error('Invalid response format from admin API');
-    }
-    return response.data.users;
-  } catch (error) {
-    console.error('Failed to fetch admin users:', error.message);
-    throw error; // Rethrow to be handled by caller
-  }
+  });
 }
-
-
 async function handleAdminRegistration(extUser) {
   try {
     // 1. Check/Create Organization in Main DB
@@ -165,58 +150,6 @@ async function handleAdminRegistration(extUser) {
     throw error;
   }
 }
-async function syncAdminUsers() {
-  try {
-    const externalUsers = await fetchAdminUsers();
-    const currentContainerId = await getContainerIdWithRetry();
-    
-    if (!currentContainerId) {
-      throw new Error('Could not determine container ID');
-    }
-
-    // Find admin user for this container
-    const adminUser = externalUsers.find(user => 
-      user.user_container_id === currentContainerId
-    );
-
-    if (!adminUser) {
-      throw new Error(`No admin user found for container ${currentContainerId}`);
-    }
-
-    const result = await handleAdminRegistration(adminUser);
-    
-    if (!result?.user || !result?.organization) {
-      throw new Error('Admin registration returned invalid result');
-    }
-
-    return {
-      ...result.user,
-      organization: result.organization
-    };
-
-  } catch (error) {
-    console.error('Admin sync failed:', error.message);
-
-    // If the error is NOT due to model overwrite or duplicate user, fallback
-    if (
-      error.name !== 'OverwriteModelError' &&
-      !/E11000 duplicate key error/.test(error.message)
-    ) {
-      const fallback = await createFallbackAdmin();
-      if (!fallback?.user || !fallback?.organization) {
-        throw new Error('Fallback admin creation failed');
-      }
-      return {
-        ...fallback.user,
-        organization: fallback.organization
-      };
-    }
-
-    throw new Error('Admin initialization failed');
-
-  }
-}
-
 async function createFallbackAdmin() {
   try {
     const Organization = mongoose.model('Organization');
@@ -260,14 +193,6 @@ async function createFallbackAdmin() {
     if (!User) {
       throw new Error('Fallback tenant User model not initialized');
     }
-
-    // // 4. Initialize models
-    // const User = require('./Models/UserSchema')(tenantDB);
-    // require('./Models/TeamSchema')(tenantDB);
-    // require('./Models/TaskSchema')(tenantDB);
-    // require('./Models/ResourceSchema')(tenantDB);
-    // require('./Models/ResourceTypeSchema')(tenantDB);
-
     // 5. Find or create THE fallback admin user
     const adminUser = await User.findOneAndUpdate(
       { email: FALLBACK_EMAIL },
@@ -346,57 +271,42 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Socket.IO Handlers
-function setupSocketIO() {
-  io.on('connection', (socket) => {
-    console.log(`Client connected: ${socket.id}`);
-    
-    const tenantId = socket.handshake.auth.tenantId || 
-                   socket.handshake.headers['x-tenant-id'];
-    
-    if (!tenantId) {
-      console.log('No tenantId provided, disconnecting socket');
-      socket.disconnect(true);
-      return;
+wss.on('connection', (ws) => {
+  console.log('🟢 Flask connected via WebSocket');
+
+  ws.on('message', async (data) => {
+    try {
+      const adminData = JSON.parse(data);
+      console.log('📥 Received admin data from Flask:', adminData);
+
+      const result = await handleAdminRegistration(adminData);
+      console.log('✅ Admin synced:', result);
+
+      // ✅ Send success response back to Flask
+      ws.send(JSON.stringify({
+        status: 'success',
+        message: 'Admin registered successfully',
+        data: result // Optional: include any useful data
+      }));
+
+    } catch (err) {
+      console.error('❌ Error processing WebSocket message:', err.message);
+
+      // ❌ Send error response back to Flask
+      ws.send(JSON.stringify({
+        status: 'error',
+        message: err.message
+      }));
     }
-
-    // Get tenant DB connection for socket operations
-    getOrganizationDB(tenantId)
-      .then(tenantDB => {
-        socket.tenantModels = {
-          User: tenantDB.model('User'),
-          Team: tenantDB.model('Team')
-        };
-        
-        const tenantRoom = `tenant_${tenantId}`;
-        socket.join(tenantRoom);
-        
-        socket.on('joinRoom', (roomId, callback) => {
-          const fullRoomId = `${tenantRoom}_${roomId}`;
-          socket.join(fullRoomId);
-          if (callback) callback({ status: 'success', room: fullRoomId });
-        });
-        
-        socket.on('leaveRoom', (roomId, callback) => {
-          const fullRoomId = `${tenantRoom}_${roomId}`;
-          socket.leave(fullRoomId);
-          if (callback) callback({ status: 'success', room: fullRoomId });
-        });
-      })
-      .catch(error => {
-        console.error('Socket tenant DB error:', error);
-        socket.disconnect(true);
-      });
-
-    socket.on('disconnect', () => {
-      console.log(`Client disconnected: ${socket.id}`);
-    });
   });
-}
-// Main Initialization
+
+  ws.on('close', () => {
+    console.warn('🔌 Flask WebSocket disconnected');
+  });
+});
+
 async function initializeApplication() {
   try {
-    // 1. Connect to main MongoDB
     await mongoose.connect(config.mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -404,68 +314,44 @@ async function initializeApplication() {
       socketTimeoutMS: 30000
     });
 
-    // 2. Initialize main DB models
-    const { Organization, Superadmin,TenantUser } = initializeMainModels(mongoose.connection);
+    const { Organization, Superadmin, TenantUser } = initializeMainModels(mongoose.connection);
 
-    // 3. Sync or create default superadmin user
-    const adminUser = await syncAdminUsers();
-    console.log("Admin user initialized:", adminUser?.email);
-
-    if (!adminUser || !adminUser.organization?._id) {
-      throw new Error('Admin initialization failed: Missing organization reference');
-    }
-
-    // 4. Initialize tenant DB and confirm model availability
-    const tenantConn = await getOrganizationDB(adminUser.organization._id);
-
-    if (!tenantConn.models.has('User')) {
-      throw new Error('Tenant DB not ready: User model missing');
-    }
-
-    // 5. Set up Express middlewares
     app.use(bodyParser.json());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use(cors({ origin: config.corsOrigin, credentials: true }));
     app.use(cookieParser());
 
-    // 6. Register routes and error handler
     app.use('/api', routes);
-    app.use(errorHandler);
+    app.use('*', (req, res) => res.status(404).send('Not Found'));
 
-    // 7. Catch-all for unknown routes
-    app.use('*', (req, res) => {
-      res.status(404).send('Not Found');
-    });
-
-    // 8. Start the server
     server.listen(config.port, () => {
       console.log(`
         ✅ Server running on port ${config.port}
         🏢 Active tenants: ${getActiveTenantCount()}
         🌐 Main DB URI: ${config.mongoURI}
+        🔌 WebSocket server listening on ws://<app>:${config.port}/ws
       `);
     });
 
   } catch (error) {
     console.error('❌ Initialization failed:', error);
 
-    // Fallback: allow only main DB access
     if (mongoose.connection.readyState === 1) {
       app.use((req, res, next) => {
         req.mainModels = { Organization: mongoose.model('Organization') };
         next();
       });
+      console.log(`⚠️ Running in fallback mode; WebSocket and tenants disabled.`);
 
-      server.listen(config.port, () => {
-        console.log(`⚠️ Server running in fallback mode on port ${config.port}`);
-      });
     } else {
       console.error('🚨 CRITICAL: No database connection. Exiting...');
       process.exit(1);
     }
   }
 }
+
+
 
 
 async function shutdown() {

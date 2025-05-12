@@ -1,23 +1,21 @@
 
 services:
-  admin-api:
+  user-reg:
     build:
-      context: ./admin-api
+      context: ./flask-user-reg
+      dockerfile: Dockerfile
     ports:
-      - "8001:8000"  # Changed host port to avoid conflict
+      - "8500:8000"                        # expose Flask on host:5002
     volumes:
-      - ./admin-api/app.py:/app/app.py  # Direct file sync
+      - ./flask-user-reg:/app             # live-sync your code
+      - userreg-data:/app/subscribers.db  # persist the SQLite file
     environment:
+      - WEBSOCKET_URL=ws://app:5000/ws  # adjust to whatever WS endpoint you need
       - FLASK_ENV=development
       - FLASK_APP=app.py
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/users"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    
     networks:
       - app-network
-
   frontend:
     build:
       context: ./frontend
@@ -51,11 +49,13 @@ services:
       - ./backend/.env  # Load environment variables from .env file in backend directory
     ports:
       - '5000:5000' 
+      
     depends_on:
-      admin-api:
-        condition: service_healthy
       mongo:
-          condition: service_healthy 
+        condition: service_healthy
+      user-reg:
+        condition: service_started   # waits for container to start (no health check)
+
     networks:
       - app-network
     restart: unless-stopped
@@ -88,6 +88,7 @@ services:
       - app-network
 
 volumes:
+  userreg-data:
   redis_data:
   mongo-data:
 networks:

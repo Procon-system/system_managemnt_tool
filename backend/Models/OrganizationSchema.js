@@ -1,7 +1,13 @@
 // In your main database (not tenant databases)
 // This model tracks tenant metadata but doesn't contain operational data
 const mongoose = require('mongoose');
+
 module.exports = (connection) => {
+  // ✅ Prevent OverwriteModelError
+  if (connection.models.Organization) {
+    return connection.models.Organization;
+  }
+
   const organizationSchema = new mongoose.Schema({
     name: {
       type: String,
@@ -23,13 +29,12 @@ module.exports = (connection) => {
     contactEmail: {
       type: String,
       validate: {
-        validator: function(v) {
+        validator: function (v) {
           return /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
         },
         message: props => `${props.value} is not a valid email!`
       }
     },
-    // Tenant configuration
     config: {
       databaseName: {
         type: String,
@@ -42,11 +47,10 @@ module.exports = (connection) => {
         teams: { type: Boolean, default: true }
       }
     },
-    // Subscription info
     subscription: {
       plan: {
         type: String,
-        enum: ['free', 'basic', 'pro', 'enterprise'],
+        enum: ['free', 'basic', 'pro', 'enterprise','expert'],
         default: 'free'
       },
       startsAt: Date,
@@ -57,7 +61,6 @@ module.exports = (connection) => {
         default: 'monthly'
       }
     },
-    // Usage tracking
     usage: {
       users: {
         current: Number,
@@ -68,14 +71,15 @@ module.exports = (connection) => {
   }, {
     timestamps: true,
     toJSON: {
-      transform: function(doc, ret) {
+      transform: function (doc, ret) {
         delete ret.__v;
         return ret;
       }
     }
   });
 
-  // Indexes
+  // ✅ Removed redundant field-level index definitions (already declared with `unique`)
+  // ✅ Retain only schema-level indexes
   organizationSchema.index({ name: 1 });
   organizationSchema.index({ subdomain: 1 }, { unique: true });
   organizationSchema.index({ status: 1 });

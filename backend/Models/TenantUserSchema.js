@@ -1,28 +1,35 @@
 const mongoose = require('mongoose');
 
-const TenantUserSchema = new mongoose.Schema({
-  tenantId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Organization',
-    required: true,
-  },
-  email: {
-    type: String,
-    required: true,
-    lowercase: true,
-    trim: true
-  },
-  userIdInTenantDB: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-  },
-  access_level: Number,
-  createdAt: {
-    type: Date,
-    default: Date.now
+// Avoid OverwriteModelError
+module.exports = (connection = mongoose) => {
+  if (connection.models.TenantUser) {
+    return connection.models.TenantUser;
   }
-});
 
-TenantUserSchema.index({ email: 1, tenantId: 1 }, { unique: true });
+  const TenantUserSchema = new mongoose.Schema({
+    tenantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true
+    },
+    userIdInTenantDB: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+    access_level: Number,
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  });
 
-module.exports = mongoose.model('TenantUser', TenantUserSchema);
+  TenantUserSchema.index({ email: 1, tenantId: 1 }, { unique: true });
+
+  return connection.model('TenantUser', TenantUserSchema);
+};

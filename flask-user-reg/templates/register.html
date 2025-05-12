@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>User Registration</title>
+  <style>
+    body     { font-family:sans-serif; margin:2rem auto; max-width:500px; }
+    label    { display:block; margin-top:1rem; }
+    input,select { width:100%; padding:.5rem; }
+    button   { margin-top:1.5rem; padding:.7rem 1.2rem; }
+    .flash   { margin:.5rem 0; padding:.5rem; border:1px solid #777; }
+    .error   { background:#fdd; }
+    .success { background:#dfd; }
+  </style>
+</head>
+<body>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat,msg in messages %}
+        <div class="flash {{cat}}">{{msg}}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <h1>Register new subscriber</h1>
+  <form method="post">
+    <label>ID (4 digits)           <input name="id"  pattern="\d{4}"      required></label>
+    <label>Name                    <input name="name"                     required></label>
+    <label>Email                   <input name="email" type="email"       required></label>
+    <label>Address                 <input name="address"                  required></label>
+    <label>Telephone               <input name="telephone" pattern="\d{7,15}" required></label>
+
+    <label>Access&nbsp;level
+      <select name="access_level">
+        {% for n in range(1,6) %}<option>{{n}}</option>{% endfor %}
+      </select>
+    </label>
+
+    <label>Organization name       <input name="organization_name"        required></label>
+
+    <label>Max&nbsp;permitted&nbsp;users
+      <select name="max_permitted_user_amount">
+        {% for n in range(1,11) %}<option>{{n}}</option>{% endfor %}
+      </select>
+    </label>
+
+    <label>Max&nbsp;permitted&nbsp;resources
+      <select name="max_permitted_resource_amount">
+        {% for n in range(1,11) %}<option>{{n}}</option>{% endfor %}
+      </select>
+    </label>
+
+    <label>Subscription&nbsp;type
+      <select name="subscription_type">
+        {% for t in ['free','basic','pro','expert'] %}<option>{{t}}</option>{% endfor %}
+      </select>
+    </label>
+
+    <button type="submit">Submit</button>
+  </form>
+</body>
+</html>
