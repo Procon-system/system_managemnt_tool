@@ -1,118 +1,205 @@
-import asyncio, json, os, re
-from dotenv import load_dotenv
-from flask import Flask, render_template, request, flash, redirect, url_for
-from models import db, Subscriber
-import websockets
+import os
+import json
+import asyncio
 import threading
+
+from flask import (
+    Flask, render_template, request, flash,
+    redirect, url_for, session
+)
+from dotenv import load_dotenv
+from models import db, Subscriber
+import websockets  # pip install websockets
 
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"]      = "change-me"
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///subscribers.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
+app.config.update({
+    "SECRET_KEY": os.getenv("SECRET_KEY", "change-me"),
+    "SQLALCHEMY_DATABASE_URI": "sqlite:///subscribers.db",
+    "SQLALCHEMY_TRACK_MODIFICATIONS": False,
+})
 db.init_app(app)
-# force table creation immediately at import time
+
 with app.app_context():
     db.create_all()
-    app.logger.info("Database tables created at import.")
 
 
-# ---------- helpers --------------------------------------------------------- #
+def get_current_subscriber():
+    sid = session.get("subscriber_id")
+    return Subscriber.query.get(sid) if sid else None
 
-ID_RE          = re.compile(r"^\d{4}$")
-TEL_RE         = re.compile(r"^\d{7,15}$")
-ACCESS_SET     = {1,2,3,4,5}
-PERMITTED_SET  = set(range(1,11))
-SUBS_SET       = {"free","basic","pro","expert"}
 
-def validate(form):
-    """Very small server-side validation."""
-    try:
-        if not ID_RE.fullmatch(form["id"]):
-            return "ID must be a 4-digit number"
-        if form["access_level"] not in map(str, ACCESS_SET):
-            return "Access level must be 1-5"
-        if form["max_permitted_user_amount"] not in map(str, PERMITTED_SET):
-            return "Max users must be 1-10"
-        if form["max_permitted_resource_amount"] not in map(str, PERMITTED_SET):
-            return "Max resources must be 1-10"
-        if form["subscription_type"] not in SUBS_SET:
-            return "Subscription must be free/basic/pro/expert"
-        if not TEL_RE.fullmatch(form["telephone"]):
-            return "Telephone must be 7-15 digits"
-    except KeyError as e:
-        return f"Missing field: {e}"
+def validate_registration(form):
+    acct = form.get("account_type")
+    if acct not in ("personal", "organization"):
+        return "Invalid account type."
+    for f in ("first_name","last_name","email","telephone","address","password"):
+        if not form.get(f):
+            return f"{f.replace('_',' ').title()} is required."
+    if acct == "organization" and not form.get("organization_name"):
+        return "Organization Name is required for organization accounts."
     return None
 
-async def websocket_push(message: dict):
-    """Send JSON to the remote WebSocket server."""
-    url = os.environ.get("WEBSOCKET_URL")
-    print(url)
+
+async def websocket_push(msg: dict):
+    url = os.getenv("WEBSOCKET_URL")
     if not url:
-        app.logger.warning("WEBSOCKET_URL not set; skipping push")
         return
     try:
         async with websockets.connect(url) as ws:
-            await ws.send(json.dumps(message))
-    except Exception as exc:
-        app.logger.error(f"WebSocket push failed: {exc}")
+            await ws.send(json.dumps(msg))
+    except:
+        pass
 
-def push_in_background(data: dict):
-    """Fire-and-forget helper for Flask routes."""
+
+def push_in_bg(data: dict):
     def _send():
-        # asyncio.run creates and tears down its own event loop
-        try:
-            asyncio.run(websocket_push(data))
-        except Exception as e:
-            app.logger.error(f"Background WS push failed: {e!r}")
+        asyncio.run(websocket_push(data))
     threading.Thread(target=_send, daemon=True).start()
-    
-# right after you call db.init_app(app):
 
 
+@app.route("/")
+def landing():
+    return render_template("landing.html", subscriber=get_current_subscriber())
 
 
-# ---------- routes ---------------------------------------------------------- #
-
-@app.route("/", methods=["GET", "POST"])
+@app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        error = validate(request.form)
+        
+        # ——— Prevent duplicate emails ————————————————————————————— #
+        if Subscriber.query.filter_by(email=request.form["email"]).first():
+            flash("That email is already registered. Please log in instead.", "error")
+            return redirect(url_for("login"))
+
+        error = validate_registration(request.form)        
+        
         if error:
             flash(error, "error")
             return redirect(url_for("register"))
 
-        sub = Subscriber(
-            id                          = int(request.form["id"]),
-            name                        = request.form["name"],
-            email                       = request.form["email"],
-            address                     = request.form["address"],
-            telephone                   = request.form["telephone"],
-            access_level                = int(request.form["access_level"]),
-            organization_name           = request.form["organization_name"],
-            max_permitted_user_amount   = int(request.form["max_permitted_user_amount"]),
-            max_permitted_resource_amount = int(request.form["max_permitted_resource_amount"]),
-            subscription_type           = request.form["subscription_type"],
+        acct_type = request.form["account_type"]
+        # force "personal" org name on personal accounts
+        org_name = (
+            request.form.get("organization_name")
+            if acct_type == "organization"
+            else "personal"
         )
+
+        sub = Subscriber(
+            account_type      = request.form["account_type"],
+            first_name        = request.form["first_name"],
+            last_name         = request.form["last_name"],
+            email             = request.form["email"],
+            telephone         = request.form["telephone"],
+            address           = request.form["address"],
+            organization_name = org_name,
+        )
+        sub.set_password(request.form["password"])
         db.session.add(sub)
         db.session.commit()
 
-        push_in_background(sub.to_dict())
-        flash("Registration stored and sent!", "success")
+        session["subscriber_id"] = sub.id
+        flash("Registered successfully!", "success")
+        return redirect(url_for("subscriptions"))
+
+    return render_template("register.html", subscriber=get_current_subscriber())
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form["email"]
+        pwd   = request.form["password"]
+        sub = Subscriber.query.filter_by(email=email).first()
+        if sub and sub.check_password(pwd):
+            session["subscriber_id"] = sub.id
+            flash("Logged in!", "success")
+            return redirect(url_for("dashboard"))
+        flash("Invalid email or password.", "error")
+        return redirect(url_for("login"))
+
+    return render_template("login.html", subscriber=get_current_subscriber())
+
+
+@app.route("/subscriptions", methods=["GET", "POST"])
+def subscriptions():
+    sub = get_current_subscriber()
+    if not sub:
+        flash("Please register or log in first.", "error")
         return redirect(url_for("register"))
 
-    return render_template("register.html")
+    plans_map = {
+        "personal":    ["free", "basic", "pro"],
+        "organization":["free", "basic", "pro", "enterprise"]
+    }
+    available = plans_map[sub.account_type]
 
-# ---------- CLI helper ------------------------------------------------------ #
+    if request.method == "POST":
+        plan = request.form["plan"]
+        if plan not in available:
+            flash("Invalid plan selected.", "error")
+            return redirect(url_for("subscriptions"))
 
-@app.cli.command("db")
-def init_db():
-    """`flask db` – create tables if needed."""
-    with app.app_context():
-        db.create_all()
-        print("Database initialized.")
+        return redirect(url_for("purchase", plan=plan))
+
+    return render_template(
+        "subscriptions.html",
+        subscriber=sub,
+        plans=available
+    )
+
+
+@app.route("/purchase/<plan>", methods=["GET", "POST"])
+def purchase(plan):
+    sub = get_current_subscriber()
+    if not sub:
+        flash("Please register or log in first.", "error")
+        return redirect(url_for("register"))
+
+    plan_limits = {
+        "free":       {"max_users": 1,      "max_resources": 5},
+        "basic":      {"max_users": 5,      "max_resources": 5},
+        "pro":        {"max_users": 50,     "max_resources": 30},
+        "enterprise": {"max_users": 10000,  "max_resources": 1000},
+    }
+    if plan not in plan_limits:
+        flash("Unknown plan.", "error")
+        return redirect(url_for("subscriptions"))
+
+    if request.method == "POST":
+        # dummy CC processing → in reality integrate Stripe/etc.
+        sub.subscription_type = plan
+        sub.max_users         = plan_limits[plan]["max_users"]
+        sub.max_resources     = plan_limits[plan]["max_resources"]
+        db.session.commit()
+
+        # Now push to MERN
+        push_in_bg(sub.to_dict())
+
+        flash(f"Purchased the {plan.title()} plan!", "success")
+        return redirect(url_for("dashboard"))
+
+    return render_template("purchase.html", plan=plan, subscriber=sub)
+
+
+@app.route("/dashboard")
+def dashboard():
+    sub = get_current_subscriber()
+    if not sub or not sub.subscription_type:
+        flash("Please choose and purchase a plan first.", "error")
+        return redirect(url_for("subscriptions"))
+    return render_template("dashboard.html", subscriber=sub)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("Logged out.", "success")
+    return redirect(url_for("landing"))
+
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # runs on port 8080 as requested
+    app.run(host="0.0.0.0", port=8080, debug=True)

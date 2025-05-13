@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4">Your Dashboard</h2>
+<p><strong>Subscription Plan:</strong>
+   {{ subscriber.subscription_type.title() }}</p>
+<p><strong>Max Users:</strong> {{ subscriber.max_users }}</p>
+<p><strong>Max Resources:</strong> {{ subscriber.max_resources }}</p>
+<a href="http://localhost:3000/login"
+   class="btn btn-primary">
+  Go to MERN App
+</a>
+{% endblock %}

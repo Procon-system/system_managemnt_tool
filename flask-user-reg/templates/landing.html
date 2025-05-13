@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="hero text-center">
+  <h1>Welcome to the Task Master</h1>
+  <p class="lead">
+    ~ The one tool to rule them all ! ~
+  </p>   
+  <p class="lead">
+    Manage your tasks seamlessly—ideal for personal projects or team collaboration.
+  </p>
+  <a href="{{ url_for('register') }}"
+     class="btn btn-primary btn-lg me-2">Get Started</a>
+  <a href="{{ url_for('login') }}"
+     class="btn btn-outline-secondary btn-lg">Login</a>
+</div>
+
+<div class="product-cards">
+  <h2 class="section-title">Discover Our Product</h2>
+  <div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for title,desc in [
+      ("Feature One","Quickly organize tasks and deadlines."),
+      ("Feature Two","Collaborate with your team in real-time."),
+      ("Feature Three","Get intelligent productivity insights.")
+    ] %}
+    <div class="col">
+      <div class="card h-100">
+        <div class="wireframe-img">Image Placeholder</div>
+        <div class="card-body text-center">
+          <h5 class="card-title">{{ title }}</h5>
+          <p class="card-text">{{ desc }}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="cta-section">
+  <h2>Ready to Boost Your Productivity?</h2>
+  <p>Join thousands of users who rely on Task Management App to stay organized.</p>
+  <a href="{{ url_for('register') }}"
+     class="btn btn-primary btn-lg">Sign Up Now</a>
+</div>
+{% endblock %}
