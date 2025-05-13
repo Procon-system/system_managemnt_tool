@@ -1,8 +1,8 @@
-import { PDFDocument, rgb } from 'pdf-lib';
+import {  rgb } from 'pdf-lib';
 
 export const linePlugin = {
   pdf: (arg) => {
-    const { pdfDoc, page, schema } = arg;
+    const {  page, schema } = arg;
     if (!schema) {
       console.error('Schema is undefined in linePlugin.');
       return;

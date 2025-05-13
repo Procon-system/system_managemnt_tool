@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit2, FiTrash2} from 'react-icons/fi';
+import {FiTrash2} from 'react-icons/fi';
 import {
   deleteResourceType,
   resetResourceTypeState,

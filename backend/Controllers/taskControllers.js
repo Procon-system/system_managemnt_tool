@@ -62,8 +62,8 @@ exports.createTask = async (req, res) => {
         baseTask: taskData,
         frequency: taskData.repeat_frequency,
         endDate: periodEndDate,
-        Task, 
-        Resource
+        TaskModel: Task,          // ✅ FIXED
+        ResourceModel: Resource   // ✅ FIXED
       });
     } else {
       // Handle single task
@@ -97,8 +97,7 @@ exports.updateTask = async (req, res) => {
     const updateData = {};
     const mongoose = require('mongoose');
     const { Task } = req.tenantModels;
-    console.log('Tenant DB:', req.tenantDb);  // Check if the tenant DB is correctly set
-
+    
     // Parse the assigned_resources if it exists
     if (req.body.assigned_resources) {
       const assignedResources = JSON.parse(req.body.assigned_resources);

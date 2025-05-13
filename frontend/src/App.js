@@ -22,28 +22,26 @@ import { ROLES } from "./accessControl/roles";
 import UnauthorizedPage from "./Pages/unauthorizedPage";
 import UserManagementPage from "./Pages/User/userPage";
 import { useDispatch, useSelector } from 'react-redux';
-import { localDB } from './pouchDb';
+
 import MainLayout from './Components/layout/layoutWrapper'
 import ResourceTypesPage from './Pages/ResourceType/showResourceTypePage';
 import TeamsPage from './Pages/Team/TeamsPage';
-const viewAllDocuments = async () => {
-  try {
-    const result = await localDB.allDocs({ include_docs: true });
-    const documents = result.rows.map((row) => row.doc);
+// const viewAllDocuments = async () => {
+//   try {
+//     const result = await localDB.allDocs({ include_docs: true });
+//     const documents = result.rows.map((row) => row.doc);
    
-    // await Promise.all(
-    //   documents.map((doc) => localDB.remove(doc._id, doc._rev))
-    // );
-  } catch (error) {
-    console.error('Error fetching documents:', error);
-  }
-};
+    
+//   } catch (error) {
+//     console.error('Error fetching documents:', error);
+//   }
+// };
 
-// Example usage
+// // Example usage
 
 
-// Call viewAllDocuments to check current local tasks
-viewAllDocuments();
+// // Call viewAllDocuments to check current local tasks
+// viewAllDocuments();
 
 // ConditionalNavBar Component
 const ConditionalNavBar = () => {

@@ -1,42 +1,4 @@
-// // hooks/useResources.js
-// import { useEffect,useState } from 'react';
-// import { useDispatch, useSelector } from 'react-redux';
-// import { fetchResourcesByType } from '../features/resourceSlice';
 
-// export const useResources = (typeIds = []) => {
-//   const dispatch = useDispatch();
-//   const resourcesState = useSelector(state => state.resources);
-//   const allResources = resourcesState.data?.resources || [];
-  
-//   // Track which types have been fetched
-//   const [fetchedTypes, setFetchedTypes] = useState(new Set());
-
-//   // Fetch resources for specified types
-//   useEffect(() => {
-//     const typesToFetch = typeIds.filter(typeId => !fetchedTypes.has(typeId));
-    
-//     if (typesToFetch.length > 0) {
-//       typesToFetch.forEach(typeId => {
-//         dispatch(fetchResourcesByType(typeId));
-//         setFetchedTypes(prev => new Set(prev).add(typeId));
-//       });
-//     }
-//   }, [dispatch, typeIds.join(','), fetchedTypes]);
-
-//   // Get resources by type
-//   const getResourcesByType = (typeId) => {
-//     return allResources.filter(res => 
-//       res.type?._id === typeId || res.typeId === typeId
-//     );
-//   };
-
-//   return {
-//     resources: allResources,
-//     getResourcesByType,
-//     loading: resourcesState.loading,
-//     error: resourcesState.error
-//   };
-// };
 // hooks/useResources.js
 import { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';

@@ -59,26 +59,23 @@ const generateRecurringInstances = (baseTask, frequency, endDate) => {
   
   return tasks;
 };
-
-exports.createRecurringTasks = async ({ baseTask, frequency, endDate ,TaskModel, ResourceModel}) => {
+exports.createRecurringTasks = async ({ baseTask, frequency, endDate, TaskModel, ResourceModel }) => {
   // First create the root task
-  const rootTask = await this.createTask({
-    ...baseTask,
-    isRecurringRoot: true
-  });
-  
+  const rootTask = await exports.createTask(baseTask, TaskModel, ResourceModel); // ✅ FIXED
+
   // Generate recurring instances
   const recurringInstances = generateRecurringInstances(
     { ...baseTask, _id: rootTask._id },
     frequency,
     endDate
   );
-  
+
   // Save all instances
   const createdInstances = await TaskModel.insertMany(recurringInstances);
-  
+
   return [rootTask, ...createdInstances];
 };
+
 // Simplified createTask for single tasks
 exports.createTask = async (taskData, TaskModel, ResourceModel) => {
   try {

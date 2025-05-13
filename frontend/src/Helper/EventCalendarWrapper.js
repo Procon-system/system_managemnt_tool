@@ -20,7 +20,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
-  const memoizedEvents = useMemo(() => events, [JSON.stringify(events)]);
   const user = useSelector((state) => state.auth);
   const currentDateRef = useRef(new Date()); // Initialize with a default value
   const [selectedEvents, setSelectedEvents] = useState(new Set());
@@ -29,34 +28,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   const [calendarDate, setCalendarDate] = useState(new Date());  // Default to today's date
   const isDateChangeAllowed = useRef(true); // Add this line to define the ref
 
-  // const handleDateChange = (args) => {
-    
-  //   try {
-  //     const currentView = args.view.type;
-      
-  //     let normalizedArgsStart;
-  //     let normalizedCalendarDate;
-  //     if (currentView === "dayGridMonth") {
-  //       const viewStartYear = args.view.currentStart.getFullYear();
-  //       const viewStartMonth = args.view.currentStart.getMonth();
-  //       const updatedDate = new Date(viewStartYear, viewStartMonth, 1); 
-  //       setCalendarDate(updatedDate);
-  //     } 
-  //      else {
-  //       // For week and day views, normalize to the start of the day
-  //       normalizedArgsStart = new Date(args.start).setHours(0, 0, 0, 0);
-  //       normalizedCalendarDate = new Date(calendarDate).setHours(0, 0, 0, 0);
-  //     }
-  
-  //     if (normalizedCalendarDate !== normalizedArgsStart) {
-  //       setCalendarDate(new Date(normalizedArgsStart));
-  //       currentDateRef.current = new Date(normalizedArgsStart);
-  //     }
-  
-  //   } catch (err) {
-  //     console.error("Error in handleDateChange:", err);
-  //   }
-  // }; 
+ 
   const handleDateChange = useCallback((args) => {
     const currentView = args.view.type;
     let normalizedArgsStart;
@@ -223,36 +195,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
       return null;
     }
   };
-  // const adjustTimeForBackend = (time, timezoneOffset) => {
-  //   try {
-  //     // Validate time
-  //     const date = new Date(time);
-  //     if (isNaN(date.getTime())) {
-  //       console.error('Invalid date input:', time);
-  //       return null;
-  //     }
   
-  //     // Validate timezoneOffset
-  //     if (typeof timezoneOffset !== 'number' || isNaN(timezoneOffset)) {
-  //       console.error('Invalid timezone offset:', timezoneOffset);
-  //       return null;
-  //     }
-  
-  //     // Calculate UTC time and adjust for timezone
-  //     const utcTime = date.getTime();
-  //     const adjustedTime = new Date(utcTime + timezoneOffset * 60 * 60 * 1000);
-  
-  //     if (isNaN(adjustedTime.getTime())) {
-  //       console.error('Invalid adjusted time:', adjustedTime);
-  //       return null;
-  //     }
-  
-  //     return adjustedTime.toISOString();
-  //   } catch (error) {
-  //     console.error('Error adjusting time:', error);
-  //     return null;
-  //   }
-  // };
   // Add this function to update event appearance
   const updateEventAppearance = (eventId, isSelected) => {
     const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
@@ -300,8 +243,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
     }
 
     const { event, jsEvent } = info;
-    console.log('1. Drag started - info object:', info); // <-- First debug point
-  
+    
     const deltaMs = event.start.getTime() - info.oldEvent.start.getTime();
     const selectedEventIds = Array.from(selectedEventsRef.current);
     try {
@@ -458,8 +400,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             };
             openCreateForm(newEvent);
           },
-          // eventResize: (info) => handleEventResize(info, user, onEventUpdate, adjustTimeForBackend),
-        
+          
           dateClick: (info) => {
             if (user.access_level < 3) {
               toast.error('You do not have permission to create events. try logging in again');
@@ -579,70 +520,7 @@ console.log("updatedEvent", updatedEvent);
 openForm(updatedEvent);
           }
         },
-          // Add this to ensure events have unique identifiers
-          // eventDidMount: (info) => {
-          //   const eventElement = info.el;
-          //   const eventId = info.event.extendedProps._id;
-          //   eventElement.setAttribute('data-event-id', eventId);
-            
-          //   // Apply selection styling if event is selected
-          //   if (selectedEvents.has(eventId)) {
-          //     updateEventAppearance(eventId, true);
-          //   }
-          // },
-
-          // // Handle drag and drop
-          // eventDragStart: (info) => {
-          //   const eventId = info.event.extendedProps._id;
-          //   const selectedEventIds = Array.from(selectedEventsRef.current);
           
-          //   // Store initial positions of all selected events
-          //   dragStartPositionsRef.current.clear();
-          //   selectedEventIds.forEach(id => {
-          //       const event = calendarRef.current.getEventById(id);
-          //       if (event) {
-          //           dragStartPositionsRef.current.set(id, {
-          //               start: event.start,
-          //               end: event.end
-          //           });
-          //       }
-          //   });
-
-          //   // If the dragged event isn't in the selection, clear selection
-          //   if (!selectedEventIds.includes(eventId)) {
-          //       clearEventSelection();
-          //   }
-          // },
-
-          // eventDrag: (info) => {
-          //   console.log("hkhkhk")
-          //   const mainEventId = info.event.extendedProps._id;
-          //   const deltaMs = info.event.start.getTime() - info.event._instance.range.start.getTime();
-            
-          //   // Move all selected events together
-          //   selectedEventsRef.current.forEach(eventId => {
-          //       if (eventId !== mainEventId) { // Skip the main dragged event
-          //           const eventToMove = calendarRef.current.getEventById(eventId);
-          //           const startPosition = dragStartPositionsRef.current.get(eventId);
-                    
-          //           if (eventToMove && startPosition) {
-          //               const newStart = new Date(startPosition.start.getTime() + deltaMs);
-          //               const newEnd = new Date(startPosition.end.getTime() + deltaMs);
-                        
-          //               try {
-          //                   calendarRef.current.updateEvent({
-          //                       id: eventId,
-          //                       start: newStart,
-          //                       end: newEnd,
-          //                       allDay: eventToMove.allDay
-          //                   });
-          //               } catch (error) {
-          //                   console.error('Error updating event position:', error);
-          //               }
-          //           }
-          //       }
-          //   });
-          // },
           eventDrop: (info) => {
             console.log('Raw drop event triggered', info); // First debug point
             handleEventDrop(info).catch(console.error);

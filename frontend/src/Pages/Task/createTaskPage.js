@@ -12,11 +12,8 @@ const TaskPage = ({ onClose, onEventCreate, event, isOffset = false }) => {
     start_time: event?.start_time || "",
     end_time: event?.end_time || "",
     color_code: event?.color_code || "",
-    // Initialize arrays for multiple resources
     assignedResources: event?.assignedResources || [],
-    // requiredTools: event?.requiredTools || [],
-    // materials: event?.materials || [],
-    // Other default values
+    
   };
 
   const handleTaskSubmit = async (taskData) => {

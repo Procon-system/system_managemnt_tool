@@ -63,53 +63,6 @@ const SelectInput = ({ label, name, value = [], onChange, options = [], isMulti 
 
 
 
-// const SelectInput = ({ label, name, value = [], onChange, options = [], isMulti = false }) => {
- 
-//   const selectedValues = Array.isArray(value) ? value : [value];
-//   const selectedOptions = options.filter(opt => selectedValues.includes(opt.value));
-
-//   const handleChange = (selected) => {
-//     const newValue = isMulti
-//       ? selected ? selected.map(opt => opt.value) : []
-//       : selected ? selected.value : null;
-
-//     // Create a synthetic event to match standard input behavior
-//     onChange({
-//       target: {
-//         name,
-//         value: newValue
-//       }
-//     });
-//   };
-
-//   return (
-//     <div className="w-full px-2">
-//       <label className="block mb-1 text-sm font-medium text-gray-600">{label}</label>
-//       <Select
-//         name={name}
-//         value={isMulti ? selectedOptions : selectedOptions[0] || null}
-//         onChange={handleChange}
-//         options={options}
-//         isClearable
-//         placeholder={`Select ${label}`}
-//         isSearchable
-//         isMulti={isMulti}
-//         className="w-full"
-//         styles={{
-//           control: (base) => ({
-//             ...base,
-//             backgroundColor: 'rgb(249 250 251)',
-//             padding: '4px 8px',
-//             borderColor: 'rgb(209 213 219)',
-//             minHeight: '40px'
-//           }),
-//           placeholder: (base) => ({ ...base, color: 'rgb(107 114 128)' }),
-//         }}
-//       />
-     
-//     </div>
-//   );
-// };
 // Options for time period (days, weeks, months, years)
 const periodOptions = [
     { value: 'day', label: 'Day' },

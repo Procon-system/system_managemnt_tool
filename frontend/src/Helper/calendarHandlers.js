@@ -56,8 +56,7 @@ export const handleEventDuplication = async ({
     }
 
     console.log("Event duplication successful:", newEvent);
-    // toast.success("Event duplicated successfully!");
-  } catch (error) {
+     } catch (error) {
     console.error("Error during event duplication:", error);
 
     // Revert UI changes if the operation fails
@@ -226,8 +225,6 @@ export const handleEventResize = async (info, user, onEventUpdate, adjustTimeFor
   
   // 3. Use detected timezone (preferred) or fallback
   const timezoneToUse = userTimezone || fallbackTimezoneOffset;
-
-  console.log('Using timezone:', timezoneToUse); // For debugging
 
   const adjustedStartTime = adjustTimeForBackend(event.start, timezoneToUse);
   const adjustedEndTime = adjustTimeForBackend(event.end, timezoneToUse);

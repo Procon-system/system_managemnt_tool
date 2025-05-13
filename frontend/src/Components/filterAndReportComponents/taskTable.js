@@ -13,7 +13,6 @@ const TaskTable = ({ tasks, resourceTypes = [] }) => {
     accessor: `resources-${type._id}`,
     color: type.color || '#cccccc'
   }));
-console.log("task.assignments",tasks)
   return (
     <div className="mt-6">
       <div className="flex flex-wrap justify-between items-center w-full mb-4">

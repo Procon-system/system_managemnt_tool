@@ -173,40 +173,7 @@ const resourceSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      // .addCase(fetchResourcesByType.fulfilled, (state, action) => {
-      //   state.status = 'succeeded';
-      //   state.loading = false;
-      //   // Store the entire API response in data
-      //   state.data = {
-      //     resources: action.payload.resources || [],
-      //     total: action.payload.total || 0,
-      //     pages: action.payload.pages || 1,
-      //     currentPage: action.payload.currentPage || 1
-      //   };
-      // })
-      // .addCase(fetchResourcesByType.fulfilled, (state, action) => {
-      //   state.status = 'succeeded';
-      //   state.loading = false;
-        
-      //   // Merge new resources with existing ones
-      //   const existingResources = state.data?.resources || [];
-      //   const newResources = action.payload.resources || [];
-        
-      //   // Combine resources, avoiding duplicates
-      //   const mergedResources = [
-      //     ...existingResources.filter(existing => 
-      //       !newResources.some(newRes => newRes._id === existing._id)
-      //     ),
-      //     ...newResources
-      //   ];
       
-      //   state.data = {
-      //     resources: mergedResources,
-      //     total: action.payload.total || mergedResources.length,
-      //     pages: action.payload.pages || 1,
-      //     currentPage: action.payload.currentPage || 1
-      //   };
-      // })
       .addCase(fetchResourcesByType.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.loading = false;
