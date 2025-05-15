@@ -12,5 +12,5 @@ module.exports = {
    retryWrites: process.env.RETRY_WRITES !== 'false',
    writeConcern: process.env.WRITE_CONCERN || 'majority',
   port: process.env.PORT || 5000,
-  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
+  corsOrigin: process.env.CORS_ORIGIN ,
 };
