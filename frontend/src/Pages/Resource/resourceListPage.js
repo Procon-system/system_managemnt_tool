@@ -25,7 +25,6 @@ const ResourceListPage = () => {
   const resourceType = useSelector((state) => 
     state.resourceTypes.resourceTypes.find(type => type._id === typeId)
   );
-console.log("resourceType345",resourceType);
   const handleEdit = async (resourceId, updatedData) => {
     await updateResource({ id: resourceId, updatedData });
     refreshResources();

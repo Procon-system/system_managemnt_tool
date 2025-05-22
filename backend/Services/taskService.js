@@ -1,6 +1,3 @@
-const Task = require('../Models/TaskSchema');
-const Resource = require('../Models/ResourceSchema');
-const { validateTaskData } = require('../utils/validators');
 const mongoose = require('mongoose');
 const generateRecurringInstances = (baseTask, frequency, endDate) => {
   const tasks = [];
@@ -187,7 +184,7 @@ exports.deleteTask = async (taskId, TaskModel) => {
   }
   
   // Optional: Clean up any task references
-  await Task.updateMany(
+  await TaskModel.updateMany(
     { 'dependencies.task': taskId },
     { $pull: { dependencies: { task: taskId } } }
   );
@@ -240,18 +237,7 @@ exports.filterTasksByOrganization = async (organizationId,TaskModel, options = {
     if (filters._id) {
       query._id = new mongoose.Types.ObjectId(filters._id);
     }
-    // if (filters.resource) {
-    //   // Handle both single resource and array of resources
-    //   const resourceIds = Array.isArray(filters.resource) 
-    //     ? filters.resource.map(id => new mongoose.Types.ObjectId(id))
-    //     : [new mongoose.Types.ObjectId(filters.resource)];
-    
-    //   query.resources = {
-    //     $elemMatch: {
-    //       resource: { $in: resourceIds }
-    //     }
-    //   };
-    // }
+  
     if (filters.resource) {
       const resourceIds = Array.isArray(filters.resource) 
         ? filters.resource.map(id => new mongoose.Types.ObjectId(id))

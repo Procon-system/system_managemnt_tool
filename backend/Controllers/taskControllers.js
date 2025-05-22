@@ -4,14 +4,6 @@ const calculateTaskPeriod = require('../Helper/taskPeriodCalc');
 const getColorForStatus =require('../utils/getColorForStatus');
 const uploadFileToGridFS = require('../utils/uploadImage'); // Import the upload function
 const mongoose = require('mongoose');
-const {getFromCache, setToCache, deleteFromCache, 
-  clearPattern,generateCacheKey,cachePaginatedResults,invalidateTaskCaches } =require('../redisUtils');
-const cleanObjectId = (id) => {
-  if (!id) return null;
-  const possibleIds = id.split('_').filter(mongoose.Types.ObjectId.isValid);
-  return possibleIds.length > 0 ? new mongoose.Types.ObjectId(possibleIds[0]) : null;
-};
-const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 exports.setTaskSocketIoInstance = (ioInstance) => {
   io = ioInstance;
@@ -19,6 +11,8 @@ exports.setTaskSocketIoInstance = (ioInstance) => {
 exports.createTask = async (req, res) => {
   try {
     const { Task, Resource } = req.tenantModels;
+    const cache = req.tenantCache;
+
     // Validate required fields
     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
       return res.status(400).json({
@@ -70,11 +64,10 @@ exports.createTask = async (req, res) => {
       
       createdTask = await taskService.createTask(taskData, Task, Resource);
     }
-    // Fire-and-forget cache invalidation
-  // invalidateTaskCaches(task.organization, task._id, task.createdBy)
-  // .catch(err => console.error('Background cache invalidation failed:', err));
+   // Invalidate all paginated task lists
+   await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+   console.log(`[CACHE][DEL] tasks:org:${req.user.org_id}:*`);
 
-    
     // Ensure we're sending a response
     return res.status(201).json({
       success: true,
@@ -183,33 +176,20 @@ exports.updateTask = async (req, res) => {
       updateData,
       Task
     );
-     // Clear cache for this task and related lists
-    //  await Promise.all([
-    //   deleteFromCache(`task:${taskId}:org:${req.user.organization}`),
-    //   clearPattern(`tasks:org:${req.user.organization}:*`),
-    //   clearPattern(`user_tasks:*:${taskId}`),
-    //   // Clear image cache for any modified images
-    //   ...(updatedTask.images?.length ? 
-    //     updatedTask.images.map(imageId => 
-    //       deleteFromCache(`image:meta:${imageId}`)
-    //     ) : []
-    //   ),
-      // Clear cache for any removed images
-    //   ...(req.body.removedImages?.length ?
-    //     req.body.removedImages.map(imageId =>
-    //       deleteFromCache(`image:meta:${imageId}`)
-    //     ) : []
-    //   )
-    // ]);
+    
     const responseTask = {
       ...updatedTask.toObject(), // Convert Mongoose document to plain object
-      // Ensure all necessary fields are included
       assigned_resources: updatedTask.assigned_resources || [],
       images: updatedTask.images || [],
       // Add any other fields that might be missing
     };
+    // Invalidate cache
+const cache = req.tenantCache;
+await cache.del(`task:${taskId}:org:${req.user.org_id}`);
+await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+console.log(`[CACHE][DEL] task:${taskId}:org:${req.user.org_id} and related task lists`);
     
-    res.status(200).json({
+res.status(200).json({
       success: true,
       message: 'Task updated successfully',
       data: responseTask
@@ -224,49 +204,60 @@ exports.updateTask = async (req, res) => {
 };
 exports.getTaskById = async (req, res) => {
   try {
+    const cache = req.tenantCache;
     const cacheKey = `task:${req.params.id}:org:${req.user.org_id}`;
-    
     const { Task } = req.tenantModels;
-    // Try to get from cache first
-    const cachedTask = await getFromCache(cacheKey);
-    if (cachedTask) {
-      return sendResponse(res, 200, 'Task retrieved from cache', cachedTask);
+
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`[CACHE][HIT] ${cacheKey}`);
+      return sendResponse(res, 200, 'Task retrieved from cache', JSON.parse(cached));
     }
-    
-    // If not in cache, get from DB
+
     const task = await taskService.getTaskById(req.params.id, Task);
-    if (!task) {
-      return sendResponse(res, 404, 'Task not found', null);
-    }
-    
-    // Store in cache
-    await setToCache(cacheKey, task);
-    
+    if (!task) return sendResponse(res, 404, 'Task not found', null);
+
+    await cache.set(cacheKey, JSON.stringify(task), { expiration: 300 });
+    console.log(`[CACHE][SET] ${cacheKey} (TTL: 300s)`);
+
     sendResponse(res, 200, 'Task retrieved successfully', task);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
+
+// exports.getTaskById = async (req, res) => {
+//   try {
+//     const cacheKey = `task:${req.params.id}:org:${req.user.org_id}`;
+    
+//     const { Task } = req.tenantModels;
+    
+//     // If not in cache, get from DB
+//     const task = await taskService.getTaskById(req.params.id, Task);
+//     if (!task) {
+//       return sendResponse(res, 404, 'Task not found', null);
+//     }
+    
+//     // Store in cache
+//     await setToCache(cacheKey, task);
+    
+//     sendResponse(res, 200, 'Task retrieved successfully', task);
+//   } catch (error) {
+//     sendResponse(res, error.statusCode || 500, error.message, null);
+//   }
+// };
 exports.deleteTask = async (req, res) => {
   try {
     const taskId = req.params.id;
     const { Task } = req.tenantModels;
+    const cache = req.tenantCache;
 
     await taskService.deleteTask(taskId, Task);
-
-        // Clear all relevant cache entries
-        // await Promise.all([
-        //   deleteFromCache(`task:${taskId}:org:${orgId}`),
-        //   clearPattern(`tasks:org:${orgId}:*`),
-        //   clearPattern(`user_tasks:*:${taskId}`),
-        //   clearPattern(`filtered_tasks:org:${orgId}:*`),
-        //   // Clear image cache for any task images
-        //   ...(task?.images?.length ? 
-        //     task.images.map(imageId => 
-        //       deleteFromCache(`image:meta:${imageId}`)
-        //     ) : []
-        //   )
-        // ]);
+     // Invalidate cache
+     await cache.del(`task:${taskId}:org:${req.user.org_id}`);
+     await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+     console.log(`[CACHE][DEL] task:${taskId}:org:${req.user.org_id} and related task lists`);
+ 
     sendResponse(res, 200, 'Task deleted successfully', null);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
@@ -276,36 +267,51 @@ exports.getTasksByOrganization = async (req, res) => {
   try {
     const { page = 1, limit = 100 } = req.query;
     const { Task } = req.tenantModels;
-
     const orgId = req.user.org_id;
-    
-    const cacheKey = generateCacheKey('tasks', orgId, { page, limit });
-    
-    // Try cache first
-    // const cachedTasks = await getFromCache(cacheKey);
-    // if (cachedTasks) {
-    //   return sendResponse(res, 200, 'Tasks retrieved from cache', cachedTasks);
-    // }
-    
-    const tasks = await taskService.getTasksByOrganization(
-      Task,
-      { page, limit }
-    );
-    
-    // Cache the results
-    // await cachePaginatedResults(cacheKey, tasks);
-    
+    const cache = req.tenantCache;
+
+    const cacheKey = `tasks:org:${orgId}:page:${page}:limit:${limit}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`[CACHE][HIT] ${cacheKey}`);
+      return sendResponse(res, 200, 'Tasks retrieved from cache', JSON.parse(cached));
+    }
+
+    const tasks = await taskService.getTasksByOrganization(Task, { page, limit });
+
+    await cache.set(cacheKey, JSON.stringify(tasks), { expiration: 300 });
+    console.log(`[CACHE][SET] ${cacheKey} (TTL: 300s)`);
+
     sendResponse(res, 200, 'Tasks retrieved successfully', tasks);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
+
+// exports.getTasksByOrganization = async (req, res) => {
+//   try {
+//     const { page = 1, limit = 100 } = req.query;
+//     const { Task } = req.tenantModels;
+//     const orgId = req.user.org_id;
+    
+//     const tasks = await taskService.getTasksByOrganization(
+//       Task,
+//       { page, limit }
+//     );
+    
+//     sendResponse(res, 200, 'Tasks retrieved successfully', tasks);
+//   } catch (error) {
+//     sendResponse(res, error.statusCode || 500, error.message, null);
+//   }
+// };
 exports.filterTasksByOrganization = async (req, res) => {
   try {
     // Handle both POST (body) and GET (query) requests
     const requestData = req.method === 'POST' ? req.body.filters : req.query;
     const orgId = req.user.org_id;
     const { Task } = req.tenantModels;
+    const cache = req.tenantCache;
+
     // Properly extract filters and pagination
     const { 
       page = 1, 
@@ -341,20 +347,14 @@ exports.filterTasksByOrganization = async (req, res) => {
         parsedFilters[key] = value;
       }
     }
-    
-    // Generate cache key based on filters and pagination
-    // const cacheKey = generateCacheKey('filtered_tasks', orgId, {
-    //   ...parsedFilters,
-    //   page,
-    //   limit
-    // });
+  
+    const cacheKey = `tasks:filter:org:${orgId}:page:${page}:limit:${limit}:filters:${Buffer.from(filterKey).toString('base64')}`;
 
-    // Try cache first
-    // const cachedResults = await getFromCache(cacheKey);
-    // if (cachedResults) {
-    //   return sendResponse(res, 200, 'Filtered tasks retrieved from cache', cachedResults);
-    // }
-
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`[CACHE][HIT] ${cacheKey}`);
+      return sendResponse(res, 200, 'Tasks filtered (cached)', JSON.parse(cached));
+    }
     const result = await taskService.filterTasksByOrganization(
       orgId,
       Task,
@@ -364,11 +364,10 @@ exports.filterTasksByOrganization = async (req, res) => {
         filters: parsedFilters
       }
     );
+    
+    await cache.set(cacheKey, JSON.stringify(result), { expiration: 300 }); // Cache for 5 minutes
+    console.log(`[CACHE][SET] ${cacheKey}`);
 
-    // Cache filtered results with shorter TTL (as filters may change more often)
-    // await cachePaginatedResults(cacheKey, result, 60); // 1 minute TTL
-
-   
     sendResponse(res, 200, 'Tasks filtered successfully', result);
   } catch (error) {
     console.error('Filter error:', error);
@@ -379,6 +378,8 @@ exports.changeTaskStatus = async (req, res) => {
   try {
     const { status, notes } = req.body;
     const { Task } = req.tenantModels;
+    const cache = req.tenantCache;
+
     const updatedTask = await taskService.changeTaskStatus(
       req.params.id,
       status,
@@ -387,49 +388,145 @@ exports.changeTaskStatus = async (req, res) => {
       req.user.org_id,
       Task
     );
+
+    // Invalidate the specific task and related task lists
+    await cache.del(`task:${req.params.id}:org:${req.user.org_id}`);
+    await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+    console.log(`[CACHE][DEL] task:${req.params.id}:org:${req.user.org_id} + task lists`);
+
     sendResponse(res, 200, 'Task status updated successfully', updatedTask);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
-// Get all done tasks
 exports.getAllDoneTasks = async (req, res) => {
   try {
     const { Task } = req.tenantModels;
+    const cache = req.tenantCache;
+    const cacheKey = `tasks:done:org:${req.user.org_id}`;
+
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`[CACHE][HIT] ${cacheKey}`);
+      return sendResponse(res, 200, 'Done tasks from cache', JSON.parse(cached));
+    }
+
     const tasks = await taskService.fetchAllDoneTasks(req.user.org_id, Task);
+    await cache.set(cacheKey, JSON.stringify(tasks), { expiration: 300 });
+    console.log(`[CACHE][SET] ${cacheKey}`);
+
     sendResponse(res, 200, 'Done tasks retrieved successfully', tasks);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
-// Get done tasks for specific user
 exports.getDoneTasksForUser = async (req, res) => {
   const { userId } = req.query;
   const { Task } = req.tenantModels;
+  const cache = req.tenantCache;
 
   if (!userId) {
     return sendResponse(res, 400, 'User ID is required', null);
   }
 
+  const cacheKey = `tasks:done:user:${userId}:org:${req.user.org_id}`;
   try {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`[CACHE][HIT] ${cacheKey}`);
+      return sendResponse(res, 200, 'Done tasks for user from cache', JSON.parse(cached));
+    }
+
     const tasks = await taskService.fetchDoneTasksForUser(userId, req.user.org_id, Task);
+    await cache.set(cacheKey, JSON.stringify(tasks), { expiration: 300 });
+    console.log(`[CACHE][SET] ${cacheKey}`);
+
     sendResponse(res, 200, 'Done tasks retrieved successfully', tasks);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
-// Get tasks assigned to a user
 exports.getTasksByAssignedUser = async (req, res) => {
   try {
     const { userId } = req.query;
     const { Task } = req.tenantModels;
+    const cache = req.tenantCache;
+
     if (!userId) {
       return sendResponse(res, 400, 'User ID is required', null);
     }
 
+    const cacheKey = `tasks:assigned:user:${userId}:org:${req.user.org_id}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`[CACHE][HIT] ${cacheKey}`);
+      return sendResponse(res, 200, 'Assigned tasks from cache', JSON.parse(cached));
+    }
+
     const tasks = await taskService.getTasksByAssignedUser(userId, req.user.org_id, Task);
+    await cache.set(cacheKey, JSON.stringify(tasks), { expiration: 300 });
+    console.log(`[CACHE][SET] ${cacheKey}`);
+
     sendResponse(res, 200, 'Assigned tasks retrieved successfully', tasks);
   } catch (error) {
     sendResponse(res, 500, 'Failed to fetch tasks', { details: error.message });
   }
 };
+
+// // exports.changeTaskStatus = async (req, res) => {
+// //   try {
+// //     const { status, notes } = req.body;
+// //     const { Task } = req.tenantModels;
+// //     const updatedTask = await taskService.changeTaskStatus(
+// //       req.params.id,
+// //       status,
+// //       req.user._id,
+// //       notes,
+// //       req.user.org_id,
+// //       Task
+// //     );
+// //     sendResponse(res, 200, 'Task status updated successfully', updatedTask);
+// //   } catch (error) {
+// //     sendResponse(res, error.statusCode || 500, error.message, null);
+// //   }
+// // };
+// exports.getAllDoneTasks = async (req, res) => {
+//   try {
+//     const { Task } = req.tenantModels;
+//     const tasks = await taskService.fetchAllDoneTasks(req.user.org_id, Task);
+//     sendResponse(res, 200, 'Done tasks retrieved successfully', tasks);
+//   } catch (error) {
+//     sendResponse(res, error.statusCode || 500, error.message, null);
+//   }
+// };
+// Get done tasks for specific user
+// exports.getDoneTasksForUser = async (req, res) => {
+//   const { userId } = req.query;
+//   const { Task } = req.tenantModels;
+
+//   if (!userId) {
+//     return sendResponse(res, 400, 'User ID is required', null);
+//   }
+
+//   try {
+//     const tasks = await taskService.fetchDoneTasksForUser(userId, req.user.org_id, Task);
+//     sendResponse(res, 200, 'Done tasks retrieved successfully', tasks);
+//   } catch (error) {
+//     sendResponse(res, error.statusCode || 500, error.message, null);
+//   }
+// };
+// // Get tasks assigned to a user
+// exports.getTasksByAssignedUser = async (req, res) => {
+//   try {
+//     const { userId } = req.query;
+//     const { Task } = req.tenantModels;
+//     if (!userId) {
+//       return sendResponse(res, 400, 'User ID is required', null);
+//     }
+
+//     const tasks = await taskService.getTasksByAssignedUser(userId, req.user.org_id, Task);
+//     sendResponse(res, 200, 'Assigned tasks retrieved successfully', tasks);
+//   } catch (error) {
+//     sendResponse(res, 500, 'Failed to fetch tasks', { details: error.message });
+//   }
+// };

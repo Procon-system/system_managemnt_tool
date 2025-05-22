@@ -22,8 +22,7 @@ const authenticateUser = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_TOKEN_KEY);
-    console.log("Decoded Token:", decoded);
-      
+    
     let user;
     if (decoded.isGlobalAdmin) {
       // 🔒 Super admin in MAIN DB

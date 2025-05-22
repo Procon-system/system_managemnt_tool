@@ -1,94 +1,75 @@
-{% extends 'base.html' %}
-{% block content %}
-<div class="d-flex justify-content-center align-items-center" style="min-height: calc(100vh - 100px);">
-  <div class="card shadow-sm p-4 w-100" style="max-width: 480px;">
-    <h2 class="card-title mb-3 text-center">Create Your Account</h2>
-    <p class="text-center small">
-      Already have an account?
-      <a href="{{ url_for('login') }}">Login here</a>
-    </p>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>User Registration</title>
+  <style>
+    body     { font-family:sans-serif; margin:2rem auto; max-width:500px; }
+    label    { display:block; margin-top:1rem; }
+    input,select { width:100%; padding:.5rem; }
+    button   { margin-top:1.5rem; padding:.7rem 1.2rem; }
+    .flash   { margin:.5rem 0; padding:.5rem; border:1px solid #777; }
+    .error   { background:#fdd; }
+    .success { background:#dfd; }
+  </style>
+</head>
+<body>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat,msg in messages %}
+        <div class="flash {{cat}}">{{msg}}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
 
-    <form method="POST" action="{{ url_for('register') }}" class="mt-4">
-      <!-- Account Type Toggle -->
-      <div class="mb-4">
-        <label class="form-label fw-semibold">Account Type</label>
-        <div class="btn-group d-flex" role="group">
-          <input type="radio" class="btn-check" name="account_type"
-                 id="personal" value="personal" autocomplete="off" checked>
-          <label class="btn btn-outline-primary flex-fill" for="personal">
-            Personal
-          </label>
+  <h1>Register new subscriber</h1>
+  <form method="post">
+    <label>ID (4 digits)           <input name="id"  pattern="\d{4}"      required></label>
+    <label>Name                    <input name="name"                     required></label>
+    <label>Email                   <input name="email" type="email"       required></label>
+    <label>Address                 <input name="address"                  required></label>
+    <label>Telephone               <input name="telephone" pattern="\d{7,15}" required></label>
 
-          <input type="radio" class="btn-check" name="account_type"
-                 id="organization" value="organization" autocomplete="off">
-          <label class="btn btn-outline-primary flex-fill" for="organization">
-            Organization
-          </label>
-        </div>
-      </div>
+    <label>Access&nbsp;level
+      <select name="access_level">
+        {% for n in range(1,6) %}<option>{{n}}</option>{% endfor %}
+      </select>
+    </label>
 
-      <!-- Name Fields -->
-      <div class="row g-3 mb-3">
-        <div class="col-sm-6">
-          <label for="first_name" class="form-label">First Name</label>
-          <input type="text" class="form-control" id="first_name"
-                 name="first_name" required>
-        </div>
-        <div class="col-sm-6">
-          <label for="last_name" class="form-label">Last Name</label>
-          <input type="text" class="form-control" id="last_name"
-                 name="last_name" required>
-        </div>
-      </div>
+    <label>Organization name       <input name="organization_name"        required></label>
 
-      <!-- Contact & Address -->
-      <div class="mb-3">
-        <label for="email" class="form-label">Email</label>
-        <input type="email" class="form-control" id="email"
-               name="email" required>
-      </div>
-      <div class="mb-3">
-        <label for="telephone" class="form-label">Telephone</label>
-        <input type="tel" class="form-control" id="telephone"
-               name="telephone" required>
-      </div>
-      <div class="mb-3">
-        <label for="address" class="form-label">Address</label>
-        <input type="text" class="form-control" id="address"
-               name="address" required>
-      </div>
+    <label>Max&nbsp;permitted&nbsp;users
+      <select name="max_permitted_user_amount">
+        {% for n in range(1,11) %}<option>{{n}}</option>{% endfor %}
+      </select>
+    </label>
 
-      <!-- Organization Name (hidden by default) -->
-      <div id="org-fields" class="mb-3" style="display:none;">
-        <label for="organization_name" class="form-label">Organization Name</label>
-        <input type="text" class="form-control" id="organization_name"
-               name="organization_name">
-      </div>
+    <label>Max&nbsp;permitted&nbsp;resources
+      <select name="max_permitted_resource_amount">
+        {% for n in range(1,11) %}<option>{{n}}</option>{% endfor %}
+      </select>
+    </label>
 
-      <!-- Password -->
-      <div class="mb-4">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password"
-               name="password" required>
-      </div>
+    <label>Subscription&nbsp;type
+      <select name="subscription_type">
+        {% for t in ['free','basic','pro','expert'] %}<option>{{t}}</option>{% endfor %}
+      </select>
+    </label>
 
-      <button type="submit" class="btn btn-primary w-100">Register</button>
-    </form>
-  </div>
+    <!-- Password -->
+<div class="mb-3">
+  <label for="password" class="form-label fw-semibold">Password</label>
+  <input  type="password"
+          class="form-control"
+          id="password"
+          name="password"
+          placeholder="Choose a strong password"
+          minlength="8"           <!-- client-side hint -->
+          required>
 </div>
 
-<script>
-  // simple toggling of the Org field block
-  const orgFields = document.getElementById('org-fields');
-  document.querySelectorAll('input[name="account_type"]').forEach(radio => {
-    radio.addEventListener('change', e => {
-      orgFields.style.display = (e.target.value === 'organization') ? 'block' : 'none';
-    });
-  });
-  // on load, respect the default checked state
-  window.addEventListener('DOMContentLoaded', () => {
-    const sel = document.querySelector('input[name="account_type"]:checked');
-    orgFields.style.display = (sel.value === 'organization') ? 'block' : 'none';
-  });
-</script>
-{% endblock %}
+
+    <button type="submit">Submit</button>
+  </form>
+</body>
+</html>

@@ -1,5 +1,6 @@
 
 const { getOrganizationDB } = require('../config/dbManager');
+const { getTenantRedis } = require('../utils/tenantRedis'); 
 const mongoose = require('mongoose');
 
 module.exports = async (req, res, next) => {
@@ -41,8 +42,10 @@ module.exports = async (req, res, next) => {
       Task: tenantConn.models.get('Task'),
       Team: tenantConn.models.get('Team')
     };
+     
+    // ✅ Inject tenant-scoped Redis helper
+    req.tenantCache = getTenantRedis(orgId);
 
-    // Optionally validate that the organization exists globally
     const Organization = mongoose.model('Organization');
     const exists = await Organization.exists({ _id: orgId });
 

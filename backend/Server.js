@@ -1,85 +1,70 @@
 
-const http = require("http");
-const mongoose = require('mongoose');
-const axios = require('axios');
-const { Server } = require("socket.io");
-const redis = require("redis");
-const routes = require('./Routes/index');
-const errorHandler = require('./Middleware/errorHandler');
 const express = require("express");
+const http = require("http");
+const mongoose = require("mongoose");
+const cors = require("cors");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
-const cors = require("cors");
-const config = require('./config/config');
-const {setTaskSocketIoInstance} = require('./Controllers/taskControllers');
-const {setResourceTypeSocketIoInstance} = require('./Controllers/resourceTypeController');
-const User = require('./Models/UserSchema');
-const { WebSocketServer } = require('ws');
-require('dotenv').config();
-const {registerAdminController}= require('./Controllers/authController')
-const app = express();
-const server = http.createServer(app);
+const { Server } = require("socket.io");
+const dotenv = require("dotenv");
+const config = require("./config/config");
+const routes = require("./Routes/index");
 const { redisClient, connectRedis } = require("./redisClient");
 const { 
   getOrganizationDB, 
   closeAllConnections,
-  getActiveTenantCount} = require('./config/dbManager');
-const WebSocket = require('ws');
-// 🌐 WebSocket server instance listening on port 8765
-const wss = new WebSocketServer({ server, path: '/ws' });
+  getActiveTenantCount,
+  
+} = require("./config/dbManager");
+const { registerAdminController } = require("./Controllers/authController");
 
-const ADMIN_API_URL = process.env.ADMIN_API_URL;  // Use service name
-const ADMIN_ACCESS_LEVEL = 5; // Your admin access level
+dotenv.config();
 
+const app = express();
+const httpServer = http.createServer(app); // ✅ single server used for everything
 
+// Socket.IO setup
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
-// Socket.IO Handlers
-function setupSocketIO() {
-  io.on('connection', (socket) => {
-    console.log(`Client connected: ${socket.id}`);
-    
-    const tenantId = socket.handshake.auth.tenantId || 
-                   socket.handshake.headers['x-tenant-id'];
-    
-    if (!tenantId) {
-      console.log('No tenantId provided, disconnecting socket');
-      socket.disconnect(true);
-      return;
-    }
+io.on('connection', (socket) => {
+  
+  socket.on('error', (err) => {
+    console.error('Socket.IO Error:', err);
+  });
 
-    // Get tenant DB connection for socket operations
-    getOrganizationDB(tenantId)
-      .then(tenantDB => {
-        socket.tenantModels = {
-          User: tenantDB.model('User'),
-          Team: tenantDB.model('Team')
-        };
-        
-        const tenantRoom = `tenant_${tenantId}`;
-        socket.join(tenantRoom);
-        
-        socket.on('joinRoom', (roomId, callback) => {
-          const fullRoomId = `${tenantRoom}_${roomId}`;
-          socket.join(fullRoomId);
-          if (callback) callback({ status: 'success', room: fullRoomId });
-        });
-        
-        socket.on('leaveRoom', (roomId, callback) => {
-          const fullRoomId = `${tenantRoom}_${roomId}`;
-          socket.leave(fullRoomId);
-          if (callback) callback({ status: 'success', room: fullRoomId });
-        });
-      })
-      .catch(error => {
-        console.error('Socket tenant DB error:', error);
-        socket.disconnect(true);
+  socket.on("subscriber_created", async (data) => {
+
+    try {
+      
+      const result = await handleAdminRegistration(data);
+      console.log('✅ Subscriber synced:', result);
+
+      socket.emit('ack', {
+        status: 'success',
+        message: 'Subscriber registered successfully',
+        data: result
       });
 
-    socket.on('disconnect', () => {
-      console.log(`Client disconnected: ${socket.id}`);
-    });
+    } catch (err) {
+      console.error('❌ Error:', err.message);
+      socket.emit('ack', {
+        status: 'error',
+        message: err.message
+      });
+    }
   });
-}
+
+  socket.on('disconnect', () => {
+    console.warn('🔌 Flask Socket.IO disconnected');
+  });
+});
+
 async function handleAdminRegistration(extUser) {
   try {
     // 1. Check/Create Organization in Main DB
@@ -230,13 +215,7 @@ function initializeMainModels(mainConnection) {
     TenantUser: require('./Models/TenantUserSchema')(mainConnection)
   };
 }
-// Socket.IO setup
-const io = new Server(server, {
-  cors: {
-    origin: config.corsOrigin,
-    methods: ["GET", "POST", "DELETE", "PUT"],
-  },
-});
+
 
 // Middleware to attach DB connections to requests
 app.use(async (req, res, next) => {
@@ -252,7 +231,6 @@ app.use(async (req, res, next) => {
     const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
     if (tenantId) {
       const tenantConn = await getOrganizationDB(tenantId);
-
       req.tenantConnection = tenantConn; // Optional: keep for debugging/advanced usage
       req.tenantDB = tenantConn.connection;
       req.tenantModels = {
@@ -271,40 +249,7 @@ app.use(async (req, res, next) => {
   }
 });
 
-wss.on('connection', (ws) => {
-  console.log('🟢 Flask connected via WebSocket');
-
-  ws.on('message', async (data) => {
-    try {
-      const adminData = JSON.parse(data);
-      console.log('📥 Received admin data from Flask:', adminData);
-
-      const result = await handleAdminRegistration(adminData);
-      console.log('✅ Admin synced:', result);
-
-      // ✅ Send success response back to Flask
-      ws.send(JSON.stringify({
-        status: 'success',
-        message: 'Admin registered successfully',
-        data: result // Optional: include any useful data
-      }));
-
-    } catch (err) {
-      console.error('❌ Error processing WebSocket message:', err.message);
-
-      // ❌ Send error response back to Flask
-      ws.send(JSON.stringify({
-        status: 'error',
-        message: err.message
-      }));
-    }
-  });
-
-  ws.on('close', () => {
-    console.warn('🔌 Flask WebSocket disconnected');
-  });
-});
-
+// Main app initialization
 async function initializeApplication() {
   try {
     await mongoose.connect(config.mongoURI, {
@@ -314,45 +259,49 @@ async function initializeApplication() {
       socketTimeoutMS: 30000
     });
 
+    await connectRedis();
+
     const { Organization, Superadmin, TenantUser } = initializeMainModels(mongoose.connection);
 
+    // Middleware setup
     app.use(bodyParser.json());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use(cors({ origin: config.corsOrigin, credentials: true }));
     app.use(cookieParser());
 
-    app.use('/api', routes);
-    app.use('*', (req, res) => res.status(404).send('Not Found'));
+    // Routes
+    app.use("/api", routes);
 
-    server.listen(config.port, () => {
+    // 404 handler
+    app.use("*", (req, res) => res.status(404).send("Not Found"));
+
+    // Start HTTP + Socket.IO server
+    httpServer.listen(config.port,'0.0.0.0',() => {
       console.log(`
         ✅ Server running on port ${config.port}
         🏢 Active tenants: ${getActiveTenantCount()}
         🌐 Main DB URI: ${config.mongoURI}
-        🔌 WebSocket server listening on ws://<app>:${config.port}/ws
+        🔌 Socket.IO listening at http://localhost:${config.port}
       `);
     });
 
   } catch (error) {
-    console.error('❌ Initialization failed:', error);
+    console.error("❌ Initialization failed:", error);
 
     if (mongoose.connection.readyState === 1) {
       app.use((req, res, next) => {
-        req.mainModels = { Organization: mongoose.model('Organization') };
+        req.mainModels = { Organization: mongoose.model("Organization") };
         next();
       });
-      console.log(`⚠️ Running in fallback mode; WebSocket and tenants disabled.`);
+      console.log("⚠️ Running in fallback mode; WebSocket and tenants disabled.");
 
     } else {
-      console.error('🚨 CRITICAL: No database connection. Exiting...');
+      console.error("🚨 CRITICAL: No database connection. Exiting...");
       process.exit(1);
     }
   }
 }
-
-
-
 
 async function shutdown() {
   console.log('Shutting down gracefully...');

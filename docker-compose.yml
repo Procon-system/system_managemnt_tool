@@ -10,10 +10,13 @@ services:
       - ./flask-user-reg:/app             # live-sync your code
       - userreg-data:/app/subscribers.db  # persist the SQLite file
     environment:
-      - WEBSOCKET_URL=ws://app:5000/ws  # adjust to whatever WS endpoint you need
+      - SOCKETIO_URL=http://app:5000 # adjust to whatever WS endpoint you need
       - FLASK_ENV=development
       - FLASK_APP=app.py
-    
+    depends_on:
+      app:
+        condition: service_started   # waits for container to start (no health check)
+
     networks:
       - app-network
     restart: unless-stopped
@@ -50,16 +53,16 @@ services:
       - ./backend/.env  # Load environment variables from .env file in backend directory
     ports:
       - '5000:5000' 
-      
+    expose:
+      - '5000'
     depends_on:
       mongo:
         condition: service_healthy
-      user-reg:
-        condition: service_started   # waits for container to start (no health check)
-
+     
     networks:
       - app-network
     restart: unless-stopped
+    
     
     # MongoDB service
   mongo:

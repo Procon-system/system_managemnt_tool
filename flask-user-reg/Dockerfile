@@ -10,11 +10,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # copy your application code
 COPY . .
 
-# tell Flask to listen on 0.0.0.0:8000
+# tell Flask to listen on 0.0.0.0
 ENV FLASK_APP=app.py \
     FLASK_ENV=development \
     FLASK_RUN_HOST=0.0.0.0 \
-    FLASK_RUN_PORT=8000
+    FLASK_RUN_PORT=8500
+
 
 # start the dev server (for production, swap to gunicorn)
 CMD ["flask", "run"]

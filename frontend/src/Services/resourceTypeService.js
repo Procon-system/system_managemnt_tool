@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { localDB } from '../pouchDb';
-import { v4 as uuidv4 } from 'uuid';
 
 const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/resource-types`;
 
