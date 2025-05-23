@@ -1,5 +1,4 @@
 const { db } = require('../config/couchdb'); // Import CouchDB instance
-// const MaterialModel = require('../Models/MaterialsSchema'); // Material schema structure
 
 const decrementMaterialCount = async (materialIds) => {
   for (const materialId of materialIds) {

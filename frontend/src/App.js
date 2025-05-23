@@ -21,29 +21,12 @@ import ProtectedRoute from "./accessControl/protectedRoute";
 import { ROLES } from "./accessControl/roles";
 import UnauthorizedPage from "./Pages/unauthorizedPage";
 import UserManagementPage from "./Pages/User/userPage";
-import { useDispatch, useSelector } from 'react-redux';
+import {useSelector } from 'react-redux';
 
 import MainLayout from './Components/layout/layoutWrapper'
 import ResourceTypesPage from './Pages/ResourceType/showResourceTypePage';
 import TeamsPage from './Pages/Team/TeamsPage';
-// const viewAllDocuments = async () => {
-//   try {
-//     const result = await localDB.allDocs({ include_docs: true });
-//     const documents = result.rows.map((row) => row.doc);
-   
-    
-//   } catch (error) {
-//     console.error('Error fetching documents:', error);
-//   }
-// };
 
-// // Example usage
-
-
-// // Call viewAllDocuments to check current local tasks
-// viewAllDocuments();
-
-// ConditionalNavBar Component
 const ConditionalNavBar = () => {
   const location = useLocation();
 
@@ -62,7 +45,7 @@ const ConditionalNavBar = () => {
 
 const App = () => {
   const { isLoggedIn } = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
+ 
   return (
     <Router>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar closeOnClick pauseOnFocusLoss pauseOnHover />

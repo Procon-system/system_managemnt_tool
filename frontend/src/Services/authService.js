@@ -1,89 +1,8 @@
 
 import axios from 'axios';
-import { localDB } from '../pouchDb';
-import CryptoJS from 'crypto-js';
-import { saveOfflineRequest } from './offlineService';
 
 const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/auth`;
-const SECRET_KEY = 'your-secret-key'; // Use environment variables for production
 
-// Helper function to check online status
-const isOnline = () => {
-  const onlineStatus = navigator.onLine;
-  console.log('Is online:', onlineStatus); // Log the online status
-  return onlineStatus;
-};
-
-// Encrypt data before storing in PouchDB
-const encryptData = (data) => {
-  return CryptoJS.AES.encrypt(JSON.stringify(data), SECRET_KEY).toString();
-};
-
-// Decrypt data from PouchDB
-const decryptData = (ciphertext) => {
-  try {
-    const bytes = CryptoJS.AES.decrypt(ciphertext, SECRET_KEY);
-    return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
-  } catch (error) {
-    console.error('Error decrypting data:', error);
-    return null;
-  }
-};
-
-// Store user session in PouchDB
-export const saveUserSession = async (userData) => {
-  try {
-    const encryptedUser = encryptData(userData);
-
-    // Try to fetch the existing document
-    let existingDoc;
-    try {
-      existingDoc = await localDB.get('user_session');
-    } catch (error) {
-      // If the document doesn't exist, create a new one
-      if (error.name === 'not_found') {
-        await localDB.put({ _id: 'user_session', encryptedData: encryptedUser });
-        console.log('User session saved:', userData); // Log the saved session
-        return;
-      }
-      throw error; // Re-throw other errors
-    }
-
-    // If the document exists, update it with the new data
-    await localDB.put({
-      _id: 'user_session',
-      _rev: existingDoc._rev, // Include the revision to avoid conflicts
-      encryptedData: encryptedUser,
-    });
-    console.log('User session updated:', userData); // Log the updated session
-  } catch (error) {
-    console.error('Error saving session:', error);
-  }
-};
-
-// Retrieve user session from PouchDB
-export const getUserSession = async () => {
-  try {
-    const session = await localDB.get('user_session');
-    const decryptedData = decryptData(session.encryptedData);
-    console.log('Retrieved session:', decryptedData); // Log the retrieved session
-    return decryptedData;
-  } catch (error) {
-    console.log('No stored session found.');
-    return null;
-  }
-};
-
-// Delete user session from PouchDB
-export const removeUserSession = async () => {
-  try {
-    const session = await localDB.get('user_session');
-    await localDB.remove(session);
-    console.log('User session removed.');
-  } catch (error) {
-    console.log('No session to remove.');
-  }
-};
 export class CustomError extends Error {
   constructor(message, code, extra = {}) {
     super(message);
@@ -103,14 +22,6 @@ export const registerUser = async (userData, token) => {
       Authorization: `Bearer ${token}`
     }
   };
-
-  if (!isOnline()) {
-    await saveOfflineRequest(request);
-    throw new CustomError(
-      'You are offline. Registration will be processed when online.',
-      'OFFLINE_ERROR'
-    );
-  }
 
   try {
     const response = await axios(request);
@@ -145,19 +56,9 @@ export const loginUser = async (credentials) => {
     headers: { 'Content-Type': 'application/json' },
   };
 
-  if (!isOnline()) {
-    
-    const cachedUser = await getUserSession();
-   
-    if (cachedUser && cachedUser.user && cachedUser.user.email === credentials.email) {
-           return cachedUser; // Allow offline access
-    }
-    throw new Error('You are offline and have no stored session.');
-  }
-
   try {
     const response = await axios(request);
-    await saveUserSession(response.data);
+   
      return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Login failed');
@@ -165,17 +66,19 @@ export const loginUser = async (credentials) => {
 };
 // **Logout User**
 export const logoutUser = async () => {
-  await removeUserSession();
+  const request = { method: 'post', url: `${API_URL}/logout` };
+
+  try {
+    const response = await axios(request);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Logout failed');
+  }
 };
 
 // **Forgot Password**
 export const forgotPassword = async (emailData) => {
   const request = { method: 'post', url: `${API_URL}/forgot-password`, data: emailData };
-
-  if (!isOnline()) {
-    await saveOfflineRequest(request);
-    throw new Error('You are offline. Request will be processed when online.');
-  }
 
   try {
     const response = await axios(request);
@@ -189,11 +92,6 @@ export const forgotPassword = async (emailData) => {
 export const resetPassword = async (id, token, passwordData) => {
   const request = { method: 'post', url: `${API_URL}/reset-password/${id}/${token}`, data: passwordData };
 
-  if (!isOnline()) {
-    await saveOfflineRequest(request);
-    throw new Error('You are offline. Request will be processed when online.');
-  }
-
   try {
     const response = await axios(request);
     return response.data;
@@ -206,11 +104,6 @@ export const resetPassword = async (id, token, passwordData) => {
 export const confirmEmail = async (confirmationCode) => {
   const request = { method: 'post', url: `${API_URL}/confirm-email/${confirmationCode}` };
 
-  if (!isOnline()) {
-    await saveOfflineRequest(request);
-    throw new Error('You are offline. Request will be processed when online.');
-  }
-
   try {
     const response = await axios(request);
     return response.data;
@@ -219,7 +112,3 @@ export const confirmEmail = async (confirmationCode) => {
   }
 };
 
-// **Check if User is Authenticated**
-export const isAuthenticated = async () => {
-  return (await getUserSession()) !== null;
-};

@@ -40,8 +40,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
     const socket = io(API_URL, {
       query: { organizationId: user.organization }
     });
-    console.log("Socket connection initialized with organization ID:", user.organization);
-
+  
     socket.on('resourceType:created', (data) => {
       dispatch(addResourceTypeFromSocket(data.resourceType));
     });

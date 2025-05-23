@@ -18,8 +18,7 @@ exports.createResource = async (req, res) => {
     const resource = await resourceService.createResource(resourceData, Resource, ResourceType);
 
     await req.tenantCache.flush();
-    console.log(`[CACHE][FLUSH] All resource cache flushed for org: ${orgId}`);
-
+    
     sendResponse(res, 201, 'Resource created successfully', resource);
   } catch (error) {
     console.error('Error in createResource:', error);
@@ -40,17 +39,16 @@ exports.getResourceById = async (req, res) => {
     const cached = await cache.get(cacheKey);
 
     if (cached) {
-      console.log(`[CACHE][HIT] ${cacheKey} (org: ${orgId})`);
+      
       return sendResponse(res, 200, 'Resource retrieved from cache', JSON.parse(cached));
     }
 
-    console.log(`[CACHE][MISS] ${cacheKey} (org: ${orgId})`);
+    
     const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
     if (!resource) return sendResponse(res, 404, 'Resource not found', null);
 
     await cache.set(cacheKey, JSON.stringify(resource), { expiration: 300 });
-    console.log(`[CACHE][SET] ${cacheKey} (TTL: 300s)`);
-
+    
     sendResponse(res, 200, 'Resource retrieved successfully', resource);
   } catch (error) {
     sendResponse(res, 500, error.message, null);
@@ -69,15 +67,13 @@ exports.getResourcesByType = async (req, res) => {
     const cached = await cache.get(cacheKey);
 
     if (cached) {
-      console.log(`[CACHE][HIT] ${cacheKey} (org: ${orgId})`);
+     
       return sendResponse(res, 200, 'Resources retrieved from cache', JSON.parse(cached));
     }
 
-    console.log(`[CACHE][MISS] ${cacheKey} (org: ${orgId})`);
-    const resources = await resourceService.getResourcesByType(typeId, orgId, { page, limit }, Resource);
+        const resources = await resourceService.getResourcesByType(typeId, orgId, { page, limit }, Resource);
     await cache.set(cacheKey, JSON.stringify(resources), { expiration: 300 });
-    console.log(`[CACHE][SET] ${cacheKey} (TTL: 300s)`);
-
+   
     sendResponse(res, 200, 'Resources retrieved successfully', resources);
   } catch (error) {
     sendResponse(res, 500, error.message, null);
@@ -97,8 +93,7 @@ exports.updateResource = async (req, res) => {
 
     const cacheKey = `resource:${resourceId}`;
     await req.tenantCache.del(cacheKey);
-    console.log(`[CACHE][DEL] ${cacheKey} after update`);
-
+    
     sendResponse(res, 200, 'Resource updated successfully', updatedResource);
   } catch (error) {
     sendResponse(res, 500, error.message, null);
@@ -118,8 +113,7 @@ exports.deleteResource = async (req, res) => {
 
     const cacheKey = `resource:${resourceId}`;
     await req.tenantCache.del(cacheKey);
-    console.log(`[CACHE][DEL] ${cacheKey} after deletion`);
-
+    
     sendResponse(res, 200, 'Resource deleted successfully', null);
   } catch (error) {
     sendResponse(res, 500, error.message, null);
