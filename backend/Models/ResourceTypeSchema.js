@@ -1,15 +1,12 @@
 const mongoose = require('mongoose');
+// https://lovable.dev/projects/d14f8c31-c82d-4665-8eda-4fdedc860be0
 module.exports = (connection) => {
  
   if (connection.models['ResourceType']) {
     return connection.models['ResourceType'];
   }
   const resourceTypeSchema = new mongoose.Schema({
-    name: {
-      type: String,
-      required: true,
-     
-    },
+    
     organization: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Organization',
@@ -25,8 +22,24 @@ module.exports = (connection) => {
       displayName: String,
       fieldType: {
         type: String,
-        enum: ['string', 'number', 'boolean', 'date', 'array', 'object', 'reference'],
+        enum: ['string', 'number'],
         required: true
+      },
+      // +++ THE CRITICAL ADDITIONS +++
+      isQuantifiable: {
+        type: Boolean,
+        default: false // Default to NOT being quantifiable
+      },
+      // Provides context for calculations
+      quantifiableUnit: { 
+        type: String, // e.g., 'USD', 'EUR', 'kg', 'hours', 'units'
+        required: function() { return this.isQuantifiable; } // Required only if quantifiable
+      },
+      // Helps the frontend group formula fields (e.g., Cost, Time, Output)
+      quantifiableCategory: { 
+        type: String,
+        enum: ['cost', 'time', 'capacity', 'output', 'measurement', 'other'],
+        default: 'other'
       },
       referenceType: {
         type: mongoose.Schema.Types.ObjectId,

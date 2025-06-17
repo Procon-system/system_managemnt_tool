@@ -1,7 +1,7 @@
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import Sidebar from './Components/sidebarComponent';
-import React, { useEffect } from 'react';
+import React from 'react';
 import RegisterPage from './Pages/Auth/registerPage';
 import LoginPage from './Pages/Auth/loginPage';
 import LogoutPage from './Pages/Auth/logoutPage';
@@ -21,12 +21,14 @@ import ProtectedRoute from "./accessControl/protectedRoute";
 import { ROLES } from "./accessControl/roles";
 import UnauthorizedPage from "./Pages/unauthorizedPage";
 import UserManagementPage from "./Pages/User/userPage";
-import {useSelector } from 'react-redux';
-
 import MainLayout from './Components/layout/layoutWrapper'
 import ResourceTypesPage from './Pages/ResourceType/showResourceTypePage';
 import TeamsPage from './Pages/Team/TeamsPage';
-
+import TaskAnalytics  from './Pages/Analytics/TaskAnalytics';
+import CalendarImport from './Components/calendarImport';
+import { useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { connectSocket } from "./socket";
 const ConditionalNavBar = () => {
   const location = useLocation();
 
@@ -44,8 +46,17 @@ const ConditionalNavBar = () => {
 };
 
 const App = () => {
-  const { isLoggedIn } = useSelector((state) => state.auth);
- 
+  
+
+  const { isLoggedIn, token } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (isLoggedIn && token) {
+      connectSocket(token);
+    }
+  }, [isLoggedIn, token]);
+
+
   return (
     <Router>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar closeOnClick pauseOnFocusLoss pauseOnHover />
@@ -62,7 +73,7 @@ const App = () => {
           <Route path="/reset-password/:id/:token" element={<ResetPasswordPage />} />
           <Route path="/confirm-email/:confirmationCode" element={<ConfirmEmail />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
-
+          <Route path="/import-calendar" element={<MainLayout><CalendarImport /></MainLayout>} />
           {/* Protected Routes */}
           <Route
             path="/profile"
@@ -86,6 +97,16 @@ const App = () => {
             element={
               <ProtectedRoute requiredAccessLevel={ROLES.ADMIN}>
                 <UserManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
+                 <MainLayout>
+                 <TaskAnalytics/>
+                 </MainLayout>
               </ProtectedRoute>
             }
           />

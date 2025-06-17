@@ -4,6 +4,58 @@ module.exports = (connection) => {
   if (connection.models['Task']) {
     return connection.models['Task'];
   }
+  
+  // +++ NEW: Sub-schema for logging user work time +++
+  const timeLogSchema = new mongoose.Schema({
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    startTime: {
+      type: Date,
+      required: true
+    },
+    endTime: {
+      type: Date
+    },
+    durationMinutes: { // Stored for efficient reporting
+      type: Number, 
+      min: 0
+    },
+    notes: String,
+    isBillable: {
+      type: Boolean,
+      default: true
+    }
+  }, { _id: true, timestamps: true }); // Give logs their own ID and timestamps
+
+  // +++ NEW: Sub-schema for logging resource consumption/production +++
+  const resourceLogSchema = new mongoose.Schema({
+    resource: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Resource',
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['consumed', 'produced', 'used'], // 'used' for non-consumable machines
+      required: true
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      default: 1
+    },
+    unit: { // e.g., 'kg', 'liters', 'pieces', 'hours'
+      type: String 
+    },
+    loggedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  }, { _id: true, timestamps: true });
+
   const taskSchema = new mongoose.Schema({
   // Core Task Metadata
   title: { type: String, required: true, trim: true, maxlength: 120 },
@@ -29,6 +81,9 @@ module.exports = (connection) => {
     },
     required: { type: Boolean, default: false }
   }],
+  timeLogs: [timeLogSchema],
+  resourceLogs: [resourceLogSchema],
+
   // Team & Assignment (Simplified)
   assignments: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -84,10 +139,7 @@ module.exports = (connection) => {
   color_code: {
     type: String,
     default: '#fbbf24',
-    // validate: {
-    //   validator: v => /^#([0-9a-f]{3}){1,2}$/i.test(v),
-    //   message: props => `${props.value} is not a valid hex color`
-    // }
+   
   },
  
   images: [{
@@ -123,10 +175,6 @@ taskSchema.index({ organization: 1, status: 1 });
 taskSchema.index({ 'assignments.user': 1 });
 taskSchema.index({ tags: 1 });
 
-// // Virtual for completion percentage
-// taskSchema.virtual('completion').get(function() {
-//   return this.time.logged / this.time.estimated * 100;
-// });
 
 return connection.model('Task', taskSchema);
 };

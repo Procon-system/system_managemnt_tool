@@ -53,8 +53,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             currentDateRef.current = new Date(normalizedArgsStart);
           }
   }, [calendarDate]);
-  console.log("mappped",events)
- 
+
   const mappedEvents = events.map(event => ({
     _id: event._id,
     start: event.schedule.start || new Date(),
@@ -409,9 +408,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             const timezoneOffset = 3;
             const adjustedStartTime = adjustTimeForBackend(info.date, timezoneOffset);
             const newEvent = {
-              // _id: uuidv4(),
               start_time: adjustedStartTime,
-              // color_code: 'green',
               title: 'new task',
             };
              // Preserve the current view before opening the form
@@ -456,7 +453,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
               }
               const { event } = info;
               const { extendedProps } = event;
-               console.log("event",info)
+               
 // Helper function to process resource arrays
 const processResourceArray = (resources) => {
   if (!resources) return [];
@@ -516,7 +513,6 @@ const updatedEvent = {
   resourceIds: extendedProps?.resourceIds || []
 };
 
-console.log("updatedEvent", updatedEvent);
 openForm(updatedEvent);
           }
         },

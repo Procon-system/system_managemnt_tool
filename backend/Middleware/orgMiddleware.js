@@ -12,7 +12,7 @@ module.exports = async (req, res, next) => {
 
     // Determine organization ID (tenant context)
     const orgId = 
-      req.user?.org_id ||
+      req.user?.org_id
       req.tenantId ||
       req.headers['x-org-id'] ||
       req.hostname.split('.')[0]; // for subdomain-based tenancy
@@ -40,7 +40,8 @@ module.exports = async (req, res, next) => {
       ResourceType: tenantConn.models.get('ResourceType'),
       Resource: tenantConn.models.get('Resource'),
       Task: tenantConn.models.get('Task'),
-      Team: tenantConn.models.get('Team')
+      Team: tenantConn.models.get('Team'),
+      Notification: tenantConn.models.get('Notification')
     };
      
     // ✅ Inject tenant-scoped Redis helper

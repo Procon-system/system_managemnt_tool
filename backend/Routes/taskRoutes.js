@@ -1,23 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const taskController = require('../Controllers/taskControllers');
-const { authenticateUser, authorize } = require('../Middleware/authMiddleware');
+const { authorize } = require('../Middleware/authMiddleware');
 const multer = require('multer');
 const mongoose = require('mongoose');
 const { GridFSBucket } = require('mongodb');
-const { getFromCache, setToCache, deleteFromCache } = require('../redisUtils');
+const { getFromCache, setToCache} = require('../redisUtils');
 
 // Configure Multer for memory storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+router.get('/report-data',authorize([2, 3, 4, 5]),taskController.getTaskReportData)
 
-// Apply authentication to all routes
-// router.use(authenticateUser);
-
+router.post('/import',authorize([1, 2, 3, 4, 5]),taskController.importICal)
 router.post('/',authorize([3, 4, 5]), taskController.createTask);
 router.get('/', authorize([1, 2, 3, 4, 5]),taskController.getTasksByOrganization);
 router.get('/:id', authorize([2,3, 4, 5]),taskController.getTaskById);
-router.put('/:id',upload.array('images', 5),authorize([3, 4, 5]),taskController.updateTask);
+router.put('/:id',upload.array('images', 5),authorize([2, 3, 4, 5]),taskController.updateTask);
 router.delete('/:id',authorize([3, 4, 5]), taskController.deleteTask);
 router.patch('/:id/status', authorize([2,3, 4, 5]),taskController.changeTaskStatus);
 router.post('/filter', authorize([ 2, 3, 4, 5]), taskController.filterTasksByOrganization);
@@ -26,7 +25,6 @@ router.get('/done/user', authorize([2, 3, 4, 5]), taskController.getDoneTasksFor
 router.get('/assigned/user', authorize([2, 3, 4, 5]), taskController.getTasksByAssignedUser);
 // Cache TTL for image metadata (1 day)
 const IMAGE_META_TTL = 86400;
-
 // Single image route with Redis caching
 router.get('/image/:fileId', async (req, res) => {
   try {
@@ -68,7 +66,6 @@ router.get('/image/:fileId', async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to fetch image" });
   }
 });
-
 // Bulk images metadata route with Redis caching
 router.get('/images/bulk', async (req, res) => {
   try {
@@ -111,5 +108,4 @@ router.get('/images/bulk', async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to fetch images" });
   }
 });
-
 module.exports = router;

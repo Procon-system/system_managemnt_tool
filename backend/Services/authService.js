@@ -18,8 +18,8 @@ const { validateRegistration } = require('../Helper/validators');
 const registerUser = async (userData, tenantId, User) => {
   const {
     email, password, last_name, first_name,
-    organization, personal_number, access_level,
-    isConfirmed, isActive,
+    org_id, personal_number, access_level,
+    isConfirmed, isActive,payroll
   } = userData;
 
   const validation = validateRegistration({ email, password });
@@ -42,10 +42,16 @@ const registerUser = async (userData, tenantId, User) => {
     first_name,
     access_level,
     personal_number: personal_number || null,
-    organization: organization,
+    org_id: org_id,
     isConfirmed: isConfirmed || false,
     isActive: isActive !== false,
-    confirmationCode: crypto.randomBytes(20).toString('hex')
+    confirmationCode: crypto.randomBytes(20).toString('hex'),
+    payroll: { // +++ Add the payroll object here +++
+      rate_type: payroll?.rate_type || 'hourly',
+      rate: payroll?.rate || 0,
+      currency: payroll?.currency || 'USD',
+      overtime_multiplier: payroll?.overtime_multiplier || 1.5,
+    }
   });
 
   await newUser.save();
@@ -64,7 +70,8 @@ const registerUser = async (userData, tenantId, User) => {
     email: newUser.email,
     first_name: newUser.first_name,
     last_name: newUser.last_name,
-    organization
+    payroll: newUser.payroll ,
+    org_id
   };
 };
 
@@ -242,7 +249,7 @@ const loginUser = async (email, password, rememberMe) => {
         last_name: user.last_name,
         access_level: user.access_level,
         role: user.role,
-        organization: user.organization,
+        org_id: user.org_id,
         tenantId: orgId,
         isGlobalAdmin: false
       },

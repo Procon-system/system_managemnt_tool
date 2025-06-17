@@ -1,6 +1,5 @@
 
 const jwt = require('jsonwebtoken');
-const User = require('../Models/UserSchema');
 
 const { getOrganizationDB } = require('../config/dbManager');
 
@@ -38,14 +37,14 @@ const authenticateUser = async (req, res, next) => {
     }
 
     // 🔐 Regular tenant user
-    const tenantDB = await getOrganizationDB(decoded.tenantId || decoded.organization);
+    const tenantDB = await getOrganizationDB(decoded.tenantId || decoded.org_id);
     const User = tenantDB.models.get('User');
     user = await User.findById(decoded._id);
     if (!user) return res.status(404).json({ error: "Tenant user not found" });
 
     req.user = user.toObject();
     req.tenantDB = tenantDB;
-    req.tenantId = decoded.tenantId || decoded.organization;
+    req.tenantId = decoded.tenantId || decoded.org_id;
     req.isGlobalAdmin = false;
 
     next();
@@ -158,7 +157,7 @@ const protect = async (req, res, next) => {
     }
 
     // Handle tenant user
-    const tenantDB = await getOrganizationDB(decoded.tenantId || decoded.organization);
+    const tenantDB = await getOrganizationDB(decoded.tenantId || decoded.org_id);
     const User = tenantDB.models.get('User');
 
     user = await User.findById(decoded._id);
@@ -168,7 +167,7 @@ const protect = async (req, res, next) => {
 
     req.user = user.toObject();
     req.tenantDB = tenantDB;
-    req.tenantId = decoded.tenantId || decoded.organization;
+    req.tenantId = decoded.tenantId || decoded.org_id;
     req.isGlobalAdmin = false;
 
     next();

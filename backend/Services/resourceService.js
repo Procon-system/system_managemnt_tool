@@ -53,7 +53,6 @@ exports.createResource = async (resourceData, ResourceModel, ResourceTypeModel) 
     tags: [] // Initialize empty array if needed
   });
 
-  console.log('Final resource before save:', resource); // Debug log
   
   return await resource.save();
 };

@@ -14,9 +14,9 @@ const registerController = async (req, res) => {
     const {  User } = req.tenantModels;
     
     const { email, password, last_name, first_name, personal_number,access_level,
-      
       isConfirmed,
       isActive,
+      payroll 
     } = req.body;
 
     const user = await registerUser({
@@ -24,11 +24,12 @@ const registerController = async (req, res) => {
       password,
       last_name,
       first_name,
-      organization: tenantId ,
+      org_id: tenantId ,
       personal_number,
       access_level,
       isConfirmed: isConfirmed || false, // Default false for normal users
       isActive: isActive || true, // Default true
+      payroll: payroll 
 
     },tenantId,User);
 

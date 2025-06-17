@@ -24,7 +24,8 @@ class TenantConnection {
         Team: require('../Models/TeamSchema'),
         Task: require('../Models/TaskSchema'),
         Resource: require('../Models/ResourceSchema'),
-        ResourceType: require('../Models/ResourceTypeSchema')
+        ResourceType: require('../Models/ResourceTypeSchema'),
+        Notification: require('../Models/NotificationSchema')
       };
 
       for (const [modelName, initFn] of Object.entries(modelInitializers)) {

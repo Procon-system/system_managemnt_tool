@@ -1,39 +1,26 @@
-
 import React from 'react';
-import { FaBell } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import Notifications from './notification';
 
-// Logo Component
 const Logo = () => (
   <div className="flex items-center ml-2 mt-1 sm:ml-2 space-x-2 sm:space-x-4">
-    <span className="font-bold text-lg  sm:text-xl">TMT</span>
+    <span className="font-bold text-lg sm:text-xl">TMT</span>
   </div>
 );
 
-// Notifications Component
-const Notifications = () => (
-  <button className="text-blue-600 hover:text-blue-800">
-    <FaBell className="text-xl sm:text-2xl" />
-  </button>
-);
-
-// Profile Component
 const Profile = () => {
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
+
   const handleProfileClick = () => {
-    if (isLoggedIn) {
-      navigate('/profile');
-    } else {
-      navigate('/login');
-    }
+    navigate(isLoggedIn ? '/profile' : '/login');
   };
 
   return (
     <div
-      className="flex  items-center space-x-1 sm:space-x-2 cursor-pointer"
+      className="flex items-center space-x-1 sm:space-x-2 cursor-pointer"
       onClick={handleProfileClick}
     >
       {isLoggedIn ? (
@@ -62,7 +49,6 @@ const Profile = () => {
   );
 };
 
-// Navbar Component
 const Navbar = () => (
   <div className="fixed top-0 w-full bg-white shadow-md z-10">
     <div className="container mx-auto px-4 py-2 sm:py-3 flex items-center justify-between">

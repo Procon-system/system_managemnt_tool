@@ -1,0 +1,28 @@
+/* src/Components/DateRangeFilter.css */
+
+/* This targets the dates that have been marked for highlighting */
+.react-datepicker__day--highlighted {
+    position: relative;
+    /* Override the default blue background */
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+  
+  /* This creates the dot using a pseudo-element */
+  .react-datepicker__day--highlighted::after {
+    content: '';
+    position: absolute;
+    bottom: 4px; /* Position the dot below the date number */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px; /* Size of the dot */
+    height: 6px; /* Size of the dot */
+    background-color: #3b82f6; /* Color of the dot (a nice blue) */
+    border-radius: 50%;
+  }
+  
+  /* Optional: Make the dot a different color on the selected date */
+  .react-datepicker__day--selected.react-datepicker__day--highlighted::after,
+  .react-datepicker__day--in-range.react-datepicker__day--highlighted::after {
+    background-color: white;
+  }

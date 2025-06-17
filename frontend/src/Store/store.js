@@ -4,12 +4,14 @@ import { persistReducer, persistStore } from 'redux-persist';
 import storage from 'redux-persist/lib/storage'; // defaults to localStorage for web
 import authReducer from '../features/authSlice';
 import taskReducer from '../features/taskSlice';
-
+import notificationReducer from '../features/notificationSlice';
 import userSlice from '../features/userSlice';
 import resourceTypeReducer from '../features/resourceTypeSlice';
 import resourceReducer from '../features/resourceSlice';
 import teamReducer from '../features/teamSlice';
+import calendarReducer from '../features/calendarSlice';
 import { combineReducers } from 'redux';
+import analyticsReducer from '../features/analyticsSlice'; // <-- Import the new reducer
 
 // Define persist configuration for the auth slice
 const persistConfig = {
@@ -26,6 +28,9 @@ const rootReducer = combineReducers({
   resourceTypes: resourceTypeReducer,
   resources:resourceReducer,
   teams: teamReducer,
+  notifications: notificationReducer,
+  calendar: calendarReducer,
+  analytics: analyticsReducer
 });
 
 // Wrap the root reducer with persistReducer

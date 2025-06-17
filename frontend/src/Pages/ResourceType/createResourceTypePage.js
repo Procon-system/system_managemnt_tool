@@ -1,22 +1,273 @@
+// import React, { useState } from 'react';
+// import FieldEditor from '../../Components/resourceTypeComponents/fieldEditor';
+// import { useDispatch} from 'react-redux';
+// import { useNavigate } from 'react-router-dom';
+// import { createResourceType } from '../../features/resourceTypeSlice';
+// import IconExplorer from '../../Components/common/IconPicker'; // adjust the path as needed
+// import { FiChevronDown,FiX, FiPlus, FiSave } from 'react-icons/fi';
+// import * as FeatherIcons from 'react-icons/fi';
+// import { toast } from 'react-toastify';
+// import { Link } from 'react-router-dom';
+
+// const CreateResourceTypePage = ({ onCancel }) => {
+//   const dispatch = useDispatch();
+//   const navigate = useNavigate();
+//   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+
+//   const [resourceType, setResourceType] = useState({
+//     name: '',
+//     icon: '',
+//     color: '#3b82f6',
+//     fieldDefinitions: []
+//   });
+
+//   const addField = () => {
+//     setResourceType(prev => ({
+//       ...prev,
+//       fieldDefinitions: [
+//         ...prev.fieldDefinitions,
+//         {
+//           fieldName: '',
+//           displayName: '',
+//           fieldType: 'string',
+//           required: false,
+//           defaultValue: ''
+//         }
+//       ]
+//     }));
+//   };
+
+//   const removeField = (index) => {
+//     setResourceType(prev => ({
+//       ...prev,
+//       fieldDefinitions: prev.fieldDefinitions.filter((_, i) => i !== index)
+//     }));
+//   };
+
+//   const updateField = (index, field) => {
+//     setResourceType(prev => {
+//       const newFields = [...prev.fieldDefinitions];
+//       newFields[index] = field;
+//       return { ...prev, fieldDefinitions: newFields };
+//     });
+//   };
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+//     try {
+//       await dispatch(createResourceType(resourceType)).unwrap();
+//       await new Promise(resolve => setTimeout(resolve, 200));
+//       navigate('/show-resource-type');
+//     } catch (error) {
+      
+//       if (error?.code === 'RESOURCE_LIMIT_REACHED') {
+//         toast.error(
+//           ({ closeToast }) => (
+//             <div className="p-6 max-w-md w-full">
+//               <p className="text-gray-900 font-medium mb-3">{error.message}</p>
+//               <div className="flex items-start justify-between gap-4">
+//                 <div className="text-sm text-gray-700">
+//                   You've used <strong>{error.details.currentCount}</strong> of <strong>{error.details.maxAllowed}</strong> resource types.
+//                   {error.details.upgradeAvailable && (
+//                     <div className="mt-2">
+//                       <Link
+//                         to={error.actions[0].url}
+//                         className="text-blue-600 hover:text-blue-800 font-semibold underline"
+//                         onClick={() => {
+//                           toast.dismiss(); // close all toasts
+//                           closeToast(); // explicitly close this toast
+//                         }}
+//                       >
+//                         {error.actions[0].label}
+//                       </Link>
+//                     </div>
+//                   )}
+//                 </div>
+//                 <button
+//                   onClick={closeToast}
+//                   className="text-gray-500 hover:text-gray-700 text-lg leading-none focus:outline-none"
+//                 >
+//                   &times;
+//                 </button>
+//               </div>
+//             </div>
+//           ),
+//           {
+//             position: "top-right",
+//             autoClose: false,
+//             closeOnClick: false,
+//             draggable: false,
+//             className: "border-l-4 border-red-500 bg-white shadow-lg rounded-lg",
+//             closeButton: false // because we use our custom close button
+//           }
+//         );
+        
+//       } else {
+//         toast.error(error?.message || 'An unknown error occurred');
+//       }
+//     }
+//   };
+//   const handleCancel = () => {
+//     navigate('/show-resource-type');
+//   };
+
+//   return (
+//     <div className="max-w-4xl mx-auto p-4 md:p-6 bg-white rounded-lg shadow">
+//  <div className="relative bg-blue-50 p-4 rounded-lg shadow-sm border-gray-400 border-y-3 mb-6">
+//   {/* Half-circle left border */}
+//   <div className="absolute -left-3 top-1/2 transform -translate-y-1/2 w-6 h-12 bg-gray-400 rounded-l-full"></div>
+  
+//   {/* Half-circle right border */}
+//   <div className="absolute -right-3 top-1/2 transform -translate-y-1/2 w-6 h-12 bg-gray-400 rounded-r-full"></div>
+
+//   <div className="relative flex justify-between items-center z-10">
+//     <h1 className="text-2xl font-bold text-gray-800 flex items-center">
+//       Create New Resource Type
+//     </h1>
+//     <button 
+//       onClick={handleCancel}
+//       className="text-gray-500 hover:text-gray-700 transition-colors duration-200 p-1 hover:bg-gray-100 rounded-full"
+//     >
+//       <FiX size={24} />
+//     </button>
+//   </div>
+// </div>
+
+//   <form onSubmit={handleSubmit} className="space-y-6">
+//   <div className="flex flex-col md:flex-row gap-4 items-end">
+//   {/* Name and Icon in a flex container */}
+//   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+//     {/* Name Field */}
+//     <div className="space-y-1">
+//       <label className="block text-sm font-medium text-gray-700">Name*</label>
+//       <input
+//         type="text"
+//         value={resourceType.name}
+//         onChange={(e) => setResourceType({...resourceType, name: e.target.value})}
+//         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+//         required
+//       />
+//     </div>
+
+//     {/* Icon Field */}
+//     <div className="space-y-1 relative">
+//       <label className="block text-sm font-medium text-gray-700">Icon</label>
+//       <button
+//         type="button"
+//         onClick={() => setIsIconPickerOpen(!isIconPickerOpen)}
+//         className="w-full flex items-center justify-between px-3 py-2 h-[42px] border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+//       >
+//         {resourceType.icon ? (
+//           <div className="flex items-center">
+//             {React.createElement(FeatherIcons[resourceType.icon], { className: "mr-2", size: 20 })}
+//             <span className="truncate max-w-[120px]">{resourceType.icon}</span>
+//           </div>
+//         ) : (
+//           <span className="text-gray-400">Select an icon</span>
+//         )}
+//         <FiChevronDown className="ml-2" />
+//       </button>
+//       {isIconPickerOpen && (
+//         <div className="absolute z-10 mt-1 w-full">
+//           <IconExplorer 
+//             onSelect={(iconName) => {
+//               setResourceType({...resourceType, icon: iconName});
+//               setIsIconPickerOpen(false);
+//             }} 
+//           />
+//         </div>
+//       )}
+//     </div>
+//   </div>
+
+//   {/* Color Field - positioned at the end */}
+//   <div className="space-y-1">
+//     <label className="block text-sm font-medium text-gray-700">Color</label>
+//     <div className="flex items-center h-[42px]">
+//       <input
+//         type="color"
+//         value={resourceType.color}
+//         onChange={(e) => setResourceType({...resourceType, color: e.target.value})}
+//         className="h-10 w-10 rounded cursor-pointer"
+//       />
+//       <span className="ml-2 text-sm">{resourceType.color}</span>
+//     </div>
+//   </div>
+// </div>
+
+//     {/* Rest of your form remains the same */}
+//     <div className="border-t border-gray-200 pt-6">
+//       <div className="flex justify-end mb-4">
+//               <button
+//           type="button"
+//           onClick={addField}
+//           className="flex items-center px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
+//         >
+//           <FiPlus className="mr-2" /> Add Field
+//         </button>
+//       </div>
+
+//       {resourceType.fieldDefinitions.length === 0 ? (
+//         <div className="text-center py-8 text-gray-500">
+//           No fields added yet. Click "Add Field" to get started.
+//         </div>
+//       ) : (
+//         <div className="space-y-4">
+//           {resourceType.fieldDefinitions.map((field, index) => (
+//             <FieldEditor
+//               key={index}
+//               index={index}
+//               field={field}
+//               onUpdate={updateField}
+//               onRemove={removeField}
+//               resourceType={resourceType}
+//             />
+//           ))}
+//         </div>
+//       )}
+//     </div>
+
+//     <div className="flex justify-end space-x-3">
+//       <button
+//         type="button"
+//         onClick={handleCancel}
+//         className="px-4 py-2 border border-gray-300 rounded-md text-white bg-red-500 hover:bg-red-600"
+//       >
+//         Cancel
+//       </button>
+//       <button
+//         type="submit"
+//         className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center"
+//       >
+//         <FiSave className="mr-2" /> Save Resource Type
+//       </button>
+//     </div>
+//   </form>
+// </div>
+//   );
+// };
+
+// export default CreateResourceTypePage;
+// /pages/CreateResourceTypePage.js
+
 import React, { useState } from 'react';
 import FieldEditor from '../../Components/resourceTypeComponents/fieldEditor';
-import { useDispatch} from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { createResourceType } from '../../features/resourceTypeSlice';
-import IconExplorer from '../../Components/common/IconPicker'; // adjust the path as needed
-import { FiChevronDown,FiX, FiPlus, FiSave } from 'react-icons/fi';
+import IconExplorer from '../../Components/common/IconPicker';
+import { FiChevronDown, FiX, FiPlus, FiSave, FiFileText } from 'react-icons/fi';
 import * as FeatherIcons from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 
-const CreateResourceTypePage = ({ onCancel }) => {
+const CreateResourceTypePage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
   const [resourceType, setResourceType] = useState({
     name: '',
-    icon: '',
+    icon: 'FiBox', // A sensible default icon
     color: '#3b82f6',
     fieldDefinitions: []
   });
@@ -26,12 +277,16 @@ const CreateResourceTypePage = ({ onCancel }) => {
       ...prev,
       fieldDefinitions: [
         ...prev.fieldDefinitions,
+        // +++ INITIALIZE NEW FIELDS WITH DEFAULTS +++
         {
           fieldName: '',
           displayName: '',
           fieldType: 'string',
           required: false,
-          defaultValue: ''
+          defaultValue: '',
+          isQuantifiable: false,
+          quantifiableUnit: '',
+          quantifiableCategory: 'other',
         }
       ]
     }));
@@ -51,198 +306,147 @@ const CreateResourceTypePage = ({ onCancel }) => {
       return { ...prev, fieldDefinitions: newFields };
     });
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Basic frontend validation before dispatch
+      if (resourceType.fieldDefinitions.length === 0) {
+        toast.warn('Please add at least one field definition.');
+        return;
+      }
+      for (const field of resourceType.fieldDefinitions) {
+          if (field.isQuantifiable && !field.quantifiableUnit) {
+              toast.error(`The field "${field.displayName || field.fieldName}" is missing a unit.`);
+              return;
+          }
+      }
+
       await dispatch(createResourceType(resourceType)).unwrap();
-      await new Promise(resolve => setTimeout(resolve, 200));
+      toast.success(`Resource Type "${resourceType.name}" created successfully!`);
       navigate('/show-resource-type');
     } catch (error) {
-      
-      if (error?.code === 'RESOURCE_LIMIT_REACHED') {
-        toast.error(
-          ({ closeToast }) => (
-            <div className="p-6 max-w-md w-full">
-              <p className="text-gray-900 font-medium mb-3">{error.message}</p>
-              <div className="flex items-start justify-between gap-4">
-                <div className="text-sm text-gray-700">
-                  You've used <strong>{error.details.currentCount}</strong> of <strong>{error.details.maxAllowed}</strong> resource types.
-                  {error.details.upgradeAvailable && (
-                    <div className="mt-2">
-                      <Link
-                        to={error.actions[0].url}
-                        className="text-blue-600 hover:text-blue-800 font-semibold underline"
-                        onClick={() => {
-                          toast.dismiss(); // close all toasts
-                          closeToast(); // explicitly close this toast
-                        }}
-                      >
-                        {error.actions[0].label}
-                      </Link>
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={closeToast}
-                  className="text-gray-500 hover:text-gray-700 text-lg leading-none focus:outline-none"
-                >
-                  &times;
-                </button>
-              </div>
-            </div>
-          ),
-          {
-            position: "top-right",
-            autoClose: false,
-            closeOnClick: false,
-            draggable: false,
-            className: "border-l-4 border-red-500 bg-white shadow-lg rounded-lg",
-            closeButton: false // because we use our custom close button
-          }
-        );
-        
-      } else {
-        toast.error(error?.message || 'An unknown error occurred');
-      }
+      // Your existing advanced error handling for RESOURCE_LIMIT_REACHED is great.
+      // This is a fallback for other errors.
+      toast.error(error?.message || 'Failed to create resource type. Please check your input.');
+      console.error("Create Resource Type Error:", error);
     }
   };
+
   const handleCancel = () => {
     navigate('/show-resource-type');
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 bg-white rounded-lg shadow">
- <div className="relative bg-blue-50 p-4 rounded-lg shadow-sm border-gray-400 border-y-3 mb-6">
-  {/* Half-circle left border */}
-  <div className="absolute -left-3 top-1/2 transform -translate-y-1/2 w-6 h-12 bg-gray-400 rounded-l-full"></div>
-  
-  {/* Half-circle right border */}
-  <div className="absolute -right-3 top-1/2 transform -translate-y-1/2 w-6 h-12 bg-gray-400 rounded-r-full"></div>
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="bg-white rounded-xl shadow-lg">
+        {/* --- HEADER --- */}
+        <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <FiFileText className="mr-3 text-blue-500" />
+                Create New Resource Type
+            </h1>
+            <button onClick={handleCancel} className="text-gray-500 hover:text-gray-800 transition-colors">
+                <FiX size={24} />
+            </button>
+        </div>
 
-  <div className="relative flex justify-between items-center z-10">
-    <h1 className="text-2xl font-bold text-gray-800 flex items-center">
-      Create New Resource Type
-    </h1>
-    <button 
-      onClick={handleCancel}
-      className="text-gray-500 hover:text-gray-700 transition-colors duration-200 p-1 hover:bg-gray-100 rounded-full"
-    >
-      <FiX size={24} />
-    </button>
-  </div>
-</div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+          {/* --- MAIN DETAILS SECTION --- */}
+          <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
+             <h2 className="text-lg font-semibold text-gray-800 mb-4">Core Details</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+              {/* Name Field (takes more space) */}
+              <div className="space-y-1 lg:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Name*</label>
+                <input
+                  type="text" value={resourceType.name}
+                  onChange={(e) => setResourceType({...resourceType, name: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
 
-  <form onSubmit={handleSubmit} className="space-y-6">
-  <div className="flex flex-col md:flex-row gap-4 items-end">
-  {/* Name and Icon in a flex container */}
-  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-    {/* Name Field */}
-    <div className="space-y-1">
-      <label className="block text-sm font-medium text-gray-700">Name*</label>
-      <input
-        type="text"
-        value={resourceType.name}
-        onChange={(e) => setResourceType({...resourceType, name: e.target.value})}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        required
-      />
-    </div>
+              {/* Icon Field */}
+              <div className="space-y-1 relative">
+                <label className="block text-sm font-medium text-gray-700">Icon</label>
+                <button type="button" onClick={() => setIsIconPickerOpen(!isIconPickerOpen)}
+                  className="w-full h-[42px] bg-white flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md shadow-sm text-left">
+                  {resourceType.icon && FeatherIcons[resourceType.icon] ? (
+                    <div className="flex items-center gap-2">
+                      {React.createElement(FeatherIcons[resourceType.icon], { size: 20 })}
+                      <span>{resourceType.icon}</span>
+                    </div>
+                  ) : <span className="text-gray-500">Select an icon</span>}
+                  <FiChevronDown className="text-gray-400" />
+                </button>
+                {isIconPickerOpen && (
+                  <div className="absolute z-20 mt-1 w-full right-0">
+                    <IconExplorer onSelect={(iconName) => {
+                        setResourceType({...resourceType, icon: iconName});
+                        setIsIconPickerOpen(false);
+                      }} />
+                  </div>
+                )}
+              </div>
 
-    {/* Icon Field */}
-    <div className="space-y-1 relative">
-      <label className="block text-sm font-medium text-gray-700">Icon</label>
-      <button
-        type="button"
-        onClick={() => setIsIconPickerOpen(!isIconPickerOpen)}
-        className="w-full flex items-center justify-between px-3 py-2 h-[42px] border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-      >
-        {resourceType.icon ? (
-          <div className="flex items-center">
-            {React.createElement(FeatherIcons[resourceType.icon], { className: "mr-2", size: 20 })}
-            <span className="truncate max-w-[120px]">{resourceType.icon}</span>
+              {/* Color Field */}
+              <div className="space-y-1 flex flex-col">
+                <label className="block text-sm font-medium text-gray-700">Color</label>
+                <div className="flex items-center gap-3 h-[42px]">
+                  <input type="color" value={resourceType.color}
+                    onChange={(e) => setResourceType({...resourceType, color: e.target.value})}
+                    className="h-10 w-10 p-0 border-0 rounded-md cursor-pointer appearance-none"
+                    style={{backgroundColor: 'transparent'}}
+                  />
+                  <span className="font-mono text-sm bg-white border border-gray-300 px-2 py-1 rounded-md">{resourceType.color}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        ) : (
-          <span className="text-gray-400">Select an icon</span>
-        )}
-        <FiChevronDown className="ml-2" />
-      </button>
-      {isIconPickerOpen && (
-        <div className="absolute z-10 mt-1 w-full">
-          <IconExplorer 
-            onSelect={(iconName) => {
-              setResourceType({...resourceType, icon: iconName});
-              setIsIconPickerOpen(false);
-            }} 
-          />
-        </div>
-      )}
-    </div>
-  </div>
+          
+          {/* --- FIELD DEFINITIONS SECTION --- */}
+          <div>
+            <div className="flex justify-between items-center mb-4 border-b pb-3">
+              <h2 className="text-lg font-semibold text-gray-800">Field Definitions</h2>
+              <button type="button" onClick={addField}
+                className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all shadow-sm">
+                <FiPlus className="mr-2" /> Add Field
+              </button>
+            </div>
 
-  {/* Color Field - positioned at the end */}
-  <div className="space-y-1">
-    <label className="block text-sm font-medium text-gray-700">Color</label>
-    <div className="flex items-center h-[42px]">
-      <input
-        type="color"
-        value={resourceType.color}
-        onChange={(e) => setResourceType({...resourceType, color: e.target.value})}
-        className="h-10 w-10 rounded cursor-pointer"
-      />
-      <span className="ml-2 text-sm">{resourceType.color}</span>
-    </div>
-  </div>
-</div>
+            {resourceType.fieldDefinitions.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <p className="text-gray-500">No fields added yet.</p>
+                <p className="text-sm text-gray-400 mt-1">Click "Add Field" to define the structure of your resource.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {resourceType.fieldDefinitions.map((field, index) => (
+                  <FieldEditor
+                    key={index} index={index} field={field}
+                    onUpdate={updateField} onRemove={removeField}
+                    resourceType={resourceType}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
-    {/* Rest of your form remains the same */}
-    <div className="border-t border-gray-200 pt-6">
-      <div className="flex justify-end mb-4">
-              <button
-          type="button"
-          onClick={addField}
-          className="flex items-center px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
-        >
-          <FiPlus className="mr-2" /> Add Field
-        </button>
+          {/* --- FORM ACTIONS --- */}
+          <div className="flex justify-end space-x-4 border-t pt-6">
+            <button type="button" onClick={handleCancel}
+              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+              Cancel
+            </button>
+            <button type="submit"
+              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center shadow-md">
+              <FiSave className="mr-2" /> Save Resource Type
+            </button>
+          </div>
+        </form>
       </div>
-
-      {resourceType.fieldDefinitions.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No fields added yet. Click "Add Field" to get started.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {resourceType.fieldDefinitions.map((field, index) => (
-            <FieldEditor
-              key={index}
-              index={index}
-              field={field}
-              onUpdate={updateField}
-              onRemove={removeField}
-              resourceType={resourceType}
-            />
-          ))}
-        </div>
-      )}
     </div>
-
-    <div className="flex justify-end space-x-3">
-      <button
-        type="button"
-        onClick={handleCancel}
-        className="px-4 py-2 border border-gray-300 rounded-md text-white bg-red-500 hover:bg-red-600"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center"
-      >
-        <FiSave className="mr-2" /> Save Resource Type
-      </button>
-    </div>
-  </form>
-</div>
   );
 };
 

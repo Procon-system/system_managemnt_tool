@@ -1,16 +1,66 @@
 const taskService = require('../Services/taskService');
+const notificationService = require('../Services/notificationService');
 const { sendResponse } = require('../utils/responseHandler');
 const calculateTaskPeriod = require('../Helper/taskPeriodCalc');
 const getColorForStatus =require('../utils/getColorForStatus');
-const uploadFileToGridFS = require('../utils/uploadImage'); // Import the upload function
+const uploadFileToGridFS = require('../utils/uploadImage'); 
+const { notifyUser, notifyOrg } = require('../socket/emitUtils');
 const mongoose = require('mongoose');
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const ical = require('ical');
+exports.importICal = async (req, res) => {
+  const { url } = req.body;
+  const { Task, Resource } = req.tenantModels;
+  const user = req.user;
 
-exports.setTaskSocketIoInstance = (ioInstance) => {
-  io = ioInstance;
+  console.log("url", url);
+
+  try {
+    const response = await fetch(url);
+    const data = await response.text();
+    const parsed = ical.parseICS(data);
+
+    const events = Object.values(parsed).filter((e) => e.type === 'VEVENT');
+
+    console.log("events", events.length);
+
+    let createdTasks = [];
+
+    for (let e of events) {
+      const taskData = {
+        title: e.summary || 'Imported iCal Event',
+        organization: user.org_id,
+        createdBy: user._id,
+        schedule: {
+          start: new Date(e.start),
+          end: new Date(e.end),
+          timezone: 'UTC',
+        },
+        notes: e.description || '',
+        priority: 'medium',
+        status: 'pending',
+      };
+
+      console.log("taskData", taskData);
+
+      const savedTask = await taskService.createTask(taskData, Task, Resource);
+      createdTasks.push(savedTask);
+    }
+
+    return res.status(200).json({
+      message: 'iCal events imported as tasks',
+      count: createdTasks.length,
+      taskIds: createdTasks.map(t => t._id),
+    });
+
+  } catch (error) {
+    console.error('Error importing iCal:', error);
+    return res.status(500).json({ error: 'Import failed' });
+  }
 };
 exports.createTask = async (req, res) => {
   try {
-    const { Task, Resource } = req.tenantModels;
+    const { Task, Resource, Notification } = req.tenantModels;
     const cache = req.tenantCache;
 
     // Validate required fields
@@ -56,8 +106,8 @@ exports.createTask = async (req, res) => {
         baseTask: taskData,
         frequency: taskData.repeat_frequency,
         endDate: periodEndDate,
-        TaskModel: Task,          // ✅ FIXED
-        ResourceModel: Resource   // ✅ FIXED
+        TaskModel: Task,          
+        ResourceModel: Resource  
       });
     } else {
       // Handle single task
@@ -66,6 +116,39 @@ exports.createTask = async (req, res) => {
     }
    // Invalidate all paginated task lists
    await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+
+   if (taskData.assignments && taskData.assignments.length > 0) {
+    
+    await Promise.all(
+      taskData.assignments.map((assignment) => {
+        const userId = assignment.user.toString();
+  
+        // Real-time notification
+        notifyUser(userId, 'task:assigned', {
+          taskId: createdTask._id,
+          title: taskData.title,
+          message: `You've been assigned a new task: "${taskData.title}"`,
+          createdBy: req.user.first_name || 'A team member',
+          organization: req.user.org_id,
+        });
+  
+        // Persistent DB notification
+        return notificationService.createNotification(
+          {
+            user: userId,
+            organization: req.user.org_id,
+            title: 'New Task Assigned',
+            message: `You've been assigned a new task: "${taskData.title}"`,
+            type: 'task',
+            referenceId: createdTask._id,
+            referenceModel: 'Task',
+            isRead: false,
+          },
+          Notification
+        );
+      })
+    );
+  }
   
     // Ensure we're sending a response
     return res.status(201).json({
@@ -88,19 +171,18 @@ exports.updateTask = async (req, res) => {
     const taskId = req.params.id;
     const updateData = {};
     const mongoose = require('mongoose');
-    const { Task } = req.tenantModels;
+    const { Task ,Notification} = req.tenantModels;
     
     // Parse the assigned_resources if it exists
     if (req.body.assigned_resources) {
       const assignedResources = JSON.parse(req.body.assigned_resources);
       
-      // Transform resources to match your DB structure with proper ObjectIds
-     // In your updateTask controller:
+           // In your updateTask controller:
      if (assignedResources.resources && Array.isArray(assignedResources.resources)) {
       updateData.resources = assignedResources.resources
         .filter(resource => resource?.resource?._id)
         .map(resource => ({
-          resource: new mongoose.Types.ObjectId(resource.resource._id),
+          resource: new mongoose.Types.ObjectId(resource.resource?._id),
           relationshipType: resource.relationshipType,
           required: resource.required,
           _id: resource._id 
@@ -167,9 +249,6 @@ exports.updateTask = async (req, res) => {
       
       updateData.color_code = getColorForStatus(req.body.status);
     }
-
-    
-    
     const updatedTask = await taskService.updateTask(
       taskId,
       updateData,
@@ -183,11 +262,80 @@ exports.updateTask = async (req, res) => {
       // Add any other fields that might be missing
     };
     // Invalidate cache
-const cache = req.tenantCache;
+    const cache = req.tenantCache;
+
+    // Invalidate single task
 await cache.del(`task:${taskId}:org:${req.user.org_id}`);
+
+// Invalidate all task lists
 await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
-console.log(`[CACHE][DEL] task:${taskId}:org:${req.user.org_id} and related task lists`);
-    
+
+// Invalidate all done tasks (global)
+await cache.del(`tasks:done:org:${req.user.org_id}`);
+console.log(`[CACHE][DEL] tasks:done:org:${req.user.org_id}`);
+
+// Invalidate user-specific caches
+if (updatedTask.assignments && updatedTask.assignments.length > 0) {
+  for (const assignment of updatedTask.assignments) {
+    const userId = typeof assignment.user === 'object'
+      ? assignment.user?._id
+      : assignment.user;
+
+    if (!userId) continue;
+
+    await cache.del(`tasks:assigned:user:${userId}:org:${req.user.org_id}`);
+    await cache.del(`tasks:done:user:${userId}:org:${req.user.org_id}`);
+
+    console.log(`[CACHE][DEL] tasks:assigned:user:${userId}:org:${req.user.org_id}`);
+    console.log(`[CACHE][DEL] tasks:done:user:${userId}:org:${req.user.org_id}`);
+  }
+}
+
+// Notify all assigned users about the update
+if (updatedTask.assignments && updatedTask.assignments.length > 0) {
+ 
+  await Promise.all(
+    updatedTask.assignments
+      .map((assignment) => {
+        if (!assignment.user) {
+          console.warn("⚠️ Skipping null user in assignment:", assignment);
+          return null;
+        }
+  
+        const userId =
+          typeof assignment.user === 'object'
+            ? assignment.user?._id
+            : assignment.user;
+  
+        // Real-time
+        notifyUser(userId.toString(), 'task:updated', {
+          taskId: updatedTask._id,
+          title: updatedTask.title,
+          message: `Task "${updatedTask.title}" has been updated.`,
+          updatedBy: req.user.first_name || 'A team member',
+          organization: req.user?.org_id
+        });
+  
+        // Persistent notification
+        return notificationService.createNotification(
+          {
+            user: new mongoose.Types.ObjectId(userId),
+            organization: req.user.org_id,
+            title: 'Task Updated',
+            message: `Task "${updatedTask.title}" has been updated.`,
+            type: 'task',
+            referenceId: updatedTask._id,
+            referenceModel: 'Task',
+            isRead: false
+          },
+          Notification
+        );
+      })
+      .filter(Boolean) // filters out null results
+  );
+  
+}
+
 res.status(200).json({
       success: true,
       message: 'Task updated successfully',
@@ -227,20 +375,59 @@ exports.getTaskById = async (req, res) => {
 exports.deleteTask = async (req, res) => {
   try {
     const taskId = req.params.id;
-    const { Task } = req.tenantModels;
+    const { Task, Notification } = req.tenantModels;
     const cache = req.tenantCache;
 
+    const taskToDelete = await Task.findById(taskId).lean();
+    if (!taskToDelete) {
+      return sendResponse(res, 404, 'Task not found', null);
+    }
+    // Now delete the task
     await taskService.deleteTask(taskId, Task);
-     // Invalidate cache
-     await cache.del(`task:${taskId}:org:${req.user.org_id}`);
-     await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
-     console.log(`[CACHE][DEL] task:${taskId}:org:${req.user.org_id} and related task lists`);
- 
+
+    // Invalidate cache
+    await cache.del(`task:${taskId}:org:${req.user.org_id}`);
+    await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+    console.log(`[CACHE][DEL] task:${taskId}:org:${req.user.org_id} and related task lists`);
+  // Notify before deletion
+  if (taskToDelete.assignments?.length > 0) {
+    await Promise.all(
+      taskToDelete.assignments.map((assignment) => {
+        const userId = assignment.user.toString();
+        
+        // Real-time
+        notifyUser(userId, 'task:deleted', {
+          
+          taskId: taskToDelete._id,
+          title: taskToDelete.title,
+          message: `Task "${taskToDelete.title}" has been deleted.`,
+          deletedBy: req.user.first_name || 'A team member',
+          organization: req.user.org_id,
+        });
+
+        // Persistent
+        return notificationService.createNotification(
+          {
+            user: userId,
+            organization: req.user.org_id,
+            title: 'Task Deleted',
+            message: `Task "${taskToDelete.title}" has been deleted.`,
+            type: 'task',
+            referenceId: taskToDelete._id,
+            referenceModel: 'Task',
+            isRead: false,
+          },
+          Notification
+        );
+      })
+    );
+  }
     sendResponse(res, 200, 'Task deleted successfully', null);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
+
 exports.getTasksByOrganization = async (req, res) => {
   try {
     const { page = 1, limit = 100 } = req.query;
@@ -390,14 +577,12 @@ exports.getDoneTasksForUser = async (req, res) => {
   try {
     const cached = await cache.get(cacheKey);
     if (cached) {
-      
       return sendResponse(res, 200, 'Done tasks for user from cache', JSON.parse(cached));
     }
 
     const tasks = await taskService.fetchDoneTasksForUser(userId, req.user.org_id, Task);
     await cache.set(cacheKey, JSON.stringify(tasks), { expiration: 300 });
     
-
     sendResponse(res, 200, 'Done tasks retrieved successfully', tasks);
   } catch (error) {
     sendResponse(res, error.statusCode || 500, error.message, null);
@@ -426,5 +611,48 @@ exports.getTasksByAssignedUser = async (req, res) => {
     sendResponse(res, 200, 'Assigned tasks retrieved successfully', tasks);
   } catch (error) {
     sendResponse(res, 500, 'Failed to fetch tasks', { details: error.message });
+  }
+};
+exports.getTaskReportData = async (req, res) => {
+  try {
+    const { Task } = req.tenantModels;
+
+    // --- Controller's Responsibility: Building the Filter ---
+    // Start with a base filter for security and default state
+    const filter = {
+      organization: req.user.org_id,
+      status: 'done'
+    };
+
+    // Add optional filters from query parameters for flexibility
+    const { startDate, endDate, userId } = req.query;
+
+    if (startDate) {
+      // Find tasks that END on or after the start date
+      filter['schedule.end'] = { ...filter['schedule.end'], $gte: new Date(startDate) };
+    }
+    if (endDate) {
+      // Find tasks that START on or before the end date
+      filter['schedule.start'] = { ...filter['schedule.start'], $lte: new Date(endDate) };
+    }
+    if (userId) {
+      // Find tasks where a specific user was assigned
+      filter['assignments.user'] = userId;
+    }
+
+    // --- Controller's Responsibility: Calling the Service ---
+    const tasks = await taskService.getReportData(filter, Task);
+
+    // --- Controller's Responsibility: Sending the Response ---
+    return res.status(200).json({
+      success: true,
+      count: tasks.length,
+      data: tasks,
+    });
+
+  } catch (error) {
+    // The controller's catch block handles sending the final error response
+    console.error('Error in getTaskReportData controller:', error);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve report data' });
   }
 };

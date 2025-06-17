@@ -16,13 +16,32 @@ const RegisterForm = () => {
     last_name: '',
     personal_number: '',
     access_level: 1,
+    payroll: {
+      rate_type: 'hourly',
+      rate: '',
+      currency: 'USD',
+      overtime_multiplier: '1.5',
+    }
   });
   const [error, setError] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    
+    // +++ ADDED: Handle nested payroll fields ---
+    if (name.startsWith('payroll.')) {
+      const payrollField = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        payroll: {
+          ...prev.payroll,
+          [payrollField]: value
+        }
+      }));
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
     setError('');
   };
   const handleSubmit = async (e) => {
@@ -42,6 +61,7 @@ const RegisterForm = () => {
           last_name: '',
           personal_number: '',
           access_level: 1,
+          payroll: { rate_type: 'hourly', rate: '', currency: 'USD', overtime_multiplier: '1.5' }
         });
         
         navigate('/home');
@@ -110,6 +130,48 @@ const RegisterForm = () => {
          
         ]}
       />
+        {/* +++ ADDED PAYROLL SECTION +++ */}
+        <fieldset className="border border-gray-300 p-4 rounded-lg">
+        <legend className="text-sm font-medium text-gray-700 px-2">Payroll Information</legend>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormInput
+                label="Rate Type"
+                name="payroll.rate_type" // Use dot notation for nested fields
+                type="select"
+                value={formData.payroll.rate_type}
+                onChange={handleChange}
+                options={[
+                    { value: 'hourly', description: 'Hourly' },
+                    { value: 'salaried', description: 'Salaried' },
+                    { value: 'project', description: 'Per Project' },
+                ]}
+            />
+            <FormInput
+                label="Rate"
+                name="payroll.rate"
+                type="number"
+                value={formData.payroll.rate}
+                onChange={handleChange}
+                placeholder="e.g., 25.50"
+            />
+            <FormInput
+                label="Currency"
+                name="payroll.currency"
+                type="text"
+                value={formData.payroll.currency}
+                onChange={handleChange}
+                placeholder="e.g., USD"
+            />
+             <FormInput
+                label="Overtime Multiplier"
+                name="payroll.overtime_multiplier"
+                type="number"
+                step="0.1"
+                value={formData.payroll.overtime_multiplier}
+                onChange={handleChange}
+            />
+        </div>
+      </fieldset>
       
       {error && <p className="text-red-500">{error}</p>}
       {confirmationMessage && <p className="text-green-500">{confirmationMessage}</p>}

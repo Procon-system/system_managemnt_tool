@@ -369,9 +369,8 @@ const taskSlice = createSlice({
           state.tasks = [];
           return;
         }
-      
         state.tasks = action.payload.data.filter(task => 
-          task?._id && task?.assignee // Ensure tasks have both ID and assignee
+          task?._id 
         );
       })
       .addCase(getTasksByAssignedUser.rejected, (state, action) => {

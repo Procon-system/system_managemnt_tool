@@ -1,9 +1,14 @@
-
 const mongoose = require('mongoose');
-const notificationSchema = new mongoose.Schema({
+
+module.exports = (connection) => {
+  if (connection.models['Notification']) {
+    return connection.models['Notification'];
+  }
+
+  const notificationSchema = new mongoose.Schema({
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'User', // Who the notification is for
       required: true
     },
     organization: {
@@ -11,24 +16,45 @@ const notificationSchema = new mongoose.Schema({
       ref: 'Organization',
       required: true
     },
+    title: {
+      type: String,
+      required: true
+    },
+    message: {
+      type: String
+    },
     type: {
       type: String,
-      enum: ['task_assignment', 'status_change', 'due_date', 'comment', 'custom']
+      enum: ['task', 'resource','resourceType', 'team', 'comment', 'system'], // Add more types as needed
+      required: true
     },
-    relatedEntity: {
-      entityType: String, // 'Task', 'Resource', etc.
-      entityId: mongoose.Schema.Types.ObjectId
+    referenceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false // E.g., task ID, resource ID, etc.
     },
-    message: String,
-    read: {
+    referenceModel: {
+      type: String,
+      enum: ['Task', 'Resource', 'ResourceType' ,'Team'], // Add models your app uses
+      required: false
+    },
+    isRead: {
       type: Boolean,
       default: false
-    },
-    metadata: mongoose.Schema.Types.Mixed,
-    createdAt: {
-      type: Date,
-      default: Date.now
+    }
+  }, {
+    timestamps: true,
+    toObject: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      transform(doc, ret) {
+        delete ret.__v;
+        return ret;
+      }
     }
   });
-  
-  const Notification = mongoose.model('Notification', notificationSchema);
+
+  notificationSchema.index({ user: 1, isRead: 1 });
+  notificationSchema.index({ organization: 1, createdAt: -1 });
+
+  return connection.model('Notification', notificationSchema);
+};

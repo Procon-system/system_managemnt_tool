@@ -1,22 +1,84 @@
 
 // services/resourceTypeService.js
 
+// exports.createResourceType = async (typeData, ResourceTypeModel) => {
+//   if (!typeData.fieldDefinitions || typeData.fieldDefinitions.length === 0) {
+//     throw new Error('At least one field definition is required');
+//   }
+
+//   const fieldNames = typeData.fieldDefinitions.map(f => f.fieldName);
+//   const uniqueNames = new Set(fieldNames);
+
+//   if (fieldNames.length !== uniqueNames.size) {
+//     throw new Error('Field names must be unique within a resource type');
+//   }
+
+//   const resourceType = new ResourceTypeModel(typeData);
+//   return await resourceType.save();
+// };
+
 exports.createResourceType = async (typeData, ResourceTypeModel) => {
   if (!typeData.fieldDefinitions || typeData.fieldDefinitions.length === 0) {
-    throw new Error('At least one field definition is required');
+    const err = new Error('At least one field definition is required');
+    err.statusCode = 400;
+    throw err;
   }
 
   const fieldNames = typeData.fieldDefinitions.map(f => f.fieldName);
   const uniqueNames = new Set(fieldNames);
 
   if (fieldNames.length !== uniqueNames.size) {
-    throw new Error('Field names must be unique within a resource type');
+    const err = new Error('Field names must be unique within a resource type');
+    err.statusCode = 400;
+    throw err;
   }
 
-  const resourceType = new ResourceTypeModel(typeData);
-  return await resourceType.save();
-};
+  // +++ CRITICAL ADDITIONS FOR VALIDATION AND TYPE CASTING +++
+  typeData.fieldDefinitions.forEach(field => {
+    // 1. Validate Quantifiable Fields
+    if (field.isQuantifiable && (!field.quantifiableUnit || field.quantifiableUnit.trim() === '')) {
+      const err = new Error(`Field '${field.fieldName}' is marked as quantifiable but is missing a unit.`);
+      err.statusCode = 400;
+      throw err;
+    }
+     if (!field.isQuantifiable) {
+      // Clean up quantifiable data if it's not quantifiable
+      delete field.quantifiableUnit;
+      delete field.quantifiableCategory;
+    }
 
+    // 2. Cast Default Value based on Field Type
+    if (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '') {
+      if (field.fieldType === 'number') {
+        const numValue = parseFloat(field.defaultValue);
+        if (isNaN(numValue)) {
+          const err = new Error(`Default value for number field '${field.fieldName}' is not a valid number.`);
+          err.statusCode = 400;
+          throw err;
+        }
+        field.defaultValue = numValue; // Assign the casted number
+      }
+      // String values are already in the correct format, so no casting is needed.
+    } else {
+        // Ensure empty strings aren't saved as default values, use undefined instead
+        delete field.defaultValue;
+    }
+  });
+
+
+  const resourceType = new ResourceTypeModel(typeData);
+  try {
+    return await resourceType.save();
+  } catch (error) {
+    // Handle potential duplicate key error from the database index
+    if (error.code === 11000) {
+      const err = new Error(`A resource type with the name '${typeData.name}' already exists.`);
+      err.statusCode = 409; // 409 Conflict
+      throw err;
+    }
+    throw error; // Re-throw other errors
+  }
+};
 exports.getResourceTypes = async (ResourceTypeModel) => {
   return await ResourceTypeModel.find({});
 };

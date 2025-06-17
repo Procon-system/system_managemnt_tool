@@ -16,7 +16,7 @@ module.exports = (connection) => {
     lowercase: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address']
   },
-  organization: {
+  org_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
     required: true
@@ -59,6 +59,28 @@ module.exports = (connection) => {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Team'
   }],
+  payroll: {
+    rate_type: {
+      type: String,
+      enum: ['hourly', 'salaried', 'project'],
+      default: 'hourly'
+    },
+    rate: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    currency: {
+      type: String,
+      default: 'USD',
+      uppercase: true,
+      trim: true
+    },
+    overtime_multiplier: {
+      type: Number,
+      default: 1.5 // Standard time-and-a-half
+    }
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -142,7 +164,7 @@ userSchema.methods.generateAuthToken = function() {
     { 
       _id: this._id,
       email: this.email,
-      tenantId: this.organization,
+      tenantId: this.org_id,
       access_level: this.access_level 
     },
     process.env.JWT_TOKEN_KEY,

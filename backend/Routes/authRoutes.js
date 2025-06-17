@@ -20,8 +20,6 @@ router.post(
   checkUserLimit,
   registerController
 );
-
-// router.post('/register', authenticateUser,authorize([5]),checkUserLimit ,registerController);
 router.post('/login', loginController);
 router.post('/logout', logoutController);
 router.post('/confirm-email/:confirmationCode',confirmEmailController);

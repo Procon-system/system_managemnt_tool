@@ -7,12 +7,13 @@ import {FiChevronDown } from 'react-icons/fi';
 import { FiList, FiCheckCircle, FiArchive, FiClipboard, FiTool, FiUsers, FiUserPlus,  FiPackage } from "react-icons/fi";
 import DateRangeFilter from "../Components/taskComponents/datePicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { AiOutlineHome } from "react-icons/ai";
+import { AiOutlineHome,AiOutlineCalendar} from "react-icons/ai";
+import { MdDashboard } from 'react-icons/md';
 import { fetchResourceTypes,addResourceTypeFromSocket } from '../features/resourceTypeSlice';
 import RenderDynamicIcon from './common/RenderDynamicIcon';
 import { io } from 'socket.io-client';
 
-const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange }) => {
+const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showAddOptions, setShowAddOptions] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({
@@ -30,15 +31,16 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
   );
 
   useEffect(() => {
-    if (!user?.organization) return;
-  
+    
+    // if (!user?.organization || !user?.org_id) return;
+   
     // Initial fetch
     if (access_level >= 3) {
       dispatch(fetchResourceTypes());
     }
   
     const socket = io(API_URL, {
-      query: { organizationId: user.organization }
+      query: { organizationId: user?.organization?._id || user?.org_id }
     });
   
     socket.on('resourceType:created', (data) => {
@@ -50,7 +52,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
       socket.off('resourceType:created');
       socket.disconnect();
     };
-  }, [user,user?.organization, dispatch, access_level, API_URL]);
+  }, [user, dispatch, access_level, API_URL]);
   
   // Categorize resources
   const categorizedResources = useMemo(() => {
@@ -100,6 +102,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
     navigate('/home');
     setIsOpen(false);
   };
+ 
   const StyledAddButton = ({ icon, label, onClick }) => (
     <button 
       className="relative group bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -112,7 +115,6 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
       </span>
     </button>
   );
-  
   return (
     <>
       {/* Mobile Toggle Button */}
@@ -136,6 +138,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
             <DateRangeFilter
               onDateRangeSelect={onDateRangeSelect}
               onCalendarDateChange={onCalendarDateChange}
+              tasksWithDates={tasksWithDates}
             />
           </div>
   
@@ -148,6 +151,14 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
               <AiOutlineHome className="text-blue-500 mr-3" size={24} />
               Home
             </button>
+            <button
+  className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 mt-2 rounded-md hover:bg-blue-200 transition"
+  onClick={() => handleNavigation('/analytics')}
+>
+  <MdDashboard className="text-blue-500 mr-3" size={24} />
+  Analytics Dashboard
+</button>
+
   
             {access_level === 2 && (
               <>
@@ -277,18 +288,16 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
           )}
         
         </div>
-  
-        {/* Add Button - Now properly positioned at bottom */}
-        {access_level >= 4 && (
+        {access_level >= 2 && (
   <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 pt-2 pb-4 px-4 z-10">
     <div className="relative flex justify-end">
-      <div className="relative">
+      <div className="relative flex flex-col items-center">
+        {/* Plus Button */}
         <button 
           className="bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
           aria-label="Add options"
           onClick={() => {
             setShowAddOptions(!showAddOptions);
-            // Auto-close after 5 seconds if opened
             if (!showAddOptions) {
               setTimeout(() => {
                 setShowAddOptions(false);
@@ -299,31 +308,45 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
           <FaPlus size={18} />
         </button>
 
-        {/* Options panel */}
-        <div className={`absolute bottom-full right-0 mb-1 flex flex-col space-y-1 transition-all duration-500 ease-in-out ${
+        {/* Options Panel - centered below the + button */}
+        <div className={`absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center space-y-2 transition-all duration-500 ease-in-out ${
           showAddOptions ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
         }`}>
+          {access_level >= 4 && (
+            <>
+              <StyledAddButton 
+                icon={<FiUsers size={18} />} 
+                label="Team" 
+                onClick={() => {
+                  handleNavigation('/teams');
+                  setShowAddOptions(false);
+                }}
+              />
+              <StyledAddButton 
+                icon={<FiTool size={18} />} 
+                label="Resource" 
+                onClick={() => {
+                  handleNavigation('/create-resource-type');
+                  setShowAddOptions(false);
+                }}
+              />
+              <StyledAddButton 
+                icon={<FiUserPlus size={18} />} 
+                label="User" 
+                onClick={() => {
+                  handleNavigation('/register');
+                  setShowAddOptions(false);
+                }}
+              />
+            </>
+          )}
+
+          {/* Import Calendar */}
           <StyledAddButton 
-            icon={<FiUsers size={18} />} 
-            label="Team" 
+            icon={<AiOutlineCalendar size={18} />} 
+            label="Import Calendar" 
             onClick={() => {
-              handleNavigation('/teams');
-              setShowAddOptions(false);
-            }}
-          />
-          <StyledAddButton 
-            icon={<FiTool size={18} />} 
-            label="Resource" 
-            onClick={() => {
-              handleNavigation('/create-resource-type');
-              setShowAddOptions(false);
-            }}
-          />
-          <StyledAddButton 
-            icon={<FiUserPlus size={18} />} 
-            label="User" 
-            onClick={() => {
-              handleNavigation('/register');
+              handleNavigation('/import-calendar');
               setShowAddOptions(false);
             }}
           />
@@ -332,6 +355,7 @@ const Sidebar = ({ handleEventCreate, onDateRangeSelect, onCalendarDateChange })
     </div>
   </div>
 )}
+
       </aside>
   
       {/* Mobile Overlay */}

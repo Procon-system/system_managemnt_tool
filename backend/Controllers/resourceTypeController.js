@@ -1,12 +1,6 @@
 const resourceTypeService = require('../Services/resourceTypeService');
 const { sendResponse } = require('../utils/responseHandler');
 
-let io;
-
-exports.setResourceTypeSocketIoInstance = (ioInstance) => {
-  io = ioInstance;
-};
-
 exports.createResourceType = async (req, res) => {
   try {
     const typeData = req.body;

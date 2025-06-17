@@ -34,7 +34,28 @@ const HomePage = () => {
   const [deletedTaskIds, setDeletedTaskIds] = useState(new Set());
   const [showTaskPage, setShowTaskPage] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
- 
+  const socket = useRef(null);
+
+  useEffect(() => {
+    socket.current = io(API_URL, {
+      auth: {
+        token: localStorage.getItem("token") // Or however you store the JWT
+      }
+    });
+  
+    socket.current.on("connect", () => {
+      console.log("🔌 Socket connected:", socket.current.id);
+    });
+  
+    socket.current.on("disconnect", () => {
+      console.warn("⚠️ Socket disconnected");
+    });
+  
+    return () => {
+      socket.current.disconnect();
+    };
+  }, []);
+  
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -53,8 +74,8 @@ const HomePage = () => {
   const handleTaskDeletion = useCallback((deletedTaskId) => {
     setDeletedTaskIds((prevIds) => new Set(prevIds).add(deletedTaskId));
   },[]);
+
   const updateEventState = useCallback((updatedEvents = [], deletedEventId = null) => {
-    console.log("Incoming update data:", updatedEvents);
     
     setFilteredEvents((prevEvents) => {
       let currentEvents = prevEvents || tasks || [];
@@ -166,7 +187,7 @@ const HomePage = () => {
           (event) => event._id && event.title && event.schedule?.start && event.schedule?.end
         );
         
-        console.log("Normalized events:", finalEvents);
+        
         eventsRef.current = finalEvents;
         return finalEvents;
       }
@@ -174,98 +195,6 @@ const HomePage = () => {
       return currentEvents;
     });
   }, [tasks, handleTaskDeletion, eventsRef]);
-  
-  const handleTaskCreated = useCallback((broadcastData) => {
-    console.log('Socket task received:', broadcastData);
-    
-    const tasks = broadcastData.newTasks || [broadcastData.newTask].filter(Boolean);
-    
-    // Dispatch all tasks at once for better performance
-    if (tasks.length > 0) {
-      dispatch(addMultipleTasksFromSocket(tasks));
-    }
-  }, [dispatch]);
-  
-useEffect(() => {
-  const organizationId = user?.organization?._id || user?.organization; // Handle both object and string cases
-
-  if (!isOnline) {
-    console.log("[Socket] Offline - skipping WebSocket setup");
-    return;
-  }
-
-  if (!organizationId) {
-    console.error("[Socket] No organization ID found - cannot establish connection");
-    return;
-  }
-
-  console.log("[Socket] Online - establishing connection for org:", organizationId);
-
-  const socket = io(API_URL, {
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-    query: {
-      organizationId: organizationId,
-      userId: user?._id // Optional: include user ID for debugging
-    }
-  });
-
-  // Connection events
-  socket.on("connect", () => {
-    console.log("[Socket] Connected with ID:", socket.id);
-    
-    // Join organization room upon connection
-    socket.emit("joinRoom", organizationId, (response) => {
-      if (response?.status === 'success') {
-        console.log(`[Socket] Successfully joined room: ${organizationId}`);
-      } else {
-        console.error("[Socket] Failed to join room:", response?.error);
-      }
-    });
-  });
-
-  socket.on("disconnect", (reason) => {
-    console.log("[Socket] Disconnected:", reason);
-    if (reason === "io server disconnect") {
-      // Attempt to reconnect if server disconnected us
-      socket.connect();
-    }
-  });
-
-  socket.on("connect_error", (err) => {
-    console.error("[Socket] Connection error:", err.message);
-    // Attempt to reconnect after delay
-    setTimeout(() => socket.connect(), 5000);
-  });
-
-
-  socket.on("taskCreated", handleTaskCreated);
-
-
-
-  return () => {
-    console.log("[Socket] Cleaning up connection for org:", organizationId);
-    
-    // Leave room before disconnecting
-    if (socket.connected) {
-      socket.emit("leaveRoom", organizationId, (response) => {
-        console.log(`[Socket] Leave room response:`, response);
-      });
-    }
-    
-    // Cleanup listeners
-    socket.off("connect");
-    socket.off("disconnect");
-    socket.off("connect_error");
-    socket.off("taskCreated", handleTaskCreated); // Important: use named function
-   
-    // Disconnect if still connected
-    if (socket.connected) {
-      socket.disconnect();
-    }
-  };
-}, [isOnline, updateEventState, filteredEvents, user?.organization]); // Add user.organization t
 
 useEffect(() => {
   // Always treat tasks as array
@@ -296,8 +225,8 @@ useEffect(() => {
     return newEvents;
   });
 }, [tasks]);
+
 const calendarEvents = useMemo(() => {
- 
   return Array.isArray(tasks)
       ? tasks
         .filter((task) => !deletedTaskIds.has(task._id))
@@ -365,6 +294,7 @@ const calendarEvents = useMemo(() => {
         })
     : [];
 }, [tasks, deletedTaskIds]);
+
 useEffect(() => {
   if (!isInitialized && calendarEvents.length > 0) {
     
@@ -390,6 +320,7 @@ useEffect(() => {
 }, [currentView, dispatch, user?._id]);
 
 useEffect(() => {
+  
   if (calendarEvents.length > 0) {
     const validEvents = calendarEvents.filter(
       (event) => !deletedTaskIds.has(event._id)
@@ -399,7 +330,6 @@ useEffect(() => {
     } else if (currentView === 'userTasks') {
       setFilteredEvents(
         validEvents
-        
       );
     } else if (currentView === 'userDoneTasks') {
       setFilteredEvents(
@@ -662,6 +592,7 @@ useEffect(() => {
         onDateRangeSelect={handleDateRangeSelect}
         onCalendarDateChange={handleCalendarDateChange}
         handleEventCreate={handleEventCreate}
+        tasksWithDates={tasks}
       />
       <EventCalendarWrapper
         events={calendarEvent }
