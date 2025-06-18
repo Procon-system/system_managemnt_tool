@@ -613,45 +613,89 @@ exports.getTasksByAssignedUser = async (req, res) => {
     sendResponse(res, 500, 'Failed to fetch tasks', { details: error.message });
   }
 };
+// exports.getTaskReportData = async (req, res) => {
+//   try {
+//     const { Task } = req.tenantModels;
+
+//     // --- Controller's Responsibility: Building the Filter ---
+//     // Start with a base filter for security and default state
+//     const filter = {
+//       organization: req.user.org_id,
+//       status: 'done'
+//     };
+
+//     // Add optional filters from query parameters for flexibility
+//     const { startDate, endDate, userId } = req.query;
+
+//     if (startDate) {
+//       // Find tasks that END on or after the start date
+//       filter['schedule.end'] = { ...filter['schedule.end'], $gte: new Date(startDate) };
+//     }
+//     if (endDate) {
+//       // Find tasks that START on or before the end date
+//       filter['schedule.start'] = { ...filter['schedule.start'], $lte: new Date(endDate) };
+//     }
+//     if (userId) {
+//       // Find tasks where a specific user was assigned
+//       filter['assignments.user'] = userId;
+//     }
+
+//     // --- Controller's Responsibility: Calling the Service ---
+//     const tasks = await taskService.getReportData(filter, Task);
+
+//     // --- Controller's Responsibility: Sending the Response ---
+//     return res.status(200).json({
+//       success: true,
+//       count: tasks.length,
+//       data: tasks,
+//     });
+
+//   } catch (error) {
+//     // The controller's catch block handles sending the final error response
+//     console.error('Error in getTaskReportData controller:', error);
+//     return res.status(500).json({ success: false, message: 'Failed to retrieve report data' });
+//   }
+// };
 exports.getTaskReportData = async (req, res) => {
   try {
     const { Task } = req.tenantModels;
-
-    // --- Controller's Responsibility: Building the Filter ---
-    // Start with a base filter for security and default state
     const filter = {
       organization: req.user.org_id,
       status: 'done'
     };
-
-    // Add optional filters from query parameters for flexibility
-    const { startDate, endDate, userId } = req.query;
+    
+    // --- UPDATED FILTER LOGIC ---
+    const { startDate, endDate, userIds, resourceIds } = req.query;
 
     if (startDate) {
-      // Find tasks that END on or after the start date
       filter['schedule.end'] = { ...filter['schedule.end'], $gte: new Date(startDate) };
     }
     if (endDate) {
-      // Find tasks that START on or before the end date
       filter['schedule.start'] = { ...filter['schedule.start'], $lte: new Date(endDate) };
     }
-    if (userId) {
-      // Find tasks where a specific user was assigned
-      filter['assignments.user'] = userId;
+    
+    // Handle an array of User IDs sent from the frontend
+    if (userIds && Array.isArray(userIds) && userIds.length > 0) {
+      filter['assignments.user'] = { $in: userIds };
     }
-
-    // --- Controller's Responsibility: Calling the Service ---
+    
+    // Handle an array of Resource IDs sent from the frontend
+    if (resourceIds && Array.isArray(resourceIds) && resourceIds.length > 0) {
+      // Find tasks where any of the specified resources were logged or planned
+      filter['$or'] = [
+          { 'resources.resource': { $in: resourceIds } },
+          { 'resourceLogs.resource': { $in: resourceIds } }
+      ];
+    }
+    
     const tasks = await taskService.getReportData(filter, Task);
 
-    // --- Controller's Responsibility: Sending the Response ---
     return res.status(200).json({
       success: true,
       count: tasks.length,
       data: tasks,
     });
-
   } catch (error) {
-    // The controller's catch block handles sending the final error response
     console.error('Error in getTaskReportData controller:', error);
     return res.status(500).json({ success: false, message: 'Failed to retrieve report data' });
   }

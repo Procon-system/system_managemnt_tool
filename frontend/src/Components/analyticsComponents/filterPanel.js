@@ -1,7 +1,52 @@
 
 import React, { useState } from 'react';
-import { FiFilter, FiSearch, FiCalendar } from 'react-icons/fi';
+import DatePicker from 'react-datepicker';
+import { FiFilter, FiSearch, FiCalendar, FiX, FiUsers, FiPackage } from 'react-icons/fi';
+import "react-datepicker/dist/react-datepicker.css";
+// A reusable component for the search-and-select dropdown
+const SearchableSelect = ({ label, icon, placeholder, searchTerm, onSearchChange, items, onSelectItem, selectedItems, onRemoveItem, renderItem, getItemById, pillColorClass }) => {
+    const filteredItems = searchTerm
+        ? items.filter(item => renderItem(item).toLowerCase().includes(searchTerm.toLowerCase()) && !selectedItems.includes(item._id))
+        : items.filter(item => !selectedItems.includes(item._id));
 
+    return (
+        <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">{icon} {label}</label>
+            <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={searchTerm}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    className="w-full pl-10 pr-4 py-1.5 text-sm border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {searchTerm && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        {filteredItems.length > 0 ? filteredItems.map(item => (
+                            <div key={item._id} onClick={() => onSelectItem(item._id)} className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100">
+                                {renderItem(item)}
+                            </div>
+                        )) : <div className="px-4 py-2 text-sm text-gray-500">No matches found.</div>}
+                    </div>
+                )}
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1 min-h-[30px]">
+                {selectedItems.map(itemId => {
+                    const item = getItemById(itemId);
+                    return item ? (
+                        <span key={itemId} className={`inline-flex items-center px-2 py-1 text-xs rounded-full font-semibold ${pillColorClass}`}>
+                            {renderItem(item)}
+                            <button onClick={() => onRemoveItem(itemId)} className="ml-1.5 font-bold opacity-70 hover:opacity-100">
+                                <FiX size={12}/>
+                            </button>
+                        </span>
+                    ) : null;
+                })}
+            </div>
+        </div>
+    );
+};
 const FilterPanel = ({
     filters,
     onApplyFilters,
@@ -11,8 +56,14 @@ const FilterPanel = ({
     const [userSearch, setUserSearch] = useState('');
     const [resourceSearch, setResourceSearch] = useState('');
 
-    const handleDateRangeChange = (field, value) => {
-        onApplyFilters({ dateRange: { ...filters.dateRange, [field]: value } });
+    const handleDateChange = (dates) => {
+        const [start, end] = dates;
+        onApplyFilters({
+            dateRange: {
+                start: start ? start.toISOString().split('T')[0] : '',
+                end: end ? end.toISOString().split('T')[0] : '',
+            },
+        });
     };
 
     const setQuickDateRange = (range) => {
@@ -22,6 +73,9 @@ const FilterPanel = ({
         if (range === 'thisMonth') start.setDate(1);
         onApplyFilters({ dateRange: { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] } });
     };
+    
+    const startDate = filters.dateRange.start ? new Date(filters.dateRange.start) : null;
+    const endDate = filters.dateRange.end ? new Date(filters.dateRange.end) : null;
 
     const addUser = (userId) => {
         if (userId && !filters.userIds.includes(userId)) {
@@ -43,81 +97,68 @@ const FilterPanel = ({
         onApplyFilters({ resourceIds: filters.resourceIds.filter(id => id !== resourceId) });
     };
 
-    const filteredUsers = userSearch ? availableUsers.filter(user =>
-        `${user.first_name} ${user.last_name}`.toLowerCase().includes(userSearch.toLowerCase()) && !filters.userIds.includes(user._id)
-    ) : [];
-    
-    const filteredResources = resourceSearch ? availableResources.filter(resource =>
-        resource.displayName.toLowerCase().includes(resourceSearch.toLowerCase()) && !filters.resourceIds.includes(resource._id)
-    ) : [];
-
+   
     return (
-        <div className="bg-white p-4 md:p-6 rounded-lg shadow mb-6">
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mb-6 border border-gray-200">
             <div className="flex items-center gap-3 mb-4">
-                <FiFilter className="h-6 w-6 text-gray-400" />
+                <FiFilter className="h-6 w-6 text-gray-500" />
                 <h2 className="text-xl font-semibold text-gray-800">Filters</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Date Range Section */}
+                
+                {/* --- ENHANCED DATE RANGE PICKER --- */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700 flex items-center gap-2"><FiCalendar/> Date Range</label>
-                    <div className="flex gap-2">
-                        <input type="date" value={filters.dateRange.start || ''} onChange={(e) => handleDateRangeChange('start', e.target.value)} className="w-full px-3 py-1.5 text-sm border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        <span className="text-gray-500 flex items-center">-</span>
-                        <input type="date" value={filters.dateRange.end || ''} onChange={(e) => handleDateRangeChange('end', e.target.value)} className="w-full px-3 py-1.5 text-sm border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div className="relative">
+                        <DatePicker
+                            selectsRange={true}
+                            startDate={startDate}
+                            endDate={endDate}
+                            onChange={handleDateChange}
+                            isClearable={true}
+                            placeholderText="Select a date range"
+                            className="w-full px-3 py-1.5 text-sm border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
                     </div>
-                    <div className="flex gap-2 text-xs">
+                    <div className="flex gap-3 text-xs">
                         <button onClick={() => setQuickDateRange('last7')} className="text-blue-600 hover:underline">Last 7 Days</button>
                         <button onClick={() => setQuickDateRange('thisMonth')} className="text-blue-600 hover:underline">This Month</button>
                     </div>
                 </div>
 
-                {/* Users Filter Section */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Filter by User</label>
-                    <div className="relative">
-                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        <input type="text" placeholder="Search users..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full pl-10 pr-4 py-1.5 text-sm border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        {userSearch && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                                {filteredUsers.length > 0 ? filteredUsers.map(user => (
-                                    <div key={user._id} onClick={() => addUser(user._id)} className="px-4 py-2 text-sm cursor-pointer hover:bg-blue-50">{user.first_name} {user.last_name}</div>
-                                )) : <div className="px-4 py-2 text-sm text-gray-500">No matching users found.</div>}
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-1 min-h-[30px]">
-                        {filters.userIds.map(userId => {
-                            const user = availableUsers.find(u => u._id === userId);
-                            return user ? <span key={userId} className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full font-semibold">{user.first_name} {user.last_name} <button onClick={() => removeUser(userId)} className="ml-1.5 font-bold text-blue-500 hover:text-blue-700">×</button></span> : null;
-                        })}
-                    </div>
-                </div>
+                {/* --- REUSABLE SEARCHABLE SELECT FOR USERS --- */}
+                <SearchableSelect
+                    label="Filter by User"
+                    icon={<FiUsers/>}
+                    placeholder="Search users..."
+                    searchTerm={userSearch}
+                    onSearchChange={setUserSearch}
+                    items={availableUsers}
+                    onSelectItem={addUser}
+                    selectedItems={filters.userIds}
+                    onRemoveItem={removeUser}
+                    renderItem={user => `${user.first_name} ${user.last_name}`}
+                    getItemById={userId => availableUsers.find(u => u._id === userId)}
+                    pillColorClass="bg-blue-100 text-blue-800"
+                />
 
-                {/* Resources Filter Section */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Filter by Resource</label>
-                    <div className="relative">
-                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        <input type="text" placeholder="Search resources..." value={resourceSearch} onChange={(e) => setResourceSearch(e.target.value)} className="w-full pl-10 pr-4 py-1.5 text-sm border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        {resourceSearch && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                                {filteredResources.length > 0 ? filteredResources.map(resource => (
-                                    <div key={resource._id} onClick={() => addResource(resource._id)} className="px-4 py-2 text-sm cursor-pointer hover:bg-green-50">{resource.displayName}</div>
-                                )) : <div className="px-4 py-2 text-sm text-gray-500">No matching resources found.</div>}
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-1 min-h-[30px]">
-                        {filters.resourceIds.map(resourceId => {
-                            const resource = availableResources.find(r => r._id === resourceId);
-                            return resource ? <span key={resourceId} className="inline-flex items-center px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full font-semibold">{resource.displayName} <button onClick={() => removeResource(resourceId)} className="ml-1.5 font-bold text-green-500 hover:text-green-700">×</button></span> : null;
-                        })}
-                    </div>
-                </div>
+                {/* --- REUSABLE SEARCHABLE SELECT FOR RESOURCES --- */}
+                <SearchableSelect
+                    label="Filter by Resource"
+                    icon={<FiPackage/>}
+                    placeholder="Search resources..."
+                    searchTerm={resourceSearch}
+                    onSearchChange={setResourceSearch}
+                    items={availableResources}
+                    onSelectItem={addResource}
+                    selectedItems={filters.resourceIds}
+                    onRemoveItem={removeResource}
+                    renderItem={resource => resource.displayName}
+                    getItemById={resourceId => availableResources.find(r => r._id === resourceId)}
+                    pillColorClass="bg-green-100 text-green-800"
+                />
             </div>
         </div>
     );
 };
-
 export default FilterPanel;
