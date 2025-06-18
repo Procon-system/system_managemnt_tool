@@ -1,9 +1,9 @@
+
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import analyticsService from '../Services/analyticsService';
-import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; // Corrected path
-import { transformApiData, calculateKPIs } from '../utils/analyticsTransformer'; // We will create this file next
+import { checkTokenAndLogout } from '../Helper/checkTokenExpire';
 
-// --- Async Thunk for Fetching Data ---
+// The thunk now expects an array of populated tasks from the service
 export const fetchAnalyticsData = createAsyncThunk(
   'analytics/fetchData',
   async (filters, { getState, dispatch, rejectWithValue }) => {
@@ -13,38 +13,30 @@ export const fetchAnalyticsData = createAsyncThunk(
         return rejectWithValue('Session expired');
       }
       
-      // The service will fetch the raw, nested data from the API
-      const rawApiTasks = await analyticsService.getAnalyticsData(filters, token);
+      // This call now correctly returns the populated tasks array
+      const populatedTasks = await analyticsService.getAnalyticsData(filters, token);
       
-      // The transformation happens here, before the data hits the Redux store
-      const transformedTasks = transformApiData(rawApiTasks);
-      const kpis = calculateKPIs(transformedTasks);
-
-      // Return a complete payload for the reducer
-      return {
-        rawTasks: rawApiTasks,
-        gridTasks: transformedTasks,
-        kpis,
-      };
+      // The thunk simply returns the raw data. No transformation here.
+      return populatedTasks; 
     } catch (error) {
+      console.error("Error in fetchAnalyticsData thunk:", error);
       return rejectWithValue(error.message || 'Failed to fetch analytics data');
     }
   }
 );
 
+// The initial state is now much simpler, reflecting the API response
 const initialState = {
-    rawTasks: [],
-    gridTasks: [],
-    kpis: { /* ... */ },
-    // This structure now matches what the FilterPanel component expects
+    // This will hold the raw array of populated tasks from the API
+    rawTasks: [], 
     filters: {
       dateRange: {
-        start: '', // Default to empty strings
+        start: '',
         end: '',
       },
       userIds: [],
       resourceIds: [],
-      tags: [], // Assuming you might add this filter later
+      tags: [],
     },
     status: 'idle',
     error: null,
@@ -54,8 +46,8 @@ const initialState = {
     name: 'analytics',
     initialState,
     reducers: {
+      // This reducer remains the same
       setAnalyticsFilters: (state, action) => {
-        // This logic needs to correctly merge the nested dateRange
         const { dateRange, ...otherFilters } = action.payload;
         state.filters = {
           ...state.filters,
@@ -75,9 +67,8 @@ const initialState = {
       })
       .addCase(fetchAnalyticsData.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.rawTasks = action.payload.rawTasks;
-        state.gridTasks = action.payload.gridTasks;
-        state.kpis = action.payload.kpis;
+        // The payload is the array of tasks, which we store directly
+        state.rawTasks = action.payload;
       })
       .addCase(fetchAnalyticsData.rejected, (state, action) => {
         state.status = 'failed';

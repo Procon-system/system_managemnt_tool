@@ -1,111 +1,200 @@
 
-import { useState, useEffect } from 'react';
-import { generateMockTaskData } from '../utils/mockTaskData';
+import { useMemo } from 'react';
+import { format } from 'date-fns';
 
-export const useTaskAnalytics = (filters) => {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [kpiData, setKpiData] = useState({
-    totalTasks: 0,
-    totalLaborCost: 0,
-    totalHoursLogged: 0,
-    averageTaskDuration: 0,
-    totalResourceCost: 0,
-    totalItemsProduced: 0
-  });
-
-  const refreshTasks = async () => {
+/**
+ * A safe formula evaluation function using the Function constructor.
+ * It's safer than eval() because it doesn't have access to the component's scope.
+ * It takes a formula string and a data context (the processed row) to calculate a value.
+ * @param {string} formula - The mathematical formula, e.g., "totalLaborCost / totalLoggedMinutes".
+ * @param {object} dataContext - An object with keys matching the variables in the formula.
+ * @returns {number} The calculated result, or 0 on error.
+ */
+const evaluateFormula = (formula, dataContext) => {
     try {
-      setLoading(true);
-      setError(null);
-      
-      // In a real app, this would be an API call with filters
-      const mockTasks = generateMockTaskData(50);
-      
-      // Apply filters to mock data
-      let filteredTasks = mockTasks;
-      
-      if (filters.dateRange.start && filters.dateRange.end) {
-        filteredTasks = filteredTasks.filter(task => {
-          const taskDate = new Date(task.completedOn);
-          return taskDate >= new Date(filters.dateRange.start) && 
-                 taskDate <= new Date(filters.dateRange.end);
-        });
-      }
-      
-      if (filters.users.length > 0) {
-        filteredTasks = filteredTasks.filter(task => 
-          filters.users.includes(task.assignedUser)
-        );
-      }
-      
-      if (filters.resources.length > 0) {
-        filteredTasks = filteredTasks.filter(task => 
-          filters.resources.includes(task.resourceUsed)
-        );
-      }
+        const keys = Object.keys(dataContext);
+        const values = keys.map(key => dataContext[key] || 0); // Default undefined values to 0
+        
+        // Basic sanitizer to allow only field names, numbers, and math operators.
+        // This is a security measure to prevent arbitrary code execution.
+        const allowedTokens = new Set([...keys, '(', ')', '/', '*', '+', '-']);
+        const tokens = formula.replace(/([()/*+-])/g, ' $1 ').trim().split(/\s+/);
+        
+        for (const token of tokens) {
+            if (!allowedTokens.has(token) && isNaN(parseFloat(token))) {
+                console.warn(`Formula contains an invalid or disallowed token: "${token}"`);
+                return 0; // Reject formula with unknown tokens
+            }
+        }
 
-      if (filters.tags.length > 0) {
-        filteredTasks = filteredTasks.filter(task => 
-          filters.tags.some(tag => 
-            task.title.toLowerCase().includes(tag.toLowerCase())
-          )
-        );
-      }
+        const func = new Function(...keys, `return ${formula}`);
+        const result = func(...values);
 
-      setTasks(filteredTasks);
-      
-      // Calculate KPIs
-      const kpis = calculateKPIs(filteredTasks);
-      setKpiData(kpis);
-      
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+        // Return 0 for invalid calculations like division by zero (Infinity) or NaN.
+        return isNaN(result) || !isFinite(result) ? 0 : result;
+    } catch (error) {
+        console.error(`Error evaluating formula "${formula}":`, error);
+        return 0; // Return 0 if the formula is syntactically invalid.
     }
-  };
-
-  const calculateKPIs = (tasks) => {
-    if (!tasks.length) {
-      return {
-        totalTasks: 0,
-        totalLaborCost: 0,
-        totalHoursLogged: 0,
-        averageTaskDuration: 0,
-        totalResourceCost: 0,
-        totalItemsProduced: 0
-      };
-    }
-
-    const totalTasks = tasks.length;
-    const totalLaborCost = tasks.reduce((sum, task) => sum + task.laborCost, 0);
-    const totalHoursLogged = tasks.reduce((sum, task) => sum + (task.loggedTimeMinutes / 60), 0);
-    const averageTaskDuration = tasks.reduce((sum, task) => sum + task.loggedTimeMinutes, 0) / tasks.length;
-    const totalResourceCost = tasks.reduce((sum, task) => sum + task.totalResourceCost, 0);
-    const totalItemsProduced = tasks.reduce((sum, task) => sum + task.itemsProduced, 0);
-
-    return {
-      totalTasks,
-      totalLaborCost,
-      totalHoursLogged,
-      averageTaskDuration,
-      totalResourceCost,
-      totalItemsProduced
-    };
-  };
-
-  // Auto-refresh when filters change
-  useEffect(() => {
-    refreshTasks();
-  }, [filters]);
-
-  return {
-    tasks,
-    loading,
-    error,
-    refreshTasks,
-    kpiData
-  };
 };
+
+
+export const useTaskAnalytics = ({ populatedTasks = [], customColumns = [] }) => {
+    
+    return useMemo(() => {
+        // --- INITIALIZATION ---
+        if (!populatedTasks.length) {
+            return { 
+                processedTasks: [], 
+                dynamicColumns: [], 
+                kpis: []
+            };
+        }
+
+        // --- STEP 1: UNPACK Populated Data into Lookup Maps ---
+        const userMap = new Map();
+        const resourceTypeMap = new Map();
+        const resourceToTypeMap = new Map();
+
+        for (const task of populatedTasks) {
+            task.assignments?.forEach(a => a.user && !userMap.has(a.user._id) && userMap.set(a.user._id, a.user));
+            task.timeLogs?.forEach(t => t.user && !userMap.has(t.user._id) && userMap.set(t.user._id, t.user));
+            
+            task.resources?.forEach(r => {
+                if (r.resource && r.resource.type) {
+                    if (!resourceTypeMap.has(r.resource.type._id)) {
+                        resourceTypeMap.set(r.resource.type._id, r.resource.type);
+                    }
+                    if (!resourceToTypeMap.has(r.resource._id)) {
+                        resourceToTypeMap.set(r.resource._id, r.resource.type._id);
+                    }
+                }
+            });
+        }
+        
+        const allResourceTypes = Array.from(resourceTypeMap.values());
+
+        // --- STEP 2: DYNAMICALLY GENERATE GRID COLUMNS ---
+        let baseColumns = [
+            { key: 'title', label: 'Task', width: 'w-64' },
+            { key: 'completedOn', label: 'Completed On', width: 'w-48' },
+            { key: 'assignedUsers', label: 'Assigned To', width: 'w-48' },
+            { key: 'totalLoggedMinutes', label: 'Time Logged (min)', width: 'w-32', isNumeric: true },
+            { key: 'totalLaborCost', label: 'Labor Cost', width: 'w-32', isCurrency: true },
+        ];
+        
+        const resourceColumns = [];
+        allResourceTypes.forEach(rt => {
+            rt.fieldDefinitions?.forEach(fd => {
+                if (fd.isQuantifiable) {
+                    const unit = fd.quantifiableUnit ? ` (${fd.quantifiableUnit})` : '';
+                    const key = `${fd.quantifiableCategory}_${rt._id}`;
+                    resourceColumns.push({
+                        key: key,
+                        label: `${fd.displayName || fd.fieldName}${unit}`,
+                        width: 'w-40',
+                        isCurrency: fd.quantifiableCategory === 'cost',
+                        isNumeric: true
+                    });
+                }
+            });
+        });
+        
+        let dynamicColumns = [...baseColumns, ...resourceColumns];
+
+        // --- STEP 3: PROCESS EACH TASK ROW ---
+        const kpiTotals = {
+          totalTasks: 0,
+          totalLaborCost: 0,
+          totalHoursLogged: 0,
+          // Dynamic totals will be added here, e.g., cost_someId: 150
+      };
+
+      const processedTasks = populatedTasks.map(task => {
+        let processed = { id: task._id, title: task.title };
+        processed.completedOn = task.schedule?.end ? format(new Date(task.schedule.end), 'MMM d, yyyy HH:mm') : 'N/A';
+        
+        // Calculate Labor
+        let totalLaborCost = 0;
+        let totalLoggedMinutes = 0;
+        task.timeLogs?.forEach(log => {
+            const user = userMap.get(log.user?._id || log.user);
+            if (user?.payroll && log.durationMinutes) {
+                totalLaborCost += (log.durationMinutes / 60) * (user.payroll.rate || 0);
+                totalLoggedMinutes += log.durationMinutes;
+            }
+        });
+        processed.totalLaborCost = totalLaborCost;
+        processed.totalLoggedMinutes = totalLoggedMinutes;
+
+        // Get Assigned Users
+        const assignedUserNames = new Set();
+        task.assignments?.forEach(a => userMap.has(a.user?._id) && assignedUserNames.add(userMap.get(a.user._id).first_name || userMap.get(a.user._id).email));
+        processed.assignedUsers = Array.from(assignedUserNames).join(', ');
+
+        // Calculate Resources
+        task.resourceLogs?.forEach(log => {
+          const resourceTypeId = resourceToTypeMap.get(log.resource?._id);
+          const resourceType = resourceTypeMap.get(resourceTypeId);
+          if (resourceType?.fieldDefinitions) {
+              resourceType.fieldDefinitions.forEach(fd => {
+                  if (fd.isQuantifiable && log.resource?.fields?.[fd.fieldName]) {
+                      const value = Number(log.resource.fields[fd.fieldName]) * log.quantity;
+                      const key = `${fd.quantifiableCategory}_${resourceType._id}`;
+                      processed[key] = (processed[key] || 0) + value;
+                      if (!kpiTotals[key]) kpiTotals[key] = 0;
+                      kpiTotals[key] += value;
+                  }
+              });
+          }
+        });
+
+            customColumns.forEach(customCol => {
+            processed[customCol.key] = evaluateFormula(customCol.formula, processed);
+        });
+
+          kpiTotals.totalTasks++;
+          kpiTotals.totalLaborCost += processed.totalLaborCost;
+          kpiTotals.totalHoursLogged += processed.totalLoggedMinutes / 60;
+
+          return processed;
+      });
+        // Add custom columns to the final list of column definitions for the grid
+        customColumns.forEach(customCol => {
+            dynamicColumns.push({
+                key: customCol.key, label: customCol.name, width: 'w-40', isNumeric: true, 
+                isCurrency: customCol.name.toLowerCase().includes('cost') || customCol.name.toLowerCase().includes('price')
+            });
+        });
+
+        let kpisForDisplay = [
+          { title: 'Total Tasks', value: kpiTotals.totalTasks, format: 'number', subtitle: 'Completed tasks', color: 'text-blue-600' },
+          { title: 'Total Labor Cost', value: kpiTotals.totalLaborCost, format: 'currency', subtitle: 'All labor expenses', color: 'text-green-600' },
+          { title: 'Total Hours Logged', value: kpiTotals.totalHoursLogged, format: 'decimal', subtitle: 'Across all tasks', color: 'text-orange-600' },
+          { title: 'Avg. Duration (Hours)', value: kpiTotals.totalTasks > 0 ? kpiTotals.totalHoursLogged / kpiTotals.totalTasks : 0, format: 'decimal', subtitle: 'Per task', color: 'text-purple-600' },
+      ];
+      
+      // Now, add the dynamic KPIs from our aggregated totals
+      Array.from(resourceTypeMap.values()).forEach((rt, index) => {
+          rt.fieldDefinitions?.forEach(fd => {
+              if (fd.isQuantifiable) {
+                  const key = `${fd.quantifiableCategory}_${rt._id}`;
+                  if (kpiTotals[key] !== undefined) {
+                      kpisForDisplay.push({
+                          title: `Total ${fd.displayName || fd.fieldName}`,
+                          value: kpiTotals[key],
+                          format: fd.quantifiableCategory === 'cost' ? 'currency' : 'number',
+                          subtitle: `From '${rt.name}'`,
+                          // Cycle through a predefined set of colors for dynamic KPIs
+                          color: ['text-red-600', 'text-indigo-600', 'text-pink-600', 'text-teal-600'][index % 4]
+                      });
+                  }
+              }
+          });
+      });
+
+      return { processedTasks, dynamicColumns, kpis: kpisForDisplay };
+
+    }, [populatedTasks, customColumns]); // Re-run when raw data or custom columns change
+};
+

@@ -6,7 +6,11 @@ module.exports = (connection) => {
     return connection.models['ResourceType'];
   }
   const resourceTypeSchema = new mongoose.Schema({
-    
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
     organization: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Organization',

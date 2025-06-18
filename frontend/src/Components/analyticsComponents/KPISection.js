@@ -1,75 +1,43 @@
+// src/Components/analyticsComponents/KPISection.js (Updated)
+
 import React from 'react';
 
-const KPISection = ({ kpiData }) => {
-  const kpis = [
-    {
-      title: 'Total Tasks',
-      value: kpiData.totalTasks,
-      format: 'number',
-      subtitle: 'Completed tasks',
-      color: 'text-blue-600'
-    },
-    {
-      title: 'Total Labor Cost',
-      value: kpiData.totalLaborCost,
-      format: 'currency',
-      subtitle: 'All labor expenses',
-      color: 'text-green-600'
-    },
-    {
-      title: 'Total Hours',
-      value: kpiData.totalHoursLogged,
-      format: 'decimal',
-      subtitle: 'Time logged',
-      color: 'text-orange-600'
-    },
-    {
-      title: 'Avg Duration',
-      value: kpiData.averageTaskDuration,
-      format: 'decimal',
-      subtitle: 'Per task',
-      color: 'text-purple-600'
-    },
-    {
-      title: 'Resource Cost',
-      value: kpiData.totalResourceCost,
-      format: 'currency',
-      subtitle: 'All resources',
-      color: 'text-red-600'
-    },
-    {
-      title: 'Items Produced',
-      value: kpiData.totalItemsProduced,
-      format: 'number',
-      subtitle: 'Total output',
-      color: 'text-indigo-600'
-    }
-  ];
+// The component now receives the fully-formed `kpis` array as a prop.
+const KPISection = ({ kpis = [] }) => {
 
   const formatValue = (value, format) => {
-    if (typeof value !== 'number' || isNaN(value)) return '0';
+    if (typeof value !== 'number' || isNaN(value)) {
+        // For currency, show $0.00, otherwise 0
+        return format === 'currency' ? '$0.00' : '0';
+    }
     
     switch (format) {
       case 'currency':
-        return `$${value.toFixed(2)}`;
+        return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       case 'decimal':
         return value.toFixed(2);
       case 'number':
       default:
-        return value.toString();
+        return value.toLocaleString();
     }
   };
 
+  if (!kpis || kpis.length === 0) {
+      return null; // Don't render anything if there are no KPIs to show
+  }
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+    // Responsive grid that adapts to the number of KPIs
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+      {/* It simply maps over the kpis prop */}
       {kpis.map((kpi, index) => (
-        <div key={index} className="bg-white p-4 rounded-lg shadow">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-500">{kpi.title}</p>
-            <p className={`text-2xl font-bold ${kpi.color}`}>
+        <div key={index} className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
+          <div className="flex flex-col h-full">
+            <p className="text-sm font-medium text-gray-500 truncate" title={kpi.title}>{kpi.title}</p>
+            <p className={`text-2xl lg:text-3xl font-bold my-1 ${kpi.color}`}>
               {formatValue(kpi.value, kpi.format)}
             </p>
-            <p className="text-xs text-gray-500">{kpi.subtitle}</p>
+            <p className="text-xs text-gray-500 mt-auto">{kpi.subtitle}</p>
           </div>
         </div>
       ))}

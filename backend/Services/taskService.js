@@ -655,7 +655,7 @@ exports.getReportData = async (filter, TaskModel) => {
         populate: {
           path: 'type',
           model: 'ResourceType',
-          select: 'name icon'
+          select: 'name icon fieldDefinitions'
         }
       })
       // Populate the actual time logs, including the user who performed the work
