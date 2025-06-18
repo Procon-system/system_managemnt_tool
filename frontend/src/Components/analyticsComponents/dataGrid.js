@@ -64,37 +64,51 @@ const DataGrid = ({ data, columns }) => {
   const sortedData = getSortedAndFilteredData();
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            {/* Use the dynamic columns prop */}
-            {columns.map((column) => (
-              <th key={column.key} className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${column.width}`} onClick={() => handleSort(column.key)}>
-                <div className="flex items-center justify-between">
-                  <span>{column.label}</span>
-                  {/* Sorting indicators */}
-                </div>
-                <input type="text" placeholder="Filter..." className="mt-1 block w-full text-xs border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" onChange={(e) => handleColumnFilter(column.key, e.target.value)} onClick={(e) => e.stopPropagation()} />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {sortedData.map((item, index) => (
-            <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-blue-50'}>
-              {/* Loop through dynamic columns to render cells */}
-              {columns.map((column) => (
-                <td key={column.key} className={`px-4 py-3 whitespace-nowrap text-sm text-gray-800 ${column.isNumeric || column.isCurrency ? 'text-right font-mono' : 'text-left'}`}>
-                  {renderCell(item, column)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {sortedData.length === 0 && <div className="text-center py-8 text-gray-500">No tasks found.</div>}
-    </div>
+    <div>
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        {columns.map((column) => (
+                            <th
+                                key={column.key}
+                                // Responsive padding for headers
+                                className={`px-3 py-3 sm:px-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${column.width}`}
+                                onClick={() => handleSort(column.key)}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span>{column.label}</span>
+                                    {/* Sorting indicators */}
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Filter..."
+                                    className="mt-1 block w-full text-xs border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    onChange={(e) => handleColumnFilter(column.key, e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {sortedData.map((item, index) => (
+                        <tr key={item.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-blue-50'}>
+                            {columns.map((column) => (
+                                <td key={column.key} className={`px-3 py-3 sm:px-4 whitespace-nowrap text-xs sm:text-sm text-gray-800 ${column.isNumeric || column.isCurrency ? 'text-right font-mono' : 'text-left'}`}>
+                                    {renderCell(item, column)}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {data.length > 0 && sortedData.length === 0 && (
+                <div className="text-center p-4 text-sm text-gray-500">No tasks found matching the column filters.</div>
+            )}
+            {data.length === 0 && (
+                 <div className="text-center p-4 text-sm text-gray-500">No tasks to display.</div>
+            )}
+        </div>
   );
 };
 
