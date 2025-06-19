@@ -251,8 +251,7 @@ const handleChange = (e) => {
     }
     return result;
   };
-  console.log("editableEvent?.assigned_resources?.assigned_to?",editableEvent?.assigned_resources?.assigned_to)
-  return (
+    return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="relative bg-white p-6 rounded-lg max-w-5xl w-full">
         <button
@@ -342,7 +341,7 @@ const handleChange = (e) => {
       )}
 
       {/* Frequency */}
-      {role >= 3 && (
+      {role >= 2 && (
         <div>
           <SelectInput
             label="Frequency"
@@ -362,7 +361,7 @@ const handleChange = (e) => {
       )}
 
       {/* Task Period */}
-      {role >= 3 && (
+      {role >= 2 && (
         <div>
           <SelectTaskPeriodInput
             label="Task Period"
@@ -460,7 +459,7 @@ const handleChange = (e) => {
 
     {/* Resources Section */}
    
-{role >= 2 && resourceTypes && (
+{role >= 3 && resourceTypes && (
   <div className="mt-6">
     <h2 className="text-lg font-semibold mb-3">Resources</h2>
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
