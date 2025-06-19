@@ -69,7 +69,12 @@ const TaskAnalytics = () => {
                     <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                         Task Analytics
                     </h1>
-                    <ActionBar onAddCustomColumn={() => setShowCustomColumnDialog(true)} />
+                    <ActionBar 
+    onAddCustomColumn={() => setShowCustomColumnDialog(true)} 
+    dataToExport={processedTasks} // Pass the processed data
+    columnsToExport={dynamicColumns} // Pass the column definitions
+/>
+
                 </div>
 
                 <div className="space-y-4 md:space-y-6">

@@ -81,7 +81,7 @@ const Notifications = () => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button onClick={handleBellClick} className="relative text-blue-600 hover:text-blue-800">
-        <FaBell className="text-xl sm:text-2xl" />
+        <FaBell className="text-3xl sm:text-3xl" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
             {unreadCount}
