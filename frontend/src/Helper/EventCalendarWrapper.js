@@ -11,12 +11,12 @@ import { useSelector} from 'react-redux';
 import { toast } from 'react-toastify';
 import promptForStartAndEndTime from './promptHelper';
 import { handleMonthBulkUpdate, handleWeekBulkUpdate, handleSingleEventUpdate } from './eventDropHandler';
-import {getTimezoneOffsetHours} from './getTimezones'
+import {getTimezoneOffsetHours} from './getTimezones';
 import {
    handleEventDuplication, 
   handleEventResize } from './calendarHandlers';
-
-const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdate,calendarStartDate,calendarEndDate,updateEventState, setFilteredEvents, onEventCreate, openForm, openCreateForm }) => {
+import './custom.css';
+const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdate,calendarStartDate, onEventCreate, openForm, openCreateForm }) => {
   const calendarContainer = useRef(null);
   const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
   const calendarRef = useRef(null);
@@ -156,8 +156,8 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
         children: Array.from(uniqueResources.values())
       }
     ];
-  }, [mappedEvents]);// Changed dependency to mappedEvents
-  // Memoize assigned_resources to prevent unnecessary re-renders
+  }, [mappedEvents]);
+
   const assigned_resources = useMemo(() => [...groupedAssignedResources], [groupedAssignedResources]);
   const getTimezoneFromDate = (date) => {
     const timezoneOffsetMinutes = new Date(date).getTimezoneOffset(); // In minutes
@@ -194,8 +194,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
       return null;
     }
   };
-  
-  // Add this function to update event appearance
   const updateEventAppearance = (eventId, isSelected) => {
     const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
     if (eventElement) {
@@ -220,8 +218,8 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
       };
     }
     return null;
-  }, [calendarRef]); // Ensure calendarRef is included in the dependency array
-  
+  }, [calendarRef]); 
+
   const restoreCalendarView = useCallback((viewState) => {
     const calendarApi = calendarRef.current;
 
@@ -231,8 +229,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
       setCalendarDate(viewState.date);
     }
    
-  }, [calendarRef]); // Ensure calendarRef is included in the dependency array
-  
+  }, [calendarRef]); 
 
   const handleEventDrop = async (info) => {
     if (user.access_level < 3) {
@@ -330,22 +327,13 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             end: 'year,month,week,day,list,resource,timeline',
           },
           datesSet: (args) => {
-            // Throttle date changes
             if (!isDateChangeAllowed.current) return;
             isDateChangeAllowed.current = false;
             setTimeout(() => { isDateChangeAllowed.current = true }, 100);
-            
             handleDateChange(args);
           },
         
-          // views: {
-          //   listYear: {
-          //     type: 'list',
-          //     // duration: { months: 36 },
-          //     buttonText: 'Year',
-          //   },
-            
-          // },
+         
           customButtons: {
             month: {
               text: 'Month',
@@ -386,14 +374,14 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
               return;
             }
             const { start, end, resource } = info;
-            const timezoneOffset = 3; // Adjust this value based on the expected timezone
+            const timezoneOffset = 3;
             const adjustedStartTime = adjustTimeForBackend(start, timezoneOffset);
             const adjustedEndTime = adjustTimeForBackend(end, timezoneOffset);
-            // const generatedId = uuidv4();
+            
             const newEvent = {
               start_time: adjustedStartTime,
               end_time: adjustedEndTime,
-              // color_code: 'green',
+             
               title: 'new task',
               resource,
             };
@@ -515,57 +503,55 @@ const updatedEvent = {
 
 openForm(updatedEvent);
           }
-        },
+          },
           
           eventDrop: (info) => {
-            console.log('Raw drop event triggered', info); // First debug point
             handleEventDrop(info).catch(console.error);
           },
           eventResize: (info) => { 
-            console.log('Resize event triggered');
             handleEventResize(info, user, onEventUpdate, adjustTimeForBackend);
           }
         },
       },
     });
     // Add this to your useEffect that handles styles
-    const style = document.createElement('style');
-    style.textContent = `
-        .time-picker-dialog {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
+    // const style = document.createElement('style');
+    // style.textContent = `
+    //     .time-picker-dialog {
+    //         position: fixed;
+    //         top: 0;
+    //         left: 0;
+    //         right: 0;
+    //         bottom: 0;
+    //         background: rgba(0,0,0,0.5);
+    //         display: flex;
+    //         align-items: center;
+    //         justify-content: center;
+    //         z-index: 9999;
+    //     }
         
-        .time-picker-dialog input[type="time"] {
-            padding: 8px;
-            margin: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
+    //     .time-picker-dialog input[type="time"] {
+    //         padding: 8px;
+    //         margin: 5px;
+    //         border: 1px solid #ddd;
+    //         border-radius: 4px;
+    //     }
         
-        .time-picker-dialog button {
-            cursor: pointer;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-        }
+    //     .time-picker-dialog button {
+    //         cursor: pointer;
+    //         border-radius: 4px;
+    //         border: 1px solid #ddd;
+    //     }
         
-        .time-picker-dialog button:hover {
-            opacity: 0.8;
-        }
-    `;
-    document.head.appendChild(style);
+    //     .time-picker-dialog button:hover {
+    //         opacity: 0.8;
+    //     }
+    // `;
+    // document.head.appendChild(style);
 
-    return () => {
-      document.head.removeChild(style);
-    };
+    // return () => {
+    //   document.head.removeChild(style);
+    // };
   }, [events, assigned_resources, changedView]);
     // Update clearEventSelection to handle both state and ref
     const clearEventSelection = useCallback(() => {
@@ -589,7 +575,6 @@ openForm(updatedEvent);
 
   return (
     <>
-      {/* Calendar Container */}
       <div ref={calendarContainer} id="ec" />
     </>
   );

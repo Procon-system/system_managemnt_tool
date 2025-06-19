@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect,useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import {FiTrash2} from 'react-icons/fi';
+import {FiTrash2,FiEdit2} from 'react-icons/fi';
 import {
   deleteResourceType,
   resetResourceTypeState,
@@ -11,6 +11,8 @@ import {
 } from '../../features/resourceTypeSlice';
 import { io } from 'socket.io-client';
 import RenderDynamicIcon from '../../Components/common/RenderDynamicIcon';
+import EditResourceTypeModal from '../../Components/resourceTypeComponents/editResourceTypeModal';
+
 const ResourceTypesPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -19,12 +21,14 @@ const ResourceTypesPage = () => {
   // Get state from Redux store
   const { user, access_level } = useSelector((state) => state.auth);
   const { resourceTypes, loading, error } = useSelector((state) => state.resourceTypes);
- 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedResourceType, setSelectedResourceType] = useState(null);
+
   // Fetch all resource types and setup socket
   useEffect(() => {
-    // if (access_level >= 3) {
-    //   dispatch(fetchResourceTypes());
-    // }
+    if (access_level >= 3) {
+      dispatch(fetchResourceTypes());
+    }
 
     const socket = io(API_URL, {
       query: { organizationId: user?.organization }
@@ -73,12 +77,20 @@ const ResourceTypesPage = () => {
       }
     }
   };
-
-  const handleEdit = (id) => {
-    navigate(`/resource-types/edit/${id}`);
+  
+  const handleEditClick = (resource) => {
+    setSelectedResourceType(resource); // Set which resource to edit
+    setIsEditModalOpen(true);          // Open the modal
   };
 
-  
+  const handleCloseModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedResourceType(null); // Clear the selection when closing
+  };
+
+  const handleViewResources = (id) => {
+    navigate(`/resource-types/${id}`);
+  };
 
   if (loading) return (
     <div className="flex justify-center items-center h-screen">
@@ -93,6 +105,7 @@ const ResourceTypesPage = () => {
   );
 
    return (
+    <>
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold text-gray-800">Resource Types</h1>
@@ -119,59 +132,74 @@ const ResourceTypesPage = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {resourceTypes.length > 0 ? (
-              resourceTypes.map((resource, index) => (
-                <tr 
-                  key={resource._id} 
-                  className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-gray-100'}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div 
-                        className="flex items-center justify-center w-8 h-8 rounded-full mr-3"
-                        style={{ backgroundColor: resource.color || '#3b82f6' }}
-                      >
-                        <span className="text-white">
-                          {RenderDynamicIcon(resource.icon, 16)}
-                        </span>
-                      </div>
-                      <span className="text-sm text-gray-900">
-                        {resource.name}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    {/* <button 
-                      onClick={() => handleEdit(resource._id)}
-                      className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100 transition-colors"
-                      title="Edit"
-                    >
-                      <FiEdit2 size={18} />
-                    </button> */}
-                    <button 
-                      onClick={() => handleDelete(resource._id)}
-                      className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100 transition-colors"
-                      title="Delete"
-                    >
-                      <FiTrash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td 
-                  colSpan={2} 
-                  className="px-6 py-4 text-center text-sm text-gray-500"
-                >
-                  No resource types found
-                </td>
-              </tr>
-            )}
-          </tbody>
+  {resourceTypes.length > 0 ? (
+    resourceTypes.map((resource, index) => (
+           <tr
+        key={resource._id}
+        onClick={() => handleViewResources(resource._id)}
+        className={`cursor-pointer transition-colors duration-150 ${
+          index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+        } hover:bg-blue-50`}
+      >
+        <td className="px-6 py-4 whitespace-nowrap">
+          <div className="flex items-center">
+            <div
+              className="flex items-center justify-center w-8 h-8 rounded-full mr-3"
+              style={{ backgroundColor: resource.color || '#3b82f6' }}
+            >
+              <span className="text-white">
+                {RenderDynamicIcon(resource.icon, 16)}
+              </span>
+            </div>
+            <span className="text-sm text-gray-900">
+              {resource.name}
+            </span>
+          </div>
+        </td>
+
+        {/* This is the second cell for the action buttons */}
+        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+        
+          <div className="flex items-center justify-end space-x-3" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => handleEditClick(resource)} 
+              className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-green-100 transition-colors"
+              title="Edit Type"
+            >
+              <FiEdit2 size={18} />
+            </button>
+            <button
+              onClick={() => handleDelete(resource._id)}
+              className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100 transition-colors"
+              title="Delete Type"
+            >
+              <FiTrash2 size={18} />
+            </button>
+          </div>
+        </td>
+      </tr>
+    ))
+  ) : (
+    // This is the fallback row shown when there are no resource types
+    <tr>
+      <td 
+        colSpan={2} 
+        className="px-6 py-4 text-center text-sm text-gray-500"
+      >
+        No resource types found
+      </td>
+    </tr>
+  )}
+</tbody>
         </table>
       </div>
     </div>
+    <EditResourceTypeModal
+    isOpen={isEditModalOpen}
+    onClose={handleCloseModal}
+    resourceTypeToEdit={selectedResourceType}
+  />
+  </>
   );
 };
 

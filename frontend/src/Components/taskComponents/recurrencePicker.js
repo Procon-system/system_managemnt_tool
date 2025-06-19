@@ -63,15 +63,12 @@ useEffect(() => {
         task_period = calculateEndDateFromOccurrences(startDate, frequency, interval, occurrences);
     }
 
-    // --- THIS IS THE KEY CHANGE ---
-    // Construct a frequency string that the backend can understand.
-    let backendFrequency = frequency;
+        let backendFrequency = frequency;
     if (interval > 1) {
-        // Example: if interval is 2 and frequency is 'weekly', this becomes "2 weekly"
-        // The backend will be updated to parse this.
+        
         backendFrequency = `${interval} ${frequency}`;
     }
-    // --- END OF KEY CHANGE ---
+   
 
     onChange({
         // Send the newly constructed string
@@ -86,9 +83,9 @@ useEffect(() => {
 
         return (
             // This is the styled "widget" container
-            <div className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
+            <div className="mt-4 bg-gray-50 p-4 px-4 rounded-lg border border-gray-200 space-y-4">
                 {/* --- "Repeat Every" Section --- */}
-                <div className="flex items-baseline space-x-2">
+                {/* <div className="flex items-baseline space-x-2">
                     <span className="font-medium text-gray-700">Repeat every</span>
                     <input
                         type="number"
@@ -99,9 +96,9 @@ useEffect(() => {
                     <span className="text-gray-600">
                         {`${frequency}${interval > 1 ? 's' : ''}`}
                     </span>
-                </div>
+                </div> */}
 
-                <hr className="border-gray-200"/>
+                {/* <hr className="border-gray-200"/> */}
 
                 {/* --- "Ends" Section --- */}
                 <div>

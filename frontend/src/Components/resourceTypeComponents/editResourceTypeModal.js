@@ -1,25 +1,32 @@
-
-import React, { useState } from 'react';
-import FieldEditor from '../../Components/resourceTypeComponents/fieldEditor';
+// src/Components/resourceTypeComponents/EditResourceTypeModal.js
+import React, { useState, useEffect } from 'react';
+import FieldEditor from './fieldEditor';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { createResourceType } from '../../features/resourceTypeSlice';
-import IconExplorer from '../../Components/common/IconPicker';
-import { FiChevronDown, FiX, FiPlus, FiSave, FiFileText } from 'react-icons/fi';
+import { updateResourceType } from '../../features/resourceTypeSlice';
+import IconExplorer from '../common/IconPicker';
+import { FiChevronDown, FiPlus, FiSave, FiFileText } from 'react-icons/fi';
 import * as FeatherIcons from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import Modal from './editModal'; // Import the Modal component
 
-const CreateResourceTypePage = () => {
+const EditResourceTypeModal = ({ isOpen, onClose, resourceTypeToEdit }) => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
-
+  
+  // Local state for the form, initialized as empty
   const [resourceType, setResourceType] = useState({
-    name: '',
-    icon: 'FiBox', // A sensible default icon
-    color: '#3b82f6',
-    fieldDefinitions: []
+    name: '', icon: 'FiBox', color: '#3b82f6', fieldDefinitions: []
   });
+
+  useEffect(() => {
+    if (resourceTypeToEdit) {
+      // Use a deep copy for fieldDefinitions to prevent direct state mutation
+      setResourceType({
+          ...resourceTypeToEdit,
+          fieldDefinitions: JSON.parse(JSON.stringify(resourceTypeToEdit.fieldDefinitions || []))
+      });
+    }
+  }, [resourceTypeToEdit]);
 
   const addField = () => {
     setResourceType(prev => ({
@@ -55,47 +62,44 @@ const CreateResourceTypePage = () => {
       return { ...prev, fieldDefinitions: newFields };
     });
   };
-
+ 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Basic frontend validation before dispatch
-      if (resourceType.fieldDefinitions.length === 0) {
-        toast.warn('Please add at least one field definition.');
-        return;
-      }
-      for (const field of resourceType.fieldDefinitions) {
-          if (field.isQuantifiable && !field.quantifiableUnit) {
-              toast.error(`The field "${field.displayName || field.fieldName}" is missing a unit.`);
-              return;
-          }
-      }
-
-      await dispatch(createResourceType(resourceType)).unwrap();
-      toast.success(`Resource Type "${resourceType.name}" created successfully!`);
-      navigate('/show-resource-type');
+      
+      // 1. Get the reliable ID from the prop.
+      const id = resourceTypeToEdit._id; 
+  
+      // 2. The rest of the form data is in our local state.
+      const updatedData = {
+        name: resourceType.name,
+        icon: resourceType.icon,
+        color: resourceType.color,
+        fieldDefinitions: resourceType.fieldDefinitions
+      };
+  
+      // 3. Build the payload with the exact shape the thunk expects.
+      await dispatch(updateResourceType({ id, updatedData })).unwrap();
+      
+      toast.success(`Resource Type "${resourceType.name}" updated successfully!`);
+      onClose(); // Close the modal on success
     } catch (error) {
-      toast.error(error?.message || 'Failed to create resource type. Please check your input.');
-      console.error("Create Resource Type Error:", error);
+      toast.error(error?.message || 'Failed to update resource type.');
     }
   };
-
-  const handleCancel = () => {
-    navigate('/show-resource-type');
-  };
-
+   // Guard clause to prevent rendering an empty form before data arrives
+   if (!resourceTypeToEdit) {
+    return null;
+}
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="bg-white rounded-xl shadow-lg">
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <div className="bg-white rounded-xl">
         {/* --- HEADER --- */}
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
                 <FiFileText className="mr-3 text-blue-500" />
-                Create New Resource Type
+                Edit Resource Type
             </h1>
-            <button onClick={handleCancel} className="text-gray-500 hover:text-gray-800 transition-colors">
-                <FiX size={24} />
-            </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
@@ -180,21 +184,21 @@ const CreateResourceTypePage = () => {
             )}
           </div>
 
-          {/* --- FORM ACTIONS --- */}
           <div className="flex justify-end space-x-4 border-t pt-6">
-            <button type="button" onClick={handleCancel}
-              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+            <button type="button" onClick={onClose}
+              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
               Cancel
             </button>
             <button type="submit"
-              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center shadow-md">
-              <FiSave className="mr-2" /> Save Resource Type
+              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 flex items-center shadow-md">
+              <FiSave className="mr-2" />
+              Save Changes 
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 };
 
-export default CreateResourceTypePage;
+export default EditResourceTypeModal;

@@ -52,18 +52,9 @@ const ActionBar = ({
     }
   };
 
-  const handleSaveView = () => { /* ... see next section ... */ };
-
   return (
     // Responsive button layout with icons
     <div className="flex flex-col sm:flex-row gap-2">
-      <button 
-        onClick={handleSaveView}
-        className="px-3 py-2 text-sm flex items-center gap-2 border border-gray-300 text-gray-700 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-      >
-        <FiSave size={16}/>
-        <span className="hidden sm:inline">Save View</span>
-      </button>
       <button 
         onClick={handleExport}
         className="px-3 py-2 text-sm flex items-center gap-2 border border-gray-300 text-gray-700 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

@@ -1,28 +1,14 @@
-/* General button style */
-.fc .custom-button {
-    border: 1px solid #ccc; /* Add border to all buttons */
-    padding: 5px 10px;
-    border-radius: 4px; /* Rounded corners for buttons */
-    background-color: #f0f0f0; /* Light background */
-    cursor: pointer;
-  }
-  
-  /* Special style for the 'Day' button */
-  .fc .day-button {
-    border: 1px solid #007bff; /* Different border color for the Day button */
-    background-color: #e0f7ff; /* Different background color */
-  }
-  #calendar-container {
-  min-height: 500px; /* Set a default height */
-}
+/* custom.css */
 
-  /* Hover effect */
-  .fc .custom-button:hover {
-    background-color: #ddd;
-  }
-  
-  /* Active button style */
-  .fc .custom-button:active {
-    background-color: #ccc;
-  }
-  
+.ec-toolbar .ec-end .ec-button:nth-child(6) {
+  padding-right: 25px !important;
+}
+/* .ec-toolbar .ec-end .ec-button:nth-child(4) {
+  border-inline: none !important;
+  border-block: 2px solid #e0e0e0 !important;
+} */
+.ec-event.selected-event {
+  border: 2px solid #ff4444 !important; /* Use !important to override defaults */
+  box-shadow: 0 0 5px rgba(255, 68, 68, 0.6);
+  z-index: 10; /* Bring selected events to the front */
+}

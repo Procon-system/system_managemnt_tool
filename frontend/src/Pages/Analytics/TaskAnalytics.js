@@ -63,7 +63,7 @@ const TaskAnalytics = () => {
     const isLoading = status === 'loading' && rawTasks.length === 0;
 
     return (
-        <div className="min-h-screen bg-gray-100 p-2 sm:p-4 md:p-6">
+        <div className="min-h-screen  sm:p-4 md:p-6">
             <div className="max-w-screen-2xl mx-auto">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
                     <h1 className="text-2xl md:text-3xl font-bold text-gray-900">

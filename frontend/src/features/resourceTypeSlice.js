@@ -174,16 +174,14 @@ const resourceTypeSlice = createSlice({
       .addCase(updateResourceType.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.loading = false;
-        if (action.payload) {
-          const index = state.resourceTypes.findIndex(
-            rt => rt._id === action.payload._id
-          );
-          if (index !== -1) {
-            state.resourceTypes[index] = action.payload;
-          } else {
-            // If not found, add it (could come from socket)
-            state.resourceTypes.push(action.payload);
-          }
+        const { id, updatedData } = action.meta.arg;
+        const index = state.resourceTypes.findIndex(rt => rt._id === id);
+      
+        if (index !== -1) {
+             state.resourceTypes[index] = {
+            ...state.resourceTypes[index],
+            ...updatedData
+          };
         }
       })
       .addCase(updateResourceType.rejected, (state, action) => {
