@@ -1,9 +1,12 @@
 
 
-import { useState, useEffect} from 'react';
-import { useSelector } from 'react-redux';
+
+import { useState, useEffect, useCallback } from 'react'; // <-- Step 1
+import {  useSelector } from 'react-redux';
 import RichTextEditor from './richTextEditor';
-import {SelectInput,SelectTaskPeriodInput} from './selectInput';
+import {SelectInput} from './selectInput';
+
+import RecurrencePicker from './recurrencePicker'; // <-- Step 1 (Adjust path)
 
 import ImageSlider from './imageSlider';
 import { useResources } from '../../hooks/useResources';
@@ -74,14 +77,6 @@ useEffect(() => {
   setEditableEvent(selectedEvent || {});
 }, [selectedEvent]);
 
-// const handleChange = (e) => {
-//   const { name, value } = e.target;
-
-//   setEditableEvent((prev) => ({
-//     ...prev,
-//     [name]: Array.isArray(value) ? [...value] : value, // Ensure arrays are stored properly
-//   }));
-// };
 const handleChange = (e) => {
   const { name, value } = e.target;
   let processedValue;
@@ -200,6 +195,14 @@ const handleChange = (e) => {
   const handleRemoveNewImage = (index) => {
     setNewImages((prevNewImages) => prevNewImages.filter((_, i) => i !== index));
   };
+  const handleRecurrenceChange = useCallback((recurrenceValues) => {
+    // This function receives an object like { repeat_frequency: 'weekly', task_period: '2 weeks' }
+    // and merges it into the existing event state.
+    setEditableEvent(prevEvent => ({
+        ...prevEvent,
+        ...recurrenceValues, 
+    }));
+}, []);
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -340,38 +343,20 @@ const handleChange = (e) => {
      </div>
       )}
 
-      {/* Frequency */}
-      {role >= 2 && (
-        <div>
-          <SelectInput
-            label="Frequency"
-            name="repeat_frequency"
-            value={editableEvent?.repeat_frequency}
-            onChange={handleChange}
-            options={[
-              { label: "None", value: "none" },
-              { label: "Daily", value: "daily" },
-              { label: "Weekly", value: "weekly" },
-              { label: "Monthly", value: "monthly" },
-              { label: "Yearly", value: "yearly" },
-            ]}
-            required
-          />
-        </div>
-      )}
-
-      {/* Task Period */}
-      {role >= 2 && (
-        <div>
-          <SelectTaskPeriodInput
-            label="Task Period"
-            name="task_period"
-            value={editableEvent?.task_period}
-            onChange={handleChange}
-            required
-          />
-        </div>
-      )}
+{role >= 2 && (
+  // We give it more space (col-span-2) as it's a more complex component
+  <div className="md:col-span-2"> 
+    
+    <RecurrencePicker
+        value={{
+            repeat_frequency: editableEvent?.repeat_frequency,
+            task_period: editableEvent?.task_period
+        }}
+        onChange={handleRecurrenceChange}
+        startDate={editableEvent?.start} // Pass the event's start date
+    />
+  </div>
+)}
 
       
       {/* Status */}

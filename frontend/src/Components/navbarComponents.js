@@ -10,8 +10,10 @@ const Logo = () => (
       alt="Logo"
       className="h-8 sm:h-10 w-auto object-contain"
     />
+    <span className="text-xl font-bold text-blue-600">TASKNITTER</span>
   </div>
 );
+
 
 const Profile = () => {
   const navigate = useNavigate();

@@ -119,7 +119,7 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
     <>
       {/* Mobile Toggle Button */}
       <button
-        className="lg:hidden fixed top-3 left-4 z-50 text-2xl text-gray-800"
+        className="lg:hidden fixed top-3 left-4 z-50 text-1xl text-gray-800"
         onClick={toggleSidebar}
       >
         {isOpen ? <FaTimes /> : <FaBars />}
@@ -127,7 +127,7 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
   
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 left-0 h-screen w-[265px] bg-gray-50 border-r border-gray-300 shadow-lg transform ${
+        className={`fixed top-1 left-0 h-screen w-[265px] bg-gray-50 border-r border-gray-300 shadow-lg transform ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 lg:mt-16 transition-transform duration-300 ease-in-out z-40 flex flex-col`}
       >
@@ -151,6 +151,8 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
               <AiOutlineHome className="text-blue-500 mr-3" size={24} />
               Home
             </button>
+
+            {access_level >= 3 && (
             <button
   className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 mt-2 rounded-md hover:bg-blue-200 transition"
   onClick={() => handleNavigation('/analytics')}
@@ -158,6 +160,7 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
   <MdDashboard className="text-blue-500 mr-3" size={24} />
   Analytics Dashboard
 </button>
+)}
 
   
             {access_level === 2 && (
