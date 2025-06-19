@@ -24,11 +24,13 @@ function initSocket(httpServer) {
       socket.conn.remoteAddress ||
       '';
   
-    // Bypass auth for Flask (running at 172.19.0.5)
-    if (remoteIp.includes("172.19.0.5")) {
-      console.log("🟡 Bypassing auth for Flask (by IP)", remoteIp);
-      return next();
-    }
+      const flaskIp = process.env.FLASK_IP_ADDRESS;
+
+      // Safely check if the flaskIp is defined and if the remote IP includes it
+      if (flaskIp && remoteIp.includes(flaskIp)) {
+        console.log(`🟡 Bypassing auth for allowed IP (${flaskIp}) from remote: ${remoteIp}`);
+        return next();
+      }
   
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error("Token required"));
