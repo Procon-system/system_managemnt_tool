@@ -1,14 +1,60 @@
 
 
 import { useState, useEffect} from 'react';
-import { useDispatch,useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import RichTextEditor from './richTextEditor';
 import {SelectInput,SelectTaskPeriodInput} from './selectInput';
-import DOMPurify from "dompurify";
+
 import ImageSlider from './imageSlider';
 import { useResources } from '../../hooks/useResources';
 import { useUsers } from '../../hooks/useUsers';
-;
+import {getTimezoneOffsetHours} from '../../Helper/getTimezones';
+const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    // Pad single digit month/day/hour/minute with a leading zero
+    const pad = (num) => num.toString().padStart(2, '0');
+    
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch (error) {
+    console.error("Invalid date for formatting:", dateString);
+    return '';
+  }
+};
+const adjustTimeForBackend = (time, timezoneInput) => {
+  try {
+    // Validate time
+    const date = new Date(time);
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date input:', time);
+      return null;
+    }
+
+    // Get offset in hours (handles both numbers and timezone names)
+    const timezoneOffset = getTimezoneOffsetHours(timezoneInput);
+    
+    // Calculate adjusted time
+    const utcTime = date.getTime();
+    const adjustedTime = new Date(utcTime + timezoneOffset * 60 * 60 * 1000);
+
+    if (isNaN(adjustedTime.getTime())) {
+      console.error('Invalid adjusted time:', adjustedTime);
+      return null;
+    }
+
+    return adjustedTime.toISOString();
+  } catch (error) {
+    console.error('Error adjusting time:', error);
+    return null;
+  }
+};
 const EventDetailsModal = ({
   isVisible,
   closeModal,
@@ -28,12 +74,37 @@ useEffect(() => {
   setEditableEvent(selectedEvent || {});
 }, [selectedEvent]);
 
+// const handleChange = (e) => {
+//   const { name, value } = e.target;
+
+//   setEditableEvent((prev) => ({
+//     ...prev,
+//     [name]: Array.isArray(value) ? [...value] : value, // Ensure arrays are stored properly
+//   }));
+// };
 const handleChange = (e) => {
   const { name, value } = e.target;
+  let processedValue;
 
+  // Case 1: Handle the date inputs specifically.
+  if (name === 'start' || name === 'end') {
+    // Convert the timezone-naive string from the input into a proper local Date object.
+    processedValue = new Date(value);
+  
+  // Case 2: Handle multi-select inputs that pass an array of values.
+  } else if (Array.isArray(value)) {
+    // Create a new array to ensure React recognizes the state change.
+    processedValue = [...value];
+
+  // Case 3: Handle all other standard inputs (text, single-select, etc.).
+  } else {
+    processedValue = value;
+  }
+
+  // Finally, update the state ONCE with the correctly processed value.
   setEditableEvent((prev) => ({
     ...prev,
-    [name]: Array.isArray(value) ? [...value] : value, // Ensure arrays are stored properly
+    [name]: processedValue,
   }));
 };
 
@@ -75,13 +146,9 @@ const handleChange = (e) => {
         
                 if (!response.ok) throw new Error('Failed to fetch image');
                 
-                console.log("Response headers:", [...response.headers.entries()]);
-                
+               
                 const blob = await response.blob();
-                console.log("Blob info:", {
-                  size: blob.size,
-                  type: blob.type
-                });
+               
                 
                 if (blob.size === 0) {
                   throw new Error('Received empty blob');
@@ -136,17 +203,25 @@ const handleChange = (e) => {
 
   const onSubmit = (e) => {
     e.preventDefault();
-    
+    // 1. Get the user's timezone, exactly like in handleEventResize
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const fallbackTimezoneOffset = new Date().getTimezoneOffset() / -60;
+  const timezoneToUse = userTimezone || fallbackTimezoneOffset;
+
+  // 2. Call the adjustment function on the Date objects from our state
+  // This is the CRUCIAL step that mirrors your working code.
+  const adjustedStartTime = adjustTimeForBackend(editableEvent.start, timezoneToUse);
+  const adjustedEndTime = adjustTimeForBackend(editableEvent.end, timezoneToUse);
+
     // Prepare the complete payload
     const payload = {
       ...editableEvent,
       images: images, // Current images
       newImages: newImages, // Newly uploaded images
       // Ensure dates are properly formatted if needed
-      start: editableEvent.start instanceof Date ? editableEvent.start.toISOString() : editableEvent.start,
-      end: editableEvent.end instanceof Date ? editableEvent.end.toISOString() : editableEvent.end,
-      // Include all other fields that might be missing
-      assigned_resources: editableEvent.assigned_resources,
+      start: adjustedStartTime, // Use the adjusted time
+    end: adjustedEndTime, 
+            assigned_resources: editableEvent.assigned_resources,
       notes: editableEvent.notes,
       repeat_frequency: editableEvent.repeat_frequency,
       task_period: editableEvent.task_period
@@ -237,47 +312,33 @@ const handleChange = (e) => {
       )}
 
       {/* Start Time */}
-      {role >= 3 && (
-        <div>
-          <label className="block mb-1 text-sm font-medium">Start Time:</label>
-          <input
-            type="datetime-local"
-            name="start"
-            defaultValue={
-              new Date(editableEvent?.start).toLocaleDateString("en-CA") +
-              "T" +
-              new Date(editableEvent?.start).toLocaleTimeString("en-GB", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false,
-              })
-            }
-            onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-md"
-          />
-        </div>
+      {role >= 2 && (
+       <div>
+       <label className="block mb-1 text-sm font-medium">Start Time:</label>
+       <input
+         type="datetime-local"
+         name="start"
+         // Use value and the new helper function
+         value={formatDateForInput(editableEvent?.start)}
+         onChange={handleChange}
+         className="w-full px-3 py-2 border rounded-md"
+       />
+     </div>
       )}
 
       {/* End Time */}
-      {role >= 3 && (
-        <div>
-          <label className="block mb-1 text-sm font-medium">End Time:</label>
-          <input
-            type="datetime-local"
-            name="end"
-            defaultValue={
-              new Date(editableEvent?.end).toLocaleDateString("en-CA") +
-              "T" +
-              new Date(editableEvent?.end).toLocaleTimeString("en-GB", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false,
-              })
-            }
-            onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-md"
-          />
-        </div>
+      {role >= 2 && (
+       <div>
+       <label className="block mb-1 text-sm font-medium">End Time:</label>
+       <input
+         type="datetime-local"
+         name="end"
+         // Use value and the new helper function
+         value={formatDateForInput(editableEvent?.end)}
+         onChange={handleChange}
+         className="w-full px-3 py-2 border rounded-md"
+       />
+     </div>
       )}
 
       {/* Frequency */}
@@ -399,7 +460,7 @@ const handleChange = (e) => {
 
     {/* Resources Section */}
    
-{role >= 3 && resourceTypes && (
+{role >= 2 && resourceTypes && (
   <div className="mt-6">
     <h2 className="text-lg font-semibold mb-3">Resources</h2>
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

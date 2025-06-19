@@ -153,7 +153,7 @@ exports.getTaskById = async (taskId, TaskModel) => {
 };
 
 exports.updateTask = async (taskId, updateData, TaskModel) => {
-  
+ 
   // Step 1: Fetch the task's current state BEFORE the update.
   // This is crucial for comparing old vs. new status and for getting the assignment/resource plan.
   const taskBeforeUpdate = await TaskModel.findById(taskId);

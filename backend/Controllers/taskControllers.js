@@ -172,7 +172,7 @@ exports.updateTask = async (req, res) => {
     const updateData = {};
     const mongoose = require('mongoose');
     const { Task ,Notification} = req.tenantModels;
-    
+   
     // Parse the assigned_resources if it exists
     if (req.body.assigned_resources) {
       const assignedResources = JSON.parse(req.body.assigned_resources);
