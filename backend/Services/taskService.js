@@ -71,63 +71,6 @@ const generateRecurringInstances = (baseTask, frequency, endDate) => {
 
   return tasks;
 };
-// const generateRecurringInstances = (baseTask, frequency, endDate) => {
-//   const tasks = [];
-//   let currentStart = new Date(baseTask.schedule.start);
-//   let currentEnd = new Date(baseTask.schedule.end);
-//   const periodEnd = new Date(endDate);
-  
-//   // Calculate duration of the original task
-//   const durationMs = currentEnd - currentStart;
-  
-//   while (currentStart <= periodEnd) {
-//     if (currentStart > new Date(baseTask.schedule.start)) {
-//       const taskClone = {
-//         ...baseTask,
-//         _id: undefined, // Let MongoDB generate new IDs
-//         schedule: {
-//           start: new Date(currentStart),
-//           end: new Date(currentEnd),
-//           timezone: baseTask.schedule.timezone
-//         },
-//         isRecurringInstance: true,
-//         rootTask: baseTask._id || null
-//       };
-//       tasks.push(taskClone);
-//     }
-    
-//     // Increment dates based on frequency
-//     switch (frequency.toLowerCase()) {
-//       case 'daily':
-//         currentStart.setDate(currentStart.getDate() + 1);
-//         currentEnd = new Date(currentStart.getTime() + durationMs);
-//         break;
-//       case 'weekly':
-//         currentStart.setDate(currentStart.getDate() + 7);
-//         currentEnd = new Date(currentStart.getTime() + durationMs);
-//         break;
-//       case 'monthly':
-//         currentStart.setMonth(currentStart.getMonth() + 1);
-//         currentEnd = new Date(currentStart.getTime() + durationMs);
-//         break;
-//       case 'yearly':
-//         currentStart.setFullYear(currentStart.getFullYear() + 1);
-//         currentEnd = new Date(currentStart.getTime() + durationMs);
-//         break;
-//       default:
-//         // Handle custom intervals like "every 2 weeks"
-//         const interval = parseInt(frequency.match(/\d+/)?.[0]) || 1;
-//         if (frequency.includes('week')) {
-//           currentStart.setDate(currentStart.getDate() + 7 * interval);
-//         } else if (frequency.includes('month')) {
-//           currentStart.setMonth(currentStart.getMonth() + interval);
-//         }
-//         currentEnd = new Date(currentStart.getTime() + durationMs);
-//     }
-//   }
-  
-//   return tasks;
-// };
 exports.createRecurringTasks = async ({ baseTask, frequency, endDate, TaskModel, ResourceModel }) => {
   // First create the root task
   const rootTask = await exports.createTask(baseTask, TaskModel, ResourceModel); // ✅ FIXED
@@ -210,6 +153,7 @@ exports.getTaskById = async (taskId, TaskModel) => {
 };
 
 exports.updateTask = async (taskId, updateData, TaskModel) => {
+  
   // Step 1: Fetch the task's current state BEFORE the update.
   // This is crucial for comparing old vs. new status and for getting the assignment/resource plan.
   const taskBeforeUpdate = await TaskModel.findById(taskId);
