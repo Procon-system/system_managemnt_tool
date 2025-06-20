@@ -10,7 +10,9 @@ services:
       - ./flask-user-reg:/app             # live-sync your code
       - userreg-data:/app/subscribers.db  # persist the SQLite file
     environment:
-      - SOCKETIO_URL=http://app:5000 # adjust to whatever WS endpoint you need
+      - SOCKETIO_URL=http://app:5000
+      - INTERNAL_SOCKET_SECRET=${INTERNAL_SOCKET_SECRET} # Reads from the .env file in the root
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}             # Reads from the .env file in the root
       - FLASK_ENV=development
       - FLASK_APP=app.py
     depends_on:
@@ -51,6 +53,8 @@ services:
       - /app/node_modules
     env_file:
       - ./backend/.env  # Load environment variables from .env file in backend directory
+    environment:
+      - INTERNAL_SOCKET_SECRET=${INTERNAL_SOCKET_SECRET}
     ports:
       - '5000:5000' 
     expose:

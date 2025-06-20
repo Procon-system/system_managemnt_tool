@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react'; // <-- Step 1
 import {  useSelector } from 'react-redux';
 import RichTextEditor from './richTextEditor';
 import {SelectInput} from './selectInput';
-
+import DOMPurify from 'dompurify';
 import RecurrencePicker from './recurrencePicker'; // <-- Step 1 (Adjust path)
 
 import ImageSlider from './imageSlider';
@@ -58,6 +58,13 @@ const adjustTimeForBackend = (time, timezoneInput) => {
     return null;
   }
 };
+const statusStyles = {
+  pending: 'bg-gray-200 text-gray-800 ring-gray-300',
+  in_progress: 'bg-blue-200 text-blue-800 ring-blue-300',
+  done: 'bg-green-200 text-green-800 ring-green-300',
+  impossible: 'bg-red-200 text-red-800 ring-red-300',
+  overdue: 'bg-yellow-200 text-yellow-800 ring-yellow-300',
+};
 const EventDetailsModal = ({
   isVisible,
   closeModal,
@@ -67,8 +74,8 @@ const EventDetailsModal = ({
   handleFormSubmit,
 }) => {
    
-   const { resourceTypes } = useSelector((state) => state.resourceTypes);
-
+const { resourceTypes } = useSelector((state) => state.resourceTypes);
+const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
 const typeIds = resourceTypes?.map(type => type._id) || [];
    const { users = [] } = useUsers();
    const { getResourcesByType } = useResources(typeIds);
@@ -237,7 +244,20 @@ const handleChange = (e) => {
     handleFormSubmit(cleanPayload);
   };
   const [isEditMode, setIsEditMode] = useState(false);
-
+  const handleStatusChange = async (newStatus) => {
+    // Create an updated event object with only the status changed
+    const updatedEvent = {
+      ...editableEvent,
+      status: newStatus,
+    };
+  
+    // Call the main form submission handler with this updated event
+    // This assumes handleFormSubmit can handle the full event object
+    await handleFormSubmit(updatedEvent);
+  
+    // Close the menu after selection
+    setIsStatusMenuOpen(false);
+  };
   const toggleEditMode = () => {
     setIsEditMode((prev) => !prev);
   };
@@ -549,78 +569,143 @@ const handleChange = (e) => {
 
             </>
           ): (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 bg-gray-50">
-            {/* Title */}
-            {editableEvent?.title && (
-              <div className="col-span-full flex justify-center">
-                <p className="text-2xl font-bold text-gray-800">{editableEvent.title}</p>
-              </div>
-            )}
+            <div className="space-y-4">
+              {/* ==================================================================== */}
+              {/* --- NEW, UNIFIED HEADER SECTION --- */}
+              {/* ==================================================================== */}
+              <div className="flex justify-between items-center border-b pb-4">
+                {/* --- LEFT SIDE: Title and Status Changer --- */}
+                <div className="flex items-center gap-x-4">
+                  {/* Event Title */}
+                  <h3 className="text-2xl font-bold text-gray-800 leading-tight">
+                    {editableEvent?.title || 'Event Details'}
+                  </h3>
+                  
+                  {/* --- STATUS QUICK-CHANGER --- */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
+                      className={`px-3 py-1 text-xs font-semibold rounded-full ring-1 ring-opacity-50 flex items-center gap-x-1.5 transition-transform hover:scale-105 focus:outline-none ${
+                        statusStyles[editableEvent?.status] || statusStyles.pending
+                      }`}
+                    >
+                      {/* Optional: Add a small dot for visual flair */}
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      {editableEvent?.status.replace('_', ' ') || 'Pending'}
+                    </button>
           
-            {/* Image Slider */}
-            {images.length > 0 && (
-  <div className="col-span-full flex justify-center">
-    <ImageSlider images={images} />
-  </div>
-)}
-          
-            {/* Start, End, Status */}
-            <div className="bg-blue-100 shadow-md rounded-xl p-4 transform rotate-[-1deg] space-y-2">
-              <p className="font-bold text-lg text-gray-800">🕒 Event Timing</p>
-              <p><strong>Start:</strong> {new Date(editableEvent?.start).toLocaleString()}</p>
-              <p><strong>End:</strong> {new Date(editableEvent?.end).toLocaleString()}</p>
-              <p><strong>Status:</strong> {editableEvent?.status || 'pending'}</p>
-            </div>
-          
-            {/* Repeat + Assigned To */}
-            <div className="bg-gray-200 shadow-md rounded-xl p-4 transform rotate-[1deg] space-y-2">
-              <p className="font-bold text-lg text-gray-800">🔁 Assignment</p>
-              <p><strong>Repeat:</strong> {editableEvent?.repeat_frequency || 'none'}</p>
-              <div>
-                <p className="font-semibold">Assigned To:</p>
-                {editableEvent?.assigned_resources?.assigned_to?.map(user => (
-                  <div key={user._id} className="text-sm">
-                    {user.name || user.email} {user.role && `(${user.role})`}
+                    {/* Dropdown Menu */}
+                    {isStatusMenuOpen && (
+                      <div className="absolute top-full mt-2 w-40 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20">
+                        <div className="py-1" role="menu" aria-orientation="vertical">
+                          {['in_progress', 'done', 'impossible', 'overdue'].map((status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              onClick={() => handleStatusChange(status)}
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              role="menuitem"
+                            >
+                              {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
+                </div>
+                
+                {/* --- RIGHT SIDE: Action Buttons --- */}
+                <div className='flex-shrink-0 flex items-center space-x-2'>
+                  {role >= 3 && (
+                    <button
+                      type="button"
+                      className="bg-red-600 text-white px-4 py-1.5 rounded-md hover:bg-red-700 transition text-sm font-medium"
+                      onClick={() => handleDelete(editableEvent?._id)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={toggleEditMode}
+                    className="bg-gray-700 text-white px-4 py-1.5 rounded-md hover:bg-gray-800 transition text-sm font-medium"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+          
+              {/* ==================================================================== */}
+              {/* --- REST OF YOUR DISPLAY VIEW (THE CARDS) --- */}
+              {/* ==================================================================== */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+                {/* Image Slider */}
+                {images.length > 0 && (
+                  <div className="col-span-full flex justify-center mb-4">
+                    <ImageSlider images={images} />
+                  </div>
+                )}
+            
+                {/* Start, End, Status CARD */}
+                <div className="bg-blue-100 shadow-md rounded-xl p-4 transform rotate-[-1deg] space-y-2">
+                  <p className="font-bold text-lg text-gray-800">🕒 Event Timing</p>
+                  <p><strong>Start:</strong> {new Date(editableEvent?.start).toLocaleString()}</p>
+                  <p><strong>End:</strong> {new Date(editableEvent?.end).toLocaleString()}</p>
+                  {/* We keep this here for clarity, even though it's also in the header */}
+                  <p><strong>Status:</strong> {editableEvent?.status || 'pending'}</p>
+                </div>
+            
+                {/* Repeat + Assigned To CARD */}
+                <div className="bg-gray-200 shadow-md rounded-xl p-4 transform rotate-[1deg] space-y-2">
+                  <p className="font-bold text-lg text-gray-800">🔁 Assignment</p>
+                  <p><strong>Repeat:</strong> {editableEvent?.repeat_frequency || 'none'}</p>
+                  <div>
+                    <p className="font-semibold">Assigned To:</p>
+                    {editableEvent?.assigned_resources?.assigned_to?.map(user => (
+                      <div key={user._id} className="text-sm">
+                        {user.name || user.email} {user.role && `(${user.role})`}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+            
+                {/* Resources CARDs */}
+                {editableEvent?.assigned_resources?.resources?.length > 0 &&
+                  chunkArray(editableEvent.assigned_resources.resources, 3).map((chunk, index) => (
+                    <div
+                      key={index}
+                      className={`bg-blue-100 shadow-md rounded-xl p-4 space-y-2 transform ${
+                        index % 2 === 0 ? 'rotate-[-2deg]' : 'rotate-[1deg]'
+                      }`}
+                    >
+                      <p className="font-bold text-lg text-gray-800">
+                        📦 Resources {chunk.length < 3 ? '' : `(# ${index + 1})`}
+                      </p>
+                      {chunk.map(resource => (
+                        <div key={resource._id} className="text-sm">
+                          <strong>{resource.resource?.type?.name || 'Type'}:</strong>{' '}
+                          {resource.resource?.displayName || 'Unnamed'}
+                          {resource.required && (
+                            <span className="text-xs text-red-600 ml-2">(required)</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                 ))}
+            
+                {/* Notes CARD */}
+                <div className="bg-gray-200 shadow-md rounded-xl p-4 transform rotate-[2deg] space-y-2 col-span-full">
+                  <p className="font-bold text-lg text-gray-900">📝 Notes</p>
+                  <div className="prose prose-sm max-w-none">
+                     {/* Assuming notes might contain HTML, using DOMPurify for safety */}
+                     <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(editableEvent?.notes) }} />
+                  </div>
+                </div>
               </div>
             </div>
-          
-            {/* Resources */}
-            {editableEvent?.assigned_resources?.resources?.length > 0 &&
-  chunkArray(editableEvent.assigned_resources.resources, 3).map((chunk, index) => (
-    <div
-      key={index}
-      className={`bg-blue-100 shadow-md rounded-xl p-4 space-y-2 transform ${
-        index % 2 === 0 ? 'rotate-[-2deg]' : 'rotate-[1deg]'
-      }`}
-    >
-      <p className="font-bold text-lg text-gray-800">
-        📦 Resources {chunk.length < 3 ? '' : `(# ${index + 1})`}
-      </p>
-      {chunk.map(resource => (
-        <div key={resource._id} className="text-sm">
-          <strong>{resource.resource?.type?.name || 'Type'}:</strong>{' '}
-          {resource.resource?.displayName || 'Unnamed'}
-          {resource.required && (
-            <span className="text-xs text-red-600 ml-2">(required)</span>
           )}
-        </div>
-      ))}
-    </div>
-  ))}
-
-          
-            {/* Notes */}
-            <div className="bg-gray-200 shadow-md rounded-xl p-4 transform rotate-[2deg] space-y-2 col-span-full">
-              <p className="font-bold text-lg text-gray-900">📝 Notes</p>
-              <div className="rounded text-sm min-h-[40px]">
-                {editableEvent?.notes || 'No notes available'}
-              </div>
-            </div>
-          </div>
-          
-         )}
 
       <div className="flex justify-between mt-6">
            {isEditMode && (
