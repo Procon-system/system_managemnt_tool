@@ -576,11 +576,7 @@ const handleChange = (e) => {
               <div className="flex justify-between items-center border-b pb-4">
                 {/* --- LEFT SIDE: Title and Status Changer --- */}
                 <div className="flex items-center gap-x-4">
-                  {/* Event Title */}
-                  <h3 className="text-2xl font-bold text-gray-800 leading-tight">
-                    {editableEvent?.title || 'Event Details'}
-                  </h3>
-                  
+                 
                   {/* --- STATUS QUICK-CHANGER --- */}
                   <div className="relative">
                     <button
@@ -616,25 +612,7 @@ const handleChange = (e) => {
                   </div>
                 </div>
                 
-                {/* --- RIGHT SIDE: Action Buttons --- */}
-                <div className='flex-shrink-0 flex items-center space-x-2'>
-                  {role >= 3 && (
-                    <button
-                      type="button"
-                      className="bg-red-600 text-white px-4 py-1.5 rounded-md hover:bg-red-700 transition text-sm font-medium"
-                      onClick={() => handleDelete(editableEvent?._id)}
-                    >
-                      Delete
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={toggleEditMode}
-                    className="bg-gray-700 text-white px-4 py-1.5 rounded-md hover:bg-gray-800 transition text-sm font-medium"
-                  >
-                    Edit
-                  </button>
-                </div>
+               
               </div>
           
               {/* ==================================================================== */}
