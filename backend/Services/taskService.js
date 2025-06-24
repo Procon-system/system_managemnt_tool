@@ -85,7 +85,36 @@ exports.createRecurringTasks = async ({ baseTask, frequency, endDate, TaskModel,
   // Save all instances
   const createdInstances = await TaskModel.insertMany(recurringInstances);
 
-  return [rootTask, ...createdInstances];
+  // Get IDs of all created tasks (root + instances)
+  const allTaskIds = [rootTask._id, ...createdInstances.map(t => t._id)];
+
+  // Fetch all tasks with proper population
+  const populatedTasks = await TaskModel.find({ _id: { $in: allTaskIds } })
+    .populate([
+      {
+        path: 'resources.resource',
+        populate: { path: 'type', select: 'name icon color' }
+      },
+      {
+        path: 'assignments.user',
+        select: 'first_name last_name email avatar'
+      },
+      {
+        path: 'assignments.team',
+        select: 'name'
+      },
+      {
+        path: 'dependencies.task',
+        select: 'title status'
+      }
+    ])
+    .lean();
+
+  return populatedTasks;
+  // // Save all instances
+  // const createdInstances = await TaskModel.insertMany(recurringInstances);
+
+  // return [rootTask, ...createdInstances];
 };
 
 // Simplified createTask for single tasks
@@ -127,7 +156,30 @@ exports.createTask = async (taskData, TaskModel, ResourceModel) => {
     }
 
     const savedTask = await task.save();
-    return savedTask;
+
+    // Populate key references before returning
+const populatedTask = await TaskModel.findById(savedTask._id)
+  .populate([
+    {
+      path: 'resources.resource',
+      populate: { path: 'type', select: 'name icon color' }
+    },
+    {
+      path: 'assignments.user',
+      select: 'first_name last_name email avatar'
+    },
+    {
+      path: 'assignments.team',
+      select: 'name'
+    },
+    {
+      path: 'dependencies.task',
+      select: 'title status'
+    }
+  ])
+  .lean();
+
+return populatedTask;
 
   } catch (error) {
     console.error('Error in task service:', error);

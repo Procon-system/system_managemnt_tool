@@ -269,28 +269,54 @@ const taskSlice = createSlice({
       })
     
       // In your taskSlice.js
+// .addCase(createTask.fulfilled, (state, action) => {
+//   state.status = 'succeeded';
+  
+//   // Process payload into array of tasks
+//   const receivedTasks = Array.isArray(action.payload) 
+//     ? action.payload 
+//     : action.payload?.data 
+//       ? Array.isArray(action.payload.data) 
+//         ? action.payload.data 
+//         : [action.payload.data]
+//       : [action.payload].filter(Boolean);
+  
+//   // Create Set of existing task IDs for quick lookup
+//   const existingIds = new Set(state.tasks.map(t => t._id));
+  
+//   // Filter out duplicates and invalid tasks
+//   const uniqueNewTasks = receivedTasks.filter(
+//     task => task?._id && !existingIds.has(task._id)
+//   );
+  
+//   // Merge new tasks with existing ones (IMPORTANT: Use Immer's mutable syntax)
+//   state.tasks.push(...uniqueNewTasks);
+// })
 .addCase(createTask.fulfilled, (state, action) => {
   state.status = 'succeeded';
   
-  // Process payload into array of tasks
-  const receivedTasks = Array.isArray(action.payload) 
-    ? action.payload 
-    : action.payload?.data 
-      ? Array.isArray(action.payload.data) 
-        ? action.payload.data 
-        : [action.payload.data]
-      : [action.payload].filter(Boolean);
-  
-  // Create Set of existing task IDs for quick lookup
+  // Normalize the response to always be an array
+  let receivedTasks = [];
+  if (Array.isArray(action.payload)) {
+    receivedTasks = action.payload;
+  } else if (action.payload?.data) {
+    receivedTasks = Array.isArray(action.payload.data) 
+      ? action.payload.data 
+      : [action.payload.data];
+  } else if (action.payload) {
+    receivedTasks = [action.payload];
+  }
+
+  // Filter out invalid tasks and duplicates
   const existingIds = new Set(state.tasks.map(t => t._id));
-  
-  // Filter out duplicates and invalid tasks
-  const uniqueNewTasks = receivedTasks.filter(
+  const validNewTasks = receivedTasks.filter(
     task => task?._id && !existingIds.has(task._id)
   );
-  
-  // Merge new tasks with existing ones (IMPORTANT: Use Immer's mutable syntax)
-  state.tasks.push(...uniqueNewTasks);
+
+  // Add new tasks to state
+  if (validNewTasks.length > 0) {
+    state.tasks.push(...validNewTasks);
+  }
 })
       .addCase(createTask.rejected, (state, action) => {
         state.status = 'failed';
