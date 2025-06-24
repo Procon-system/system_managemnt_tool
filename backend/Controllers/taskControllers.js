@@ -493,7 +493,7 @@ exports.filterTasksByOrganization = async (req, res) => {
         parsedFilters[key] = value;
       }
     }
-  
+    const filterKey = JSON.stringify(parsedFilters);
     const cacheKey = `tasks:filter:org:${orgId}:page:${page}:limit:${limit}:filters:${Buffer.from(filterKey).toString('base64')}`;
 
     const cached = await cache.get(cacheKey);
