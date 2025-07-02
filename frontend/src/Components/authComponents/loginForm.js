@@ -7,6 +7,7 @@ import FormInput from './inputForm';
 import { useNavigate,Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {jwtDecode} from "jwt-decode";
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 const LoginForm = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -15,7 +16,12 @@ const LoginForm = () => {
       password: '',
       rememberMe: false,
     });
-  
+    const [showPassword, setShowPassword] = useState(false);
+    
+    const togglePasswordVisibility = () => {
+      setShowPassword((prev) => !prev);
+    };
+    
     const handleChange = (e) => {
       const { name, value } = e.target;
       if (name === 'rememberMe') {
@@ -66,7 +72,23 @@ const LoginForm = () => {
   return (
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required />
-        <FormInput label="Password" name="password" type="password" value={formData.password} onChange={handleChange} required />
+        <div className="relative">
+  <FormInput
+    label="Password"
+    name="password"
+    type={showPassword ? "text" : "password"}
+    value={formData.password}
+    onChange={handleChange}
+    required
+  />
+  <button
+    type="button"
+    onClick={togglePasswordVisibility}
+    className="absolute right-3 top-2/3 transform -translate-y-1/2 text-gray-600"
+  >
+    {showPassword ? <FaEyeSlash /> : <FaEye />}
+  </button>
+</div>
         <div className="flex items-center justify-between">
     <FormInput label="Remember Me" name="rememberMe" type="checkbox" checked={formData.rememberMe} onChange={handleChange} />
     <Link to="/forgot-password" className="text-blue-500 hover:underline">
