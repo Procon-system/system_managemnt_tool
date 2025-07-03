@@ -297,7 +297,6 @@ const calendarEvents = useMemo(() => {
 
 useEffect(() => {
   if (!isInitialized && calendarEvents.length > 0) {
-    
     setFilteredEvents(calendarEvents);
     setIsInitialized(true);
   }
@@ -343,6 +342,7 @@ useEffect(() => {
     }
   }
 }, [calendarEvents, currentView, deletedTaskIds, user?._id]);
+
 const handleMultipleEventUpdate = (updatedEvents) => {
  
   if (!Array.isArray(updatedEvents) || updatedEvents.length === 0) {
@@ -419,19 +419,30 @@ const handleEventCreate = async (newEvent) => {
     return { success: false };
   }
 };
+ 
   const handleDateRangeSelect = (startDate, endDate) => {
-    if (!startDate || !endDate) {
-      // Reset to all events when no date range is selected
+    if (!startDate && !endDate) {
       setFilteredEvents(calendarEvents);
-    } else {
-      // Filter events within the selected range
+    } else if (startDate && !endDate) {
+      
       const filtered = calendarEvents.filter((event) => {
-        const eventStart = new Date(event.start);
+        const eventStart = new Date(event.schedule.start);
+        const selected = new Date(startDate);
+  
+        return eventStart.toDateString() === selected.toDateString();
+      });
+      
+      setFilteredEvents(filtered);
+    } else {
+      
+      const filtered = calendarEvents.filter((event) => {
+        const eventStart = new Date(event.schedule.start);
         return eventStart >= new Date(startDate) && eventStart <= new Date(endDate);
       });
       setFilteredEvents(filtered);
     }
   };
+  
   const handleCalendarDateChange = (startDate, endDate) => {
     // Update the calendar's start and end date when a date range is selected
     setCalendarStartDate(startDate);
@@ -548,10 +559,10 @@ if (mergedEvent.newImages && mergedEvent.newImages.length > 0) {
     }
   };
 
-useEffect(() => {
-  console.log("Filtered events initialized:", filteredEvents);
-}, [filteredEvents]);
-
+  useEffect(() => {
+    console.log("Filtered events initialized:", filteredEvents);
+  }, [filteredEvents]);
+  
   const openCreateForm = (event = null) => {
     setIsCreateFormVisible(true);
     setIsEditFormVisible(false);

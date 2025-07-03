@@ -60,7 +60,8 @@ exports.importICal = async (req, res) => {
 };
 exports.createTask = async (req, res) => {
   try {
-    const { Task, Resource, Notification } = req.tenantModels;
+    console.log("req.tenantModel",req.tenantModels)
+    const { Task, Resource, Notification, ResourceBooking } = req.tenantModels;
     const cache = req.tenantCache;
 
     // Validate required fields
@@ -107,12 +108,13 @@ exports.createTask = async (req, res) => {
         frequency: taskData.repeat_frequency,
         endDate: periodEndDate,
         TaskModel: Task,          
-        ResourceModel: Resource  
+        ResourceModel: Resource ,
+        ResourceBookingModel: ResourceBooking 
       });
     } else {
       // Handle single task
       
-      createdTask = await taskService.createTask(taskData, Task, Resource);
+      createdTask = await taskService.createTask(taskData, Task, Resource, ResourceBooking );
     }
    // Invalidate all paginated task lists
    await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
@@ -171,7 +173,7 @@ exports.updateTask = async (req, res) => {
     const taskId = req.params.id;
     const updateData = {};
     const mongoose = require('mongoose');
-    const { Task ,Notification} = req.tenantModels;
+    const { Task ,Notification,ResourceBooking } = req.tenantModels;
    
     // Parse the assigned_resources if it exists
     if (req.body.assigned_resources) {
@@ -252,15 +254,16 @@ exports.updateTask = async (req, res) => {
     const updatedTask = await taskService.updateTask(
       taskId,
       updateData,
-      Task
+      Task,
+      ResourceBooking 
     );
     
     const responseTask = {
-      ...updatedTask.toObject(), // Convert Mongoose document to plain object
-      assigned_resources: updatedTask.assigned_resources || [],
+      ...updatedTask, // Already a plain object
+      assigned_resources: updatedTask.resources || [], // Use the 'resources' field from the task
       images: updatedTask.images || [],
-      // Add any other fields that might be missing
     };
+
     // Invalidate cache
     const cache = req.tenantCache;
 
@@ -371,7 +374,6 @@ exports.getTaskById = async (req, res) => {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
-
 exports.deleteTask = async (req, res) => {
   try {
     const taskId = req.params.id;
@@ -427,7 +429,6 @@ exports.deleteTask = async (req, res) => {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
-
 exports.getTasksByOrganization = async (req, res) => {
   try {
     const { page = 1, limit = 100 } = req.query;

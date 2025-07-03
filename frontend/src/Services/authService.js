@@ -89,13 +89,19 @@ export const forgotPassword = async (emailData) => {
 };
 
 // **Reset Password**
-export const resetPassword = async (id, token, passwordData) => {
-  const request = { method: 'post', url: `${API_URL}/reset-password/${id}/${token}`, data: passwordData };
+export const resetPassword = async (token, passwordData) => {
+  // The endpoint no longer includes the ID.
+  const request = { 
+    method: 'post', 
+    url: `${API_URL}/reset-password/${token}`, 
+    data: passwordData // { password: '...' }
+  };
 
   try {
     const response = await axios(request);
-    return response.data;
+    return response.data; // Should return { success: true, message: '...' }
   } catch (error) {
+    // Re-throw a clean error message for the component to catch
     throw new Error(error.response?.data?.error || 'Error during password reset');
   }
 };

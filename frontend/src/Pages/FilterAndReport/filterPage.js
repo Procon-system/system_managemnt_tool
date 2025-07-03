@@ -4,15 +4,16 @@ import { filterTasks, resetFilteredTasks } from "../../features/taskSlice";
 import FilterForm from "../../Components/filterAndReportComponents/filterForm";
 import TaskTable from "../../Components/filterAndReportComponents/taskTable";
 import { useResources } from "../../hooks/useResources"; // Import your custom hook
-
+import { useUsers } from '../../hooks/useUsers';
 const FilterPage = () => {
   const dispatch = useDispatch();
 
   // Get data from Redux store (fetched globally in App.js)
   const { tasks, filteredTasks, currentView, status } = useSelector((state) => state.tasks);
-  const { users } = useSelector((state) => state.users);
-  const { resourceTypes, loading: resourceTypesLoading, error } = useSelector((state) => state.resourceTypes);
-  console.log("filteredTasks",filteredTasks);
+  // const { users } = useSelector((state) => state.users);
+  const { users } = useUsers();
+  const { resourceTypes, loading: resourceTypesLoading } = useSelector((state) => state.resourceTypes);
+  
   // Get resource IDs for the hook
   const resourceTypeIds = resourceTypes?.map(type => type._id) || [];
   

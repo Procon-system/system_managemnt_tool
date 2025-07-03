@@ -36,7 +36,20 @@ export const fetchResourcesByType = createAsyncThunk(
     }
   }
 );
-
+export const fetchAvailableResources = createAsyncThunk(
+  'resources/fetchAvailable',
+  async ({ typeId, startTime, endTime }, { getState, dispatch, rejectWithValue }) => {
+    const token = getState().auth.token;
+    if (checkTokenAndLogout(token, dispatch)) return null;
+    try {
+      const response = await resourceService.getAvailableResources({ typeId, startTime, endTime }, token);
+      // Return a payload that includes the typeId to store data correctly
+      return { typeId, resources: response.data };
+    } catch (error) {
+      return rejectWithValue(error.message || 'Error fetching available resources');
+    }
+  }
+);
 export const fetchResourceById = createAsyncThunk(
   'resources/fetchResourceById',
   async (id, { getState, dispatch, rejectWithValue }) => {
@@ -105,6 +118,8 @@ const initialState = {
     pages: 1,
     currentPage: 1
   },
+  availableResources: {},
+  availableStatus: 'idle',
   currentResource: null,
   status: 'idle',
   error: null,
@@ -143,7 +158,11 @@ const resourceSlice = createSlice({
       state.status = 'idle';
       state.error = null;
       state.loading = false;
-    }
+    },
+    clearAvailableResources: (state) => {
+      state.availableResources = {};
+      state.availableStatus = 'idle';
+  }
   },
   extraReducers: (builder) => {
     builder
@@ -205,7 +224,20 @@ const resourceSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      
+      .addCase(fetchAvailableResources.pending, (state) => {
+        state.availableStatus = 'loading';
+      })
+      .addCase(fetchAvailableResources.fulfilled, (state, action) => {
+        state.availableStatus = 'succeeded';
+        if (action.payload) {
+          const { typeId, resources } = action.payload;
+          state.availableResources[typeId] = resources;
+        }
+      })
+      .addCase(fetchAvailableResources.rejected, (state, action) => {
+        state.availableStatus = 'failed';
+        state.error = action.payload; // You might want a separate error state for this
+      })
   
       // Fetch Resource by ID
       .addCase(fetchResourceById.pending, (state) => {
@@ -293,7 +325,8 @@ export const {
   resourceUpdated, 
   resourceDeleted,
   setCurrentResource,
-  resetResourceState
+  resetResourceState,
+  clearAvailableResources
 } = resourceSlice.actions;
 
 export default resourceSlice.reducer;

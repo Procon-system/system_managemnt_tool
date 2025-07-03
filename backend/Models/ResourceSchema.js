@@ -15,6 +15,10 @@ module.exports = (connection) => {
       ref: 'Organization',
       required: true
     },
+    isBlockableOverride: {
+      type: Boolean,
+      default: null // `null` means "inherit from type". `true` or `false` will override the type's setting.
+    },
     displayName: {
       type: String,
       required: false

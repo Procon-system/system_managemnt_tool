@@ -1,65 +1,56 @@
 
-// hooks/useResources.js
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchResourcesByType } from '../features/resourceSlice';
+import { fetchResourcesByType, fetchAvailableResources } from '../features/resourceSlice';
 
 export const useResources = (typeIds = []) => {
   const dispatch = useDispatch();
-  const resourcesState = useSelector(state => state.resources);
-  
-  // Track which types have been fetched
-  const [fetchedTypes, setFetchedTypes] = useState(new Set());
+  const {
+    data: resourcesStateData,
+    availableResources,
+    availableStatus,
+    loading,
+    error
+  } = useSelector(state => state.resources);
 
-  // Fetch resources for specified types
-  useEffect(() => {
-    const typesToFetch = typeIds.filter(typeId => !fetchedTypes.has(typeId));
-    
-    if (typesToFetch.length > 0) {
-      typesToFetch.forEach(typeId => {
-        dispatch(fetchResourcesByType(typeId));
-        setFetchedTypes(prev => new Set(prev).add(typeId));
-      });
+   useEffect(() => {
+   
+    if (typeIds.length > 0) {
+        dispatch(fetchResourcesByType(typeIds[0]));
     }
-  }, [dispatch, typeIds.join(','), fetchedTypes]);
+  }, [dispatch, typeIds.join(',')]); // Depend on joined IDs to refetch if the array changes
 
-  // Memoized resource grouping for better performance
-  const resourcesByType = useMemo(() => {
-    const map = {};
-    typeIds.forEach(typeId => {
-      map[typeId] = resourcesState.data?.resources?.filter(res => 
-        res.type?._id === typeId || res.typeId === typeId
-      ) || [];
-    });
-    return map;
-  }, [resourcesState.data?.resources, typeIds.join(',')]);
+  const getAvailableResourcesForType = useCallback((typeId, startTime, endTime) => {
+    if (!typeId || !startTime || !endTime) return;
+    dispatch(fetchAvailableResources({ typeId, startTime, endTime }));
+  }, [dispatch]);
 
-  // For TaskForm - all resources combined
-  const allResources = resourcesState.data?.resources || [];
+  // --- DATA SELECTORS / MEMOS ---
 
-  // For ResourceListPage - resources for specific types
-  const typeSpecificResources = typeIds.length === 1 
-    ? resourcesByType[typeIds[0]] || []
-    : [];
+  // Memoized resources for ResourceListPage
+  const typeSpecificResources = useMemo(() => {
+    if (typeIds.length !== 1) return [];
+    return resourcesStateData.resources?.filter(res => res.type?._id === typeIds[0] || res.type === typeIds[0]) || [];
+  }, [resourcesStateData.resources, typeIds.join(',')]);
 
-  const refreshResources = (idsToRefresh = typeIds) => {
+
+  const refreshResources = useCallback((idsToRefresh = typeIds) => {
     idsToRefresh.forEach(typeId => {
       dispatch(fetchResourcesByType(typeId));
     });
-  };
+  }, [dispatch, typeIds.join(',')]);
 
   return {
-    // For TaskForm
-    resources: allResources,
-    getResourcesByType: (typeId) => resourcesByType[typeId] || [],
-    
-    // For ResourceListPage
+    // Data for ResourceListPage
     typeSpecificResources,
-    
-    // Common
-    loading: resourcesState.loading,
-    error: resourcesState.error,
+    // Data for TaskForm (the new, important parts)
+    availableResources, // The map from Redux: { typeId: [resources] }
+    isFetchingAvailable: availableStatus === 'loading', // Derived loading state
+    getAvailableResourcesForType, // The function to trigger the fetch
+
+    // Common properties
+    loading, // General loading state from the slice
+    error,
     refreshResources,
-    resourcesByType
   };
 };

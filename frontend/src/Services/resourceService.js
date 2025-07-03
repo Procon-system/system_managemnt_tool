@@ -30,7 +30,17 @@ const resourceService = {
       throw error.response?.data || error.message;
     }
   },
-
+  getAvailableResources: async ({ typeId, startTime, endTime }, token) => {
+    try {
+      const response = await axios.get(`${API_URL}/available/${typeId}`, {
+        params: { startTime, endTime }, // Pass times as query parameters
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   getResourceById: async (id, token) => {
     try {
       

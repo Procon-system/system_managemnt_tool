@@ -1,12 +1,12 @@
-
 import React from 'react';
-import ResetPassword from '../../Components/authComponents/resetPassword';
+import ResetPassword from '../../Components/authComponents/resetPassword'; // Adjust path if needed
 
 const ResetPasswordPage = () => {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-semibold text-center mb-6">Reset Your Password</h2>
+    // This is the main page container, providing the background and centering everything.
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+     
+      <div className="w-full max-w-md p-8 lg:p-10 bg-white rounded-xl shadow-2xl">
         <ResetPassword />
       </div>
     </div>

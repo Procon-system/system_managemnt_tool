@@ -84,6 +84,55 @@ exports.getResourceById = async (resourceId, organizationId,ResourceModel) => {
     .populate('createdBy', 'first_name last_name');
 };
 
+exports.getAvailableResourcesByType = async (typeId, startTime, endTime, { ResourceModel, ResourceBookingModel }) => {
+  // 1. Fetch all resources of the given type.
+  // We need to populate 'type' to check the 'isBlockable' flag.
+  const allResources = await ResourceModel.find({ type: typeId })
+    .populate('type', 'isBlockable')
+    .lean();
+
+  if (allResources.length === 0) {
+    return [];
+  }
+
+  // 2. Separate resources into blockable and non-blockable.
+  const nonBlockableResources = [];
+  const blockableResources = [];
+
+  allResources.forEach(resource => {
+    const isEffectivelyBlockable = resource.isBlockableOverride ?? resource.type?.isBlockable ?? false;
+    if (isEffectivelyBlockable) {
+      blockableResources.push(resource);
+    } else {
+      nonBlockableResources.push(resource); // Non-blockable resources are always "available".
+    }
+  });
+
+  // If there are no blockable resources, we can return everything immediately.
+  if (blockableResources.length === 0) {
+    return allResources;
+  }
+
+  // 3. Find which of the blockable resources are already booked in the given time frame.
+  const blockableResourceIds = blockableResources.map(r => r._id);
+
+  const conflictingBookings = await ResourceBookingModel.find({
+    resource: { $in: blockableResourceIds },
+    status: 'confirmed', // Or whatever statuses mean "booked"
+    startTime: { $lt: new Date(endTime) },
+    endTime: { $gt: new Date(startTime) },
+  }).lean();
+
+  const bookedResourceIds = new Set(conflictingBookings.map(b => b.resource.toString()));
+
+  // 4. Filter out the booked resources from the blockable list.
+  const availableBlockableResources = blockableResources.filter(
+    resource => !bookedResourceIds.has(resource._id.toString())
+  );
+
+  // 5. Combine the lists and return.
+  return [...nonBlockableResources, ...availableBlockableResources];
+};
 exports.getResourcesByType = async (typeId, organizationId, options = {},ResourceModel) => {
   const { page = 1, limit = 10 } = options;
   

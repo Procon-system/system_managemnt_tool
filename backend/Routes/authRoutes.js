@@ -24,6 +24,6 @@ router.post('/login', loginController);
 router.post('/logout', logoutController);
 router.post('/confirm-email/:confirmationCode',confirmEmailController);
 router.post('/forgot-password',forgotPasswordController);
-router.post('/reset-password/:id/:token', resetPasswordController);
+router.post('/reset-password/:token', resetPasswordController);
 
 module.exports = router;

@@ -7,7 +7,6 @@ const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
   const dispatch = useDispatch();
   const { register, handleSubmit, formState: { errors }, setError } = useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
-    console.log("reresourceType",resourceType);
   const onSubmit = async (formData) => {
     setIsSubmitting(true);
     try {
@@ -41,11 +40,17 @@ const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
             processedFields[field.fieldName] = value;
         }
       });
-
+      let overrideValue = null; // Default to null (inherit from type)
+      if (formData.isBlockableOverride === 'true') {
+        overrideValue = true;
+      } else if (formData.isBlockableOverride === 'false') {
+        overrideValue = false;
+      }
       const payload = {
         type: resourceType._id,
         organization: resourceType.organization,
         displayName: formData.name || `New ${resourceType.name}`,
+        isBlockableOverride: overrideValue,
         fields: {
           ...processedFields,
           // Ensure these fields are included even if not in fieldDefinitions
@@ -95,6 +100,24 @@ const DynamicResourceForm = ({ resourceType, onCancel, onSuccess }) => {
             )}
           </div>
 
+<div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Booking Behavior
+            </label>
+            <select
+              {...register('isBlockableOverride')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              defaultValue="" // Represents null
+            >
+              <option value="">Default (from Resource Type)</option>
+              <option value="true">Force Blockable (Exclusive)</option>
+              <option value="false">Force Non-Blockable</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Override the default booking behavior set on the '{resourceType.name}' type.
+            </p>
+          </div>
+          
           {/* Dynamic fields based on resource type */}
           {resourceType.fieldDefinitions.map((field) => (
             <div key={field.fieldName}>

@@ -11,6 +11,7 @@ const ResourceEditModal = ({ resource, resourceType, onClose, onSave }) => {
     if (resource) {
       const defaultValues = {
         name: resource.displayName || '',
+        isBlockableOverride: resource.isBlockableOverride ?? '', 
         ...resource.fields
       };
       reset(defaultValues);
@@ -55,7 +56,22 @@ const ResourceEditModal = ({ resource, resourceType, onClose, onSave }) => {
                 <span className="text-red-500 text-sm">{errors.name.message}</span>
               )}
             </div>
-
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Booking Behavior
+              </label>
+              <select
+                {...register('isBlockableOverride')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Default (from Resource Type)</option>
+                <option value="true">Force Blockable (Exclusive)</option>
+                <option value="false">Force Non-Blockable</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Override the default booking behavior.
+              </p>
+            </div>
             {/* Dynamic fields based on resource type */}
             {resourceType?.fieldDefinitions?.map((field) => (
               <div key={field.fieldName}>

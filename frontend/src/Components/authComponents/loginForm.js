@@ -70,7 +70,7 @@ const LoginForm = () => {
     }
   };
   return (
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-0">
         <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required />
         <div className="relative">
   <FormInput

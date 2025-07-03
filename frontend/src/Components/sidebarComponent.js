@@ -134,7 +134,7 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto pb-4">
           {/* Date Picker */}
-          <div className="mt-3 px-4">
+          <div className="mt-0 px-4">
             <DateRangeFilter
               onDateRangeSelect={onDateRangeSelect}
               onCalendarDateChange={onCalendarDateChange}
@@ -255,7 +255,7 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
                   >
                     <div className="flex items-center">
                       <FiPackage className="mr-3 text-blue-500" size={24} />
-                      <span>Resources</span>
+                      <span>Assets</span>
                     </div>
                     <FiChevronDown 
                       className={`transition-transform duration-200 ${expandedCategories.resources ? 'transform rotate-180' : ''}`} 
@@ -327,9 +327,9 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
               />
               <StyledAddButton 
                 icon={<FiTool size={18} />} 
-                label="Resource" 
+                label="Assets" 
                 onClick={() => {
-                  handleNavigation('/create-resource-type');
+                  handleNavigation('/show-resource-type');
                   setShowAddOptions(false);
                 }}
               />

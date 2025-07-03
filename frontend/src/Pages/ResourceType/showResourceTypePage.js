@@ -26,9 +26,9 @@ const ResourceTypesPage = () => {
 
   // Fetch all resource types and setup socket
   useEffect(() => {
-    if (access_level >= 3) {
-      dispatch(fetchResourceTypes());
-    }
+    // if (access_level >= 3) {
+    //   dispatch(fetchResourceTypes());
+    // }
 
     const socket = io(API_URL, {
       query: { organizationId: user?.organization }
@@ -47,7 +47,7 @@ const ResourceTypesPage = () => {
 
     return () => {
       socket.disconnect();
-      dispatch(resetResourceTypeState());
+      // dispatch(resetResourceTypeState());
     };
   }, [dispatch, user?.organization, access_level, API_URL]);
 

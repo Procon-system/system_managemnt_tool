@@ -46,8 +46,6 @@ const ConditionalNavBar = () => {
 };
 
 const App = () => {
-  
-
   const { isLoggedIn, token } = useSelector((state) => state.auth);
 
   useEffect(() => {
@@ -70,7 +68,7 @@ const App = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/logout" element={<LogoutPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password/:id/:token" element={<ResetPasswordPage />} />
+          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/confirm-email/:confirmationCode" element={<ConfirmEmail />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="/import-calendar" element={<MainLayout><CalendarImport /></MainLayout>} />

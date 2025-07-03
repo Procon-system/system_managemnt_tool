@@ -1,13 +1,11 @@
 
-
-
 import { useState, useEffect, useCallback } from 'react'; // <-- Step 1
 import {  useSelector } from 'react-redux';
 import RichTextEditor from './richTextEditor';
 import {SelectInput} from './selectInput';
 import DOMPurify from 'dompurify';
 import RecurrencePicker from './recurrencePicker'; // <-- Step 1 (Adjust path)
-
+import { useDebounce } from '../../hooks/useDebounce';
 import ImageSlider from './imageSlider';
 import { useResources } from '../../hooks/useResources';
 import { useUsers } from '../../hooks/useUsers';
@@ -74,15 +72,37 @@ const EventDetailsModal = ({
   handleFormSubmit,
 }) => {
    
+const [newImages, setNewImages] = useState([]); // Store new images for preview
+const [images, setImages] = useState([]);
+const token = useSelector(state => state.auth.token);
 const { resourceTypes } = useSelector((state) => state.resourceTypes);
 const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
-const typeIds = resourceTypes?.map(type => type._id) || [];
-   const { users = [] } = useUsers();
-   const { getResourcesByType } = useResources(typeIds);
- 
+const [isEditMode, setIsEditMode] = useState(false);
+const [editableEvent, setEditableEvent] = useState(selectedEvent || {});
+const { users = [] } = useUsers();
+const {
+  availableResources,
+  isFetchingAvailable,
+  getAvailableResourcesForType,
+} = useResources();
+
 useEffect(() => {
   setEditableEvent(selectedEvent || {});
 }, [selectedEvent]);
+
+const debouncedStartTime = useDebounce(editableEvent?.start, 500); 
+const debouncedEndTime = useDebounce(editableEvent?.end, 500);
+
+   // 2. Add the useEffect to fetch available resources
+   useEffect(() => {
+     // Only run if we are in edit mode and have valid dates/types
+     if (isEditMode && debouncedStartTime && debouncedEndTime && resourceTypes?.length > 0) {
+       resourceTypes.forEach(type => {
+         getAvailableResourcesForType(type._id, debouncedStartTime, debouncedEndTime);
+       });
+     }
+   // 3. Set the correct dependencies
+   }, [isEditMode, debouncedStartTime, debouncedEndTime, resourceTypes, getAvailableResourcesForType]);
 
 const handleChange = (e) => {
   const { name, value } = e.target;
@@ -110,11 +130,6 @@ const handleChange = (e) => {
   }));
 };
 
-
-    const [newImages, setNewImages] = useState([]); // Store new images for preview
-   const [editableEvent, setEditableEvent] = useState(selectedEvent || {});
-  const [images, setImages] = useState([]);
-  const token = useSelector(state => state.auth.token);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -243,8 +258,7 @@ const handleChange = (e) => {
     );
     handleFormSubmit(cleanPayload);
   };
-  const [isEditMode, setIsEditMode] = useState(false);
-  const handleStatusChange = async (newStatus) => {
+   const handleStatusChange = async (newStatus) => {
     // Create an updated event object with only the status changed
     const updatedEvent = {
       ...editableEvent,
@@ -493,58 +507,70 @@ const handleChange = (e) => {
         />
       </div>
 
-      {/* Resources by Type */}
+     
       {resourceTypes.map(type => {
-        const availableResources = getResourcesByType(type._id) || [];
+
+        const resourcesForThisType = availableResources[type._id] || [];
+
+        // 2. Get the currently selected resources for this type to set the dropdown's value
         const currentResourcesForType = editableEvent?.assigned_resources?.resources
-          ?.filter(res => res.resource?.type?._id === type._id)
+          ?.filter(res => (res.resource?.type?._id || res.resource?.type) === type._id)
           ?.map(res => res.resource._id) || [];
+        
+        // 3. Use the new loading state
+        const isLoading = isFetchingAvailable;
 
         return (
           <div key={type._id} className="border rounded-lg p-4 bg-white">
-            <SelectInput
-              label={type.name}
-              name={`resources_${type._id}`}
-              value={currentResourcesForType}
-              onChange={(e) => {
-                const selectedResourceIds = e.target.value || [];
-                
-                // Keep resources of other types
-                const otherResources = editableEvent?.assigned_resources?.resources?.filter(
-                  res => res.resource?.type?._id !== type._id
-                ) || [];
+            {isLoading ? (
+                <div className="text-sm text-gray-500 animate-pulse">
+                    Checking availability...
+                </div>
+            ) : (
+                <SelectInput
+                  label={type.name}
+                  name={`resources_${type._id}`}
+                  value={currentResourcesForType}
+                  onChange={(e) => {
+                    const selectedResourceIds = e.target.value || [];
+                    
+                    const otherResources = editableEvent?.assigned_resources?.resources?.filter(
+                      res => (res.resource?.type?._id || res.resource?.type) !== type._id
+                    ) || [];
 
-                // Create new resource objects for selected ones
-                const newResources = selectedResourceIds.map(resourceId => {
-                  const resource = availableResources.find(r => r._id === resourceId);
-                  
-                  return {
-                    _id: resource._id,
-                    relationshipType: "requires",
-                    required: false,
-                    resource: {
-                      _id: resourceId,
-                      type: type,
-                      displayName: resource?.displayName,
-                      ...resource
-                    }
-                  };
-                });
+                    // 4. Map over the NEW availableResources list to find the full object
+                    const newResources = selectedResourceIds.map(resourceId => {
+                      const resource = resourcesForThisType.find(r => r._id === resourceId);
+                      
+                      return {
+                        _id: resource?._id, // Use optional chaining for safety
+                        relationshipType: "requires",
+                        required: false,
+                        resource: {
+                          _id: resourceId,
+                          type: type,
+                          displayName: resource?.displayName,
+                          ...resource
+                        }
+                      };
+                    });
 
-                setEditableEvent(prev => ({
-                  ...prev,
-                  assigned_resources: {
-                    ...prev.assigned_resources,
-                    resources: [...otherResources, ...newResources]
-                  }
-                }));
-              }}
-              options={availableResources.map(r => ({
-                label: r.displayName || r.name,
-                value: r._id
-              }))}
-              isMulti
-            />
+                    setEditableEvent(prev => ({
+                      ...prev,
+                      assigned_resources: {
+                        ...prev.assigned_resources,
+                        resources: [...otherResources, ...newResources]
+                      }
+                    }));
+                  }}
+                  // 5. Populate options from the NEW availableResources list
+                  options={resourcesForThisType.map(r => ({
+                    label: r.displayName || r.name,
+                    value: r._id
+                  }))}
+                  isMulti
+                />
+            )}
             {type.description && (
               <p className="text-xs text-gray-500 mt-2">{type.description}</p>
             )}
@@ -569,11 +595,7 @@ const handleChange = (e) => {
 
             </>
           ): (
-            <div className="space-y-4">
-              {/* ==================================================================== */}
-              {/* --- NEW, UNIFIED HEADER SECTION --- */}
-              {/* ==================================================================== */}
-              <div className="flex justify-between items-center border-b pb-4">
+            <div className="space-y-4">              <div className="flex justify-between items-center border-b pb-4">
                 {/* --- LEFT SIDE: Title and Status Changer --- */}
                 <div className="flex items-center gap-x-4">
                  
@@ -615,9 +637,6 @@ const handleChange = (e) => {
                
               </div>
           
-              {/* ==================================================================== */}
-              {/* --- REST OF YOUR DISPLAY VIEW (THE CARDS) --- */}
-              {/* ==================================================================== */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
                 {/* Image Slider */}
                 {images.length > 0 && (

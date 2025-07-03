@@ -54,6 +54,34 @@ exports.getResourceById = async (req, res) => {
     sendResponse(res, 500, error.message, null);
   }
 };
+exports.getAvailableResourcesByType = async (req, res) => {
+  try {
+    const { typeId } = req.params;
+    const { startTime, endTime } = req.query;
+    const { Resource, ResourceBooking } = req.tenantModels;
+
+    if (!typeId || !startTime || !endTime) {
+      return res.status(400).json({ message: 'typeId, startTime, and endTime are required query parameters.' });
+    }
+
+    const availableResources = await resourceService.getAvailableResourcesByType(
+      typeId,
+      startTime,
+      endTime,
+      { ResourceModel: Resource, ResourceBookingModel: ResourceBooking }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Available resources retrieved successfully',
+      data: availableResources
+    });
+
+  } catch (error) {
+    console.error('Error in getAvailableResourcesByType:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
 
 exports.getResourcesByType = async (req, res) => {
   try {

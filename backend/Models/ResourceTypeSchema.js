@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-// https://lovable.dev/projects/d14f8c31-c82d-4665-8eda-4fdedc860be0
 module.exports = (connection) => {
  
   if (connection.models['ResourceType']) {
@@ -15,6 +14,10 @@ module.exports = (connection) => {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Organization',
       required: true
+    },
+    isBlockable: {
+      type: Boolean,
+      default: false // The default for any resource of this type
     },
     icon: String,
     color: String,

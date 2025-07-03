@@ -105,7 +105,7 @@ const RegisterForm = () => {
   };
  
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-0">
       <FormInput label="First Name" name="first_name" type="text" value={formData.first_name} onChange={handleChange} required />
       <FormInput label="Last Name" name="last_name" type="text" value={formData.last_name} onChange={handleChange} required />
       <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required />

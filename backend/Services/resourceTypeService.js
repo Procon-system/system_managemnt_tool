@@ -1,22 +1,6 @@
 
 // services/resourceTypeService.js
 
-// exports.createResourceType = async (typeData, ResourceTypeModel) => {
-//   if (!typeData.fieldDefinitions || typeData.fieldDefinitions.length === 0) {
-//     throw new Error('At least one field definition is required');
-//   }
-
-//   const fieldNames = typeData.fieldDefinitions.map(f => f.fieldName);
-//   const uniqueNames = new Set(fieldNames);
-
-//   if (fieldNames.length !== uniqueNames.size) {
-//     throw new Error('Field names must be unique within a resource type');
-//   }
-
-//   const resourceType = new ResourceTypeModel(typeData);
-//   return await resourceType.save();
-// };
-
 exports.createResourceType = async (typeData, ResourceTypeModel) => {
   if (!typeData.fieldDefinitions || typeData.fieldDefinitions.length === 0) {
     const err = new Error('At least one field definition is required');

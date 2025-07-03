@@ -276,64 +276,130 @@ async function confirmEmail(confirmationCode) {
 }
 
 async function forgotPassword(email) {
-  const user = await User.findOne({ email });
-  if (!user) throw new Error("User with this email does not exist");
+  let user;
+  let tenantId = null; // Default to null for Superadmins
 
-  // Generate reset token
-  const resetToken = crypto.randomBytes(20).toString('hex');
-  user.resetPasswordToken = crypto
-    .createHash('sha256')
-    .update(resetToken)
-    .digest('hex');
-  user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-  
-  await user.save();
+  // 1. Check for Superadmin in the main database first.
+  try {
+    const Superadmin = mongoose.model('Superadmin');
+    const superadmin = await Superadmin.findOne({ email });
+    if (superadmin) {
+      user = superadmin;
+    }
+  } catch (error) {
+    console.error("Error checking for Superadmin:", error);
+    // Continue silently
+  }
 
-  await sendResetPasswordLink(user.email, resetToken);
+  // 2. If not a Superadmin, find the tenant user.
+  if (!user) {
+    const TenantUser = mongoose.model('TenantUser');
+    const tenantUser = await TenantUser.findOne({ email });
 
-  return { 
-    success: true, 
-    message: "Password reset email sent",
-    resetToken 
+    if (!tenantUser) {
+      console.log(`Password reset requested for non-existent email: ${email}`);
+      return {
+        success: true,
+        message: "If an account with that email exists, a password reset link has been sent."
+      };
+    }
+   
+    const orgId = tenantUser.tenantId;
+    const tenantConn = await getOrganizationDB(orgId);
+    const User = tenantConn.models.get('User');
+    user = await User.findOne({ email });
+    tenantId = orgId; // Set the tenantId for the JWT payload
+  }
+
+  // 3. If after all checks, the user is still not found, exit.
+  if (!user) {
+    console.log(`Password reset for ${email}, but user not found in designated DB.`);
+    return {
+      success: true,
+      message: "If an account with that email exists, a password reset link has been sent."
+    };
+  }
+
+  // 4. Create the JWT payload.
+  // This securely identifies the user without needing a database lookup later.
+  const payload = {
+    id: user._id,
+    tenantId: tenantId, // Will be null for Superadmins
+    purpose: 'password-reset' // Good practice to scope tokens
+  };
+
+  // 5. Sign the JWT to create the reset token.
+  const resetToken = jwt.sign(
+    payload,
+    process.env.RESET_PASSWORD_JWT_SECRET,
+    { expiresIn: process.env.RESET_PASSWORD_JWT_EXPIRES_IN }
+  );
+
+ 
+  // 6. Email the user the JWT.
+  try {
+    await sendResetPasswordLink(user.email, resetToken);
+  } catch (error) {
+    console.error("Forgot Password Flow: Failed to send email.", error);
+    throw new Error("Could not send password reset email. Please try again later.");
+  }
+
+  // 7. Return a success message.
+  return {
+    success: true,
+    message: "If an account with that email exists, a password reset link has been sent."
   };
 }
 
 async function resetPassword(token, password) {
-  // Hash the token to compare with database
-  const hashedToken = crypto
-    .createHash('sha256')
-    .update(token)
-    .digest('hex');
-
-  const user = await User.findOne({
-    resetPasswordToken: hashedToken,
-    resetPasswordExpire: { $gt: Date.now() }
-  });
-
-  if (!user) {
-    throw new Error("Invalid or expired token");
+  let decoded;
+    try {
+    decoded = jwt.verify(token, process.env.RESET_PASSWORD_JWT_SECRET);
+  } catch (error) {
+    // Catches JsonWebTokenError, TokenExpiredError, etc.
+    throw new Error("Invalid or expired password reset token.");
   }
 
-  // Update password
-  user.password = await bcrypt.hash(password, 12);
-  user.resetPasswordToken = undefined;
-  user.resetPasswordExpire = undefined;
+  // Ensure the token's purpose is correct
+  if (decoded.purpose !== 'password-reset') {
+      throw new Error("Invalid token.");
+  }
+
+  const { id, tenantId } = decoded;
+  let user;
+
+  // 2. Find the user in the correct database using info from the token.
+  // NO LOOPING REQUIRED!
+  if (tenantId) {
+    // It's a tenant user
+    const tenantConn = await getOrganizationDB(tenantId);
+    const User = tenantConn.models.get('User');
+    user = await User.findById(id);
+  } else {
+    // It's a Superadmin
+    const Superadmin = mongoose.model('Superadmin');
+    user = await Superadmin.findById(id);
+  }
+
+  // 3. If user not found (e.g., deleted after token was sent)
+  if (!user) {
+    throw new Error("User associated with this token no longer exists.");
+  }
+
+  // 4. Update password and save.
+  user.password = password; // Assuming a pre-save hook handles hashing
+  // No token fields to clear from the user model anymore.
   await user.save();
 
-  // Generate new auth token
-  const authToken = jwt.sign(
-    { id: user._id, email: user.email },
-    process.env.JWT_SECRET,
-    { expiresIn: '1h' }
-  );
+  // 5. Generate a new authentication JWT for immediate login.
+  const authToken = user.generateAuthToken();
 
-  return { 
+  return {
     success: true,
-    message: "Password reset successful",
+    message: "Password has been reset successfully.",
     token: authToken
   };
 }
-
 const logoutUser = () => {
   // This is handled by the controller clearing cookies
   return true;

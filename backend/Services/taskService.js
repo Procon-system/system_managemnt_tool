@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
-
-
-const { addDays, addWeeks, addMonths, addYears } = require('date-fns'); // Recommended for robust date math
+const bookingService = require('./resourceBookingService');
+const { addDays, addWeeks, addMonths, addYears } = require('date-fns'); 
 
 const generateRecurringInstances = (baseTask, frequency, endDate) => {
   const tasks = [];
@@ -71,9 +70,9 @@ const generateRecurringInstances = (baseTask, frequency, endDate) => {
 
   return tasks;
 };
-exports.createRecurringTasks = async ({ baseTask, frequency, endDate, TaskModel, ResourceModel }) => {
+exports.createRecurringTasks = async ({ baseTask, frequency, endDate, TaskModel, ResourceModel, ResourceBookingModel }) => {
   // First create the root task
-  const rootTask = await exports.createTask(baseTask, TaskModel, ResourceModel); // ✅ FIXED
+  const rootTask = await exports.createTask(baseTask, TaskModel, ResourceModel, ResourceBookingModel); 
 
   // Generate recurring instances
   const recurringInstances = generateRecurringInstances(
@@ -82,9 +81,54 @@ exports.createRecurringTasks = async ({ baseTask, frequency, endDate, TaskModel,
     endDate
   );
 
+// --- NEW: Check for conflicts for ALL future instances before creating them ---
+if (baseTask.resources?.length > 0) {
+  const resourceIds = baseTask.resources.map(r => r.resource);
+  // This is an advanced query to check all time slots in one go
+  const timeSlots = recurringInstances.map(inst => ({
+      startTime: { $lt: inst.schedule.end },
+      endTime: { $gt: inst.schedule.start },
+  }));
+
+  const conflicts = await ResourceBookingModel.find({
+      resource: { $in: resourceIds },
+      organization: baseTask.organization,
+      status: 'confirmed',
+      $or: timeSlots
+  }).populate('resource', 'displayName').populate('task', 'title').lean();
+
+  if (conflicts.length > 0) {
+      const conflictDetails = conflicts.map(c =>
+          `Resource '${c.resource.displayName}' conflicts with task '${c.task.title}'`
+      ).join('; ');
+      throw {
+          statusCode: 409,
+          message: `Cannot create recurring schedule due to resource conflicts: ${conflictDetails}`
+      };
+  }
+}
+
   // Save all instances
   const createdInstances = await TaskModel.insertMany(recurringInstances);
 
+  // --- NEW: Create bookings for ALL instances ---
+  if (baseTask.resources?.length > 0) {
+    const allBookings = createdInstances.flatMap(instance =>
+      instance.resources.map(res => ({
+        resource: res.resource,
+        task: instance._id,
+        organization: instance.organization,
+        startTime: instance.schedule.start,
+        endTime: instance.schedule.end
+      }))
+    );
+    if (allBookings.length > 0) {
+        await ResourceBookingModel.insertMany(allBookings);
+    }
+  }
+  
+  // --- END OF NEW LOGIC ---
+  
   // Get IDs of all created tasks (root + instances)
   const allTaskIds = [rootTask._id, ...createdInstances.map(t => t._id)];
 
@@ -111,14 +155,9 @@ exports.createRecurringTasks = async ({ baseTask, frequency, endDate, TaskModel,
     .lean();
 
   return populatedTasks;
-  // // Save all instances
-  // const createdInstances = await TaskModel.insertMany(recurringInstances);
-
-  // return [rootTask, ...createdInstances];
+  
 };
-
-// Simplified createTask for single tasks
-exports.createTask = async (taskData, TaskModel, ResourceModel) => {
+exports.createTask = async (taskData, TaskModel, ResourceModel, ResourceBookingModel) => {
   try {
     // Basic validation
     if (!taskData.title?.trim()) {
@@ -136,53 +175,94 @@ exports.createTask = async (taskData, TaskModel, ResourceModel) => {
       };
     }
 
-    // Create task without transaction
+    // --- REVISED: INTELLIGENT RESOURCE AVAILABILITY CHECK ---
+    if (taskData.resources?.length > 0) {
+      const allResourceIds = taskData.resources.map(r => r.resource);
+
+      // 1. Fetch resources and populate their type to get both the override and the default value.
+      // This single query validates existence and fetches the necessary data.
+      const resourcesToCheck = await ResourceModel.find({
+        _id: { $in: allResourceIds },
+        organization: taskData.organization
+      })
+      .populate('type', 'isBlockable') // Efficiently populate only the 'isBlockable' default.
+      .lean();
+
+      // 2. Validate that all requested resources were found
+      if (resourcesToCheck.length !== allResourceIds.length) {
+        throw { statusCode: 404, message: 'Some resources were not found or do not belong to the organization.' };
+      }
+      
+      // 3. Determine which resources are effectively blockable using the override logic.
+      const blockableResourceIds = resourcesToCheck
+        .filter(resource => {
+          const isEffectivelyBlockable = resource.isBlockableOverride ?? resource.type?.isBlockable ?? false;
+          return isEffectivelyBlockable;
+        })
+        .map(resource => resource._id); // Get just the IDs of the blockable resources.
+
+      // 4. If any of the assigned resources are blockable, check them for scheduling conflicts.
+      if (blockableResourceIds.length > 0) {
+        await bookingService.checkForConflictsAndThrow({
+          resourceIds: blockableResourceIds, // IMPORTANT: Pass ONLY the filtered list of blockable IDs
+          startTime: startDate,
+          endTime: endDate,
+          organizationId: taskData.organization,
+          ResourceBookingModel
+        });
+      }
+      // If no resources are blockable, the conflict check is correctly skipped.
+    }
+
+    // Create task
     const task = new TaskModel({
       ...taskData,
       isRecurringRoot: false,
       isRecurringInstance: false
     });
-
-    // Validate resources if they exist
-    if (taskData.resources?.length > 0) {
-      const resourceIds = taskData.resources.map(r => r.resource);
-      const existingResources = await ResourceModel.countDocuments({
-        _id: { $in: resourceIds },
-        organization: taskData.organization
-      });
-      if (existingResources !== resourceIds.length) {
-        throw { statusCode: 404, message: 'Some resources not found' };
-      }
-    }
-
+    
     const savedTask = await task.save();
 
-    // Populate key references before returning
-const populatedTask = await TaskModel.findById(savedTask._id)
-  .populate([
-    {
-      path: 'resources.resource',
-      populate: { path: 'type', select: 'name icon color' }
-    },
-    {
-      path: 'assignments.user',
-      select: 'first_name last_name email avatar'
-    },
-    {
-      path: 'assignments.team',
-      select: 'name'
-    },
-    {
-      path: 'dependencies.task',
-      select: 'title status'
+    // Create bookings for ALL assigned resources, as this logs their assignment.
+    if (savedTask.resources?.length > 0) {
+      const bookingsToCreate = savedTask.resources.map(res => ({
+        resource: res.resource,
+        task: savedTask._id,
+        organization: savedTask.organization,
+        startTime: savedTask.schedule.start,
+        endTime: savedTask.schedule.end,
+      }));
+      await ResourceBookingModel.insertMany(bookingsToCreate);
     }
-  ])
-  .lean();
+   
+    // Populate key references before returning
+    const populatedTask = await TaskModel.findById(savedTask._id)
+      .populate([
+        {
+          path: 'resources.resource',
+          // Note: You can now populate the override field here if the UI needs it
+          populate: { path: 'type', select: 'name icon color isBlockable' }
+        },
+        {
+          path: 'assignments.user',
+          select: 'first_name last_name email avatar'
+        },
+        {
+          path: 'assignments.team',
+          select: 'name'
+        },
+        {
+          path: 'dependencies.task',
+          select: 'title status'
+        }
+      ])
+      .lean();
 
-return populatedTask;
+    return populatedTask;
 
   } catch (error) {
-    console.error('Error in task service:', error);
+    console.error('Error in task creation service:', error);
+    // Re-throw for the controller/route handler to manage the HTTP response
     throw error;
   }
 };
@@ -203,14 +283,10 @@ exports.getTaskById = async (taskId, TaskModel) => {
   
   return task;
 };
-
-exports.updateTask = async (taskId, updateData, TaskModel) => {
+exports.updateTask = async (taskId, updateData, TaskModel, ResourceBookingModel) => {
  
-  // Step 1: Fetch the task's current state BEFORE the update.
-  // This is crucial for comparing old vs. new status and for getting the assignment/resource plan.
   const taskBeforeUpdate = await TaskModel.findById(taskId);
 
-  // If the task doesn't exist, throw an error immediately.
   if (!taskBeforeUpdate) {
     throw { message: 'Task not found', statusCode: 404 };
   }
@@ -223,12 +299,36 @@ exports.updateTask = async (taskId, updateData, TaskModel) => {
     };
   }
 
-  // Step 2: Analyze the state change and dynamically build the final update operation.
-  // This is the core logic for automatic log generation.
+  // 2. Determine if a conflict check is needed
+  const newSchedule = updateData.schedule;
+  const newResources = updateData.resources;
+  const scheduleChanged = newSchedule && (
+    new Date(taskBeforeUpdate.schedule.start).getTime() !== new Date(newSchedule.start).getTime() ||
+    new Date(taskBeforeUpdate.schedule.end).getTime() !== new Date(newSchedule.end).getTime()
+  );
+  const resourcesChanged = newResources !== undefined;
+
+  // 3. Perform conflict check if schedule or resources changed
+  if (scheduleChanged || resourcesChanged) {
+    // Use the new data if available, otherwise fall back to the old data.
+    const resourcesToCheck = newResources || taskBeforeUpdate.resources;
+    if (resourcesToCheck && resourcesToCheck.length > 0) {
+        const resourceIds = resourcesToCheck.map(r => r.resource);
+        await bookingService.checkForConflictsAndThrow({
+            resourceIds,
+            startTime: newSchedule?.start || taskBeforeUpdate.schedule.start,
+            endTime: newSchedule?.end || taskBeforeUpdate.schedule.end,
+            organizationId: taskBeforeUpdate.organization,
+            ResourceBookingModel,
+            excludeTaskId: taskId // CRUCIAL: Don't let the task conflict with itself!
+        });
+    }
+  }
+
   const isCompletingNow = updateData.status === 'done' && taskBeforeUpdate.status !== 'done';
 
   if (isCompletingNow) {
-    // Ensure the task has a defined start and end time for accurate logging.
+   
     if (!taskBeforeUpdate.schedule.start || !taskBeforeUpdate.schedule.end) {
         throw { message: 'Cannot complete a task without a defined start and end time.', statusCode: 400 };
     }
@@ -251,7 +351,6 @@ exports.updateTask = async (taskId, updateData, TaskModel) => {
         });
       });
     }
-
     // --- Generate Resource Logs ---
     const newResourceLogs = [];
     if (taskBeforeUpdate.resources && taskBeforeUpdate.resources.length > 0) {
@@ -263,47 +362,82 @@ exports.updateTask = async (taskId, updateData, TaskModel) => {
         newResourceLogs.push({
           resource: plannedResource.resource,
           action: action,
-          // NOTE: Your 'resources' schema doesn't have a quantity. Defaulting to 1.
-          // For more accuracy, you could add a `quantity` field to the planned resources array.
           quantity: plannedResource.quantity || 1,
-          loggedBy: taskBeforeUpdate.createdBy // The user who created the task plan.
+          loggedBy: taskBeforeUpdate.createdBy 
         });
       });
     }
 
-    // --- Modify the update payload ---
-    // Safely add the $push operator to the updateData object.
     if (!updateData.$push) {
       updateData.$push = {};
     }
     updateData.$push.timeLogs = { $each: newTimeLogs };
     updateData.$push.resourceLogs = { $each: newResourceLogs };
   }
-  const task = await TaskModel.findOneAndUpdate(
-    { _id: taskId },
+  // const task = await TaskModel.findOneAndUpdate(
+  //   { _id: taskId },
+  //   updateData,
+  //   { new: true, runValidators: true }
+  // );
+  const updatedTask = await TaskModel.findByIdAndUpdate(
+    taskId,
     updateData,
     { new: true, runValidators: true }
-  )
-  .populate({
-    path: 'resources.resource',
-    populate: {
-      path: 'type',
-      model: 'ResourceType',
-      select: 'name icon color'
-    }
-  })
-  .populate({
-    path: 'assignments.user',
-    select: 'first_name last_name email avatar'
-  })
-    
-  if (!task) {
-    throw { message: 'Task not found', statusCode: 404 };
-  }
-  
-  return task;
-};
+  );
+  // 6. Sync Resource Bookings
+  const statusChanged = updateData.status && updateData.status !== taskBeforeUpdate.status;
+  const isNowInactive = ['done', 'archived', 'impossible'].includes(updatedTask.status);
 
+  // We need to update bookings if schedule/resources changed OR if the task became inactive.
+  if (scheduleChanged || resourcesChanged || (statusChanged && isNowInactive)) {
+    // A. Always remove old bookings for simplicity and robustness.
+    await ResourceBookingModel.deleteMany({ task: taskId });
+
+    // B. If the task is still active and has resources, create new bookings.
+    if (!isNowInactive && updatedTask.resources && updatedTask.resources.length > 0) {
+      const newBookings = updatedTask.resources.map(res => ({
+        resource: res.resource,
+        task: updatedTask._id,
+        organization: updatedTask.organization,
+        startTime: updatedTask.schedule.start,
+        endTime: updatedTask.schedule.end,
+        status: 'confirmed'
+      }));
+      await ResourceBookingModel.insertMany(newBookings);
+    }
+  }
+
+  // .populate({
+  //   path: 'resources.resource',
+  //   populate: {
+  //     path: 'type',
+  //     model: 'ResourceType',
+  //     select: 'name icon color'
+  //   }
+  // })
+  // .populate({
+  //   path: 'assignments.user',
+  //   select: 'first_name last_name email avatar'
+  // })
+    
+  // if (!task) {
+  //   throw { message: 'Task not found', statusCode: 404 };
+  // }
+  
+  // return task;
+  return await TaskModel.findById(updatedTask._id)
+    .populate([
+      {
+        path: 'resources.resource',
+        populate: { path: 'type', select: 'name icon color' }
+      },
+      {
+        path: 'assignments.user',
+        select: 'first_name last_name email avatar'
+      }
+    ])
+    .lean(); 
+};
 exports.deleteTask = async (taskId, TaskModel) => {
   const task = await TaskModel.findOneAndDelete({
     _id: taskId,
@@ -320,7 +454,6 @@ exports.deleteTask = async (taskId, TaskModel) => {
     { $pull: { dependencies: { task: taskId } } }
   );
 };
-
 exports.getTasksByOrganization = async (TaskModel, options = {}) => {
   const { page = 1, limit = 100 } = options;
   
@@ -355,7 +488,6 @@ exports.getTasksByOrganization = async (TaskModel, options = {}) => {
     currentPage: page
   };
 };
-
 exports.filterTasksByOrganization = async (organizationId,TaskModel, options = {}) => {
   const { page = 1, limit = 100, filters = {} } = options;
  
@@ -577,7 +709,6 @@ exports.changeTaskStatus = async (taskId, newStatus, changedBy, notes, TaskModel
   
   return await task.save();
 };
-
 exports.fetchAllDoneTasks = async (organizationId,TaskModel) => {
   const tasks = await TaskModel.find({
     organization: organizationId,
@@ -598,7 +729,6 @@ exports.fetchAllDoneTasks = async (organizationId,TaskModel) => {
 
   return tasks;
 };
-
 exports.fetchDoneTasksForUser = async (userId, organizationId, TaskModel) => {
   const tasks = await TaskModel.find({
     'assignments.user': userId,
@@ -618,7 +748,6 @@ exports.fetchDoneTasksForUser = async (userId, organizationId, TaskModel) => {
 
   return tasks;
 };
-
 exports.getTasksByAssignedUser = async (userId, organizationId, TaskModel) => {
   return await TaskModel.find({
     'assignments.user': userId,

@@ -1,11 +1,14 @@
 const nodemailer = require("nodemailer");
 require('dotenv').config();
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: process.env.SMTP_HOST, 
+  port: process.env.SMTP_PORT, 
+  secure: true,
   auth: {
-    user: process.env.GMAIL_USERNAME,
-    pass: process.env.GMAIL_PASSWORD,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS, 
   },
+  
 });
 exports.sendConfirmationEmail = async (email, confirmationCode, username) => {
   const confirmationLink = `http://localhost:3000/confirm-email/${confirmationCode}`;  // Construct the confirmation URL with the confirmationCode
@@ -41,19 +44,32 @@ exports.sendWelcomeEmail = async (email, username) => {
   await transporter.sendMail(mailOptions);
 };
 
-exports.sendRestPasswordLink = async (email, id, token) => {
+// emailService.js
+
+// Corrected function name and signature
+exports.sendResetPasswordLink = async (email, token) => {
+  // The link your user will click. It should point to YOUR FRONTEND APP.
+  const resetLink = `http://localhost:3000/reset-password/${token}`; // Use your production URL here later
+
   const mailOptions = {
-    from: `Management Team <${process.env.GMAIL_USERNAME}>`,
+    from: `"Tasknitter Support" <${process.env.SMTP_USER}>`, // Use a professional "from" name
     to: email,
-    subject: 'Reset Password Link',
-    text: `To reset your password, please click the following link: http://localhost:3000/reset-password/${id}/${token}`
+    subject: 'Your Password Reset Request',
+    text: `You requested a password reset. Please click the following link to set a new password: ${resetLink}\n\nIf you did not request this, please ignore this email.`,
+    html: `
+      <p>You requested a password reset.</p>
+      <p>Please click the link below to set a new password:</p>
+      <a href="${resetLink}" style="font-size: 16px; color: #ffffff; background-color: #007bff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Your Password</a>
+      <p>If you did not request this, please ignore this email.</p>
+    `,
   };
 
-  transporter.sendMail(mailOptions, function (error, info) {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log("Password reset email sent:", info.response);
-    }
-  });
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Password reset email sent:", info.response);
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    // It's important to throw the error so the controller can catch it
+    throw new Error("Failed to send password reset email.");
+  }
 };

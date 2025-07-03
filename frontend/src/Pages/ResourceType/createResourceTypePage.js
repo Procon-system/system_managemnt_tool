@@ -5,7 +5,7 @@ import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { createResourceType } from '../../features/resourceTypeSlice';
 import IconExplorer from '../../Components/common/IconPicker';
-import { FiChevronDown, FiX, FiPlus, FiSave, FiFileText } from 'react-icons/fi';
+import { FiChevronDown, FiX, FiPlus, FiSave, FiFileText, FiInfo } from 'react-icons/fi';
 import * as FeatherIcons from 'react-icons/fi';
 import { toast } from 'react-toastify';
 
@@ -18,7 +18,8 @@ const CreateResourceTypePage = () => {
     name: '',
     icon: 'FiBox', // A sensible default icon
     color: '#3b82f6',
-    fieldDefinitions: []
+    fieldDefinitions: [],
+    isBlockable: false,
   });
 
   const addField = () => {
@@ -149,10 +150,43 @@ const CreateResourceTypePage = () => {
                   <span className="font-mono text-sm bg-white border border-gray-300 px-2 py-1 rounded-md">{resourceType.color}</span>
                 </div>
               </div>
+              <div className="space-y-1 lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">Exclusive Booking (Blockable)</label>
+                  <div className="flex items-center space-x-4">
+                    <label htmlFor="isBlockable-toggle" className="flex items-center cursor-pointer">
+                      <div className="relative">
+                        <input 
+                          type="checkbox" 
+                          id="isBlockable-toggle" 
+                          className="sr-only peer"
+                          checked={resourceType.isBlockable}
+                          onChange={(e) => setResourceType({...resourceType, isBlockable: e.target.checked})} 
+                        />
+                        <div className="block bg-gray-300 w-12 h-7 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+                        <div className="dot absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform peer-checked:translate-x-full"></div>
+                      </div>
+                      <span className="ml-3 text-gray-700 font-medium">
+                        {resourceType.isBlockable ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="relative group flex items-center">
+      <FiInfo className="text-gray-400 cursor-pointer" size={16} />
+      {/* The Tooltip box */}
+      <div className="absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 
+                      px-3 py-2 bg-blue-500 text-white text-xs text-center rounded-lg shadow-lg 
+                      opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        When enabled, resources of this type cannot be assigned to multiple tasks that overlap in time.
+        {/* Optional: little arrow */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-800"></div>
+      </div>
+    </div>
+                </div>
+               
+
             </div>
           </div>
           
-          {/* --- FIELD DEFINITIONS SECTION --- */}
           <div>
             <div className="flex justify-between items-center mb-4 border-b pb-3">
               <h2 className="text-lg font-semibold text-gray-800">Field Definitions</h2>
