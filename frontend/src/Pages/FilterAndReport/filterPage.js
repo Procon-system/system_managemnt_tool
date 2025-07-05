@@ -16,10 +16,12 @@ const FilterPage = () => {
   
   // Get resource IDs for the hook
   const resourceTypeIds = resourceTypes?.map(type => type._id) || [];
-  
+  const { allResourcesByType, loading: resourcesLoading } = useResources(
+    resourceTypeIds, 
+    { fetchAllOnMount: true } // Tell the hook to fetch all resources
+  );
   // Use the resources hook
-  const { getResourcesByType, loading: resourcesLoading } = useResources(resourceTypeIds);
-
+  // const { allResourcesByType, loading: resourcesLoading } = useResources(resourceTypeIds);
   // Handle filtering
   const handleFilter = (filters) => {
     dispatch(filterTasks(filters));
@@ -40,7 +42,7 @@ const FilterPage = () => {
         onReset={resetFilters}
         users={users}
         resourceTypes={resourceTypes}
-        getResourcesByType={getResourcesByType}
+        allResourcesByType={allResourcesByType}
         resourcesLoading={resourcesLoading || resourceTypesLoading}
       />
       {status === "loading" ? (

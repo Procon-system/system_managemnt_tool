@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire';
 import resourceService from '../Services/resourceService';
+const fetchCache = {};
+const CACHE_DURATION_MS = 5000; // Prevent re-fetching the same data for 5 seconds
 
 // Async Thunks using the service layer
 export const createResource = createAsyncThunk(
@@ -36,20 +38,60 @@ export const fetchResourcesByType = createAsyncThunk(
     }
   }
 );
+// export const fetchAvailableResources = createAsyncThunk(
+//   'resources/fetchAvailable',
+//   async ({ typeId, startTime, endTime }, { getState, dispatch, rejectWithValue }) => {
+//     const token = getState().auth.token;
+//     if (checkTokenAndLogout(token, dispatch)) return null;
+//     try {
+//       const response = await resourceService.getAvailableResources({ typeId, startTime, endTime }, token);
+//       // Return a payload that includes the typeId to store data correctly
+//       return { typeId, resources: response.data };
+//     } catch (error) {
+//       return rejectWithValue(error.message || 'Error fetching available resources');
+//     }
+//   }
+// );
 export const fetchAvailableResources = createAsyncThunk(
   'resources/fetchAvailable',
-  async ({ typeId, startTime, endTime }, { getState, dispatch, rejectWithValue }) => {
+  async ({ typeId, startTime, endTime }, { getState,dispatch,  rejectWithValue }) => {
     const token = getState().auth.token;
     if (checkTokenAndLogout(token, dispatch)) return null;
     try {
       const response = await resourceService.getAvailableResources({ typeId, startTime, endTime }, token);
-      // Return a payload that includes the typeId to store data correctly
+      // Return a payload that includes the typeId so the reducer knows where to store the data
       return { typeId, resources: response.data };
     } catch (error) {
       return rejectWithValue(error.message || 'Error fetching available resources');
     }
+  },
+  {
+    condition: (payload) => {
+      const { typeId, startTime, endTime } = payload;
+      const cacheKey = `${typeId}-${startTime}-${endTime}`;
+      const cacheEntry = fetchCache[cacheKey];
+      const now = Date.now();
+
+      // 1. If this exact request is currently being fetched, abort.
+      if (cacheEntry?.status === 'loading') {
+        console.log(`[THUNK ABORT] Request for ${typeId} is already in-flight.`);
+        return false;
+      }
+      
+      // 2. If this exact request was successfully fetched recently, abort.
+      if (cacheEntry?.status === 'fetched' && (now - cacheEntry.timestamp < CACHE_DURATION_MS)) {
+        console.log(`[THUNK ABORT] Request for ${typeId} is still cached.`);
+        return false;
+      }
+
+      // If we proceed, mark this request as 'loading' in our cache.
+      // This is the key change that allows different requests to run concurrently.
+      fetchCache[cacheKey] = { status: 'loading', timestamp: now };
+      return true; // Proceed with the fetch.
+    }
   }
 );
+
 export const fetchResourceById = createAsyncThunk(
   'resources/fetchResourceById',
   async (id, { getState, dispatch, rejectWithValue }) => {
@@ -231,13 +273,28 @@ const resourceSlice = createSlice({
         state.availableStatus = 'succeeded';
         if (action.payload) {
           const { typeId, resources } = action.payload;
+          
           state.availableResources[typeId] = resources;
         }
       })
       .addCase(fetchAvailableResources.rejected, (state, action) => {
         state.availableStatus = 'failed';
-        state.error = action.payload; // You might want a separate error state for this
+        state.error = action.payload;
       })
+      // .addCase(fetchAvailableResources.pending, (state) => {
+      //   state.availableStatus = 'loading';
+      // })
+      // .addCase(fetchAvailableResources.fulfilled, (state, action) => {
+      //   state.availableStatus = 'succeeded';
+      //   if (action.payload) {
+      //     const { typeId, resources } = action.payload;
+      //     state.availableResources[typeId] = resources;
+      //   }
+      // })
+      // .addCase(fetchAvailableResources.rejected, (state, action) => {
+      //   state.availableStatus = 'failed';
+      //   state.error = action.payload; // You might want a separate error state for this
+      // })
   
       // Fetch Resource by ID
       .addCase(fetchResourceById.pending, (state) => {

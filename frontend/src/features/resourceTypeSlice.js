@@ -189,24 +189,20 @@ const resourceTypeSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      
-      // Delete Resource Type
-      .addCase(deleteResourceType.pending, (state) => {
-        state.status = 'loading';
-        state.loading = true;
-        state.error = null;
+     
+       .addCase(deleteResourceType.pending, (state) => {
+         state.status = 'loading'; 
       })
       .addCase(deleteResourceType.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.loading = false;
         state.resourceTypes = state.resourceTypes.filter(
           rt => rt._id !== action.payload
         );
       })
       .addCase(deleteResourceType.rejected, (state, action) => {
         state.status = 'failed';
-        state.loading = false;
-        state.error = action.payload;
+        state.loading = false; // Ensure loading is always reset
+        console.warn('Delete resource type failed:', action.payload); // Good for debugging
       });
   }
 });

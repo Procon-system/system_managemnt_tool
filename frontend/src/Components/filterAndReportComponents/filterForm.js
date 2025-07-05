@@ -5,7 +5,8 @@ const ResourceTypeFilter = ({
   resourceTypes, 
   onFilterChange,
   initialFilters = [],
-  getResourcesByType,
+  
+  allResourcesByType,
   resourcesLoading
 }) => {
   // Initialize selected resources
@@ -58,7 +59,7 @@ const ResourceTypeFilter = ({
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {types.map(type => {
-              const resources = getResourcesByType(type._id) || [];
+              const resources = allResourcesByType[type._id] || [];
               const isLoading = resourcesLoading;
               const currentSelection = selectedResources[type._id] || [];
 
@@ -107,7 +108,7 @@ const FilterForm = ({
     { value: 'done', label: 'Done' },
     { value: 'impossible', label: 'Impossible' }
   ],
-  getResourcesByType,
+  allResourcesByType,
   resourcesLoading
 }) => {
   const [filters, setFilters] = useState({
@@ -215,7 +216,7 @@ const FilterForm = ({
           resourceTypes={resourceTypes}
           onFilterChange={handleResourceFiltersChange}
           initialFilters={filters.resourceFilters}
-          getResourcesByType={getResourcesByType}
+          allResourcesByType={allResourcesByType}
           resourcesLoading={resourcesLoading}
         />
 

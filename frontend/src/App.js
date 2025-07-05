@@ -57,7 +57,16 @@ const App = () => {
 
   return (
     <Router>
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar closeOnClick pauseOnFocusLoss pauseOnHover />
+      <ToastContainer 
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover />
       <ConditionalNavBar />
       <div className="pt-16"> {/* Pushes content below navbar */}
         <Routes>

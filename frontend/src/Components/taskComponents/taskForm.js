@@ -37,32 +37,26 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
     const [formData, setFormData] = useState(getInitialState());
     const debouncedStartTime = useDebounce(formData.start_time, 500); // 500ms delay
     const debouncedEndTime = useDebounce(formData.end_time, 500);
-
-    // const typeIds = resourceTypes?.map(type => type._id) || [];
-    // const { getResourcesByType, loading: resourcesLoading } = useResources(typeIds);
+    
     const { 
         availableResources,
         isFetchingAvailable,
         getAvailableResourcesForType,
-      } = useResources();
+    } = useResources(); // No arguments needed
+  
     const { users, loading: usersLoading } = useUsers();
     
+    const stableResourceTypes = JSON.stringify(resourceTypes);
+
     useEffect(() => {
-        // const { start_time, end_time } = formData;
-        if (debouncedStartTime && debouncedEndTime && resourceTypes?.length > 0) {
-            resourceTypes.forEach(type => {
+        // We need to parse the stringified types back into an array to use it.
+        const currentResourceTypes = JSON.parse(stableResourceTypes);
+
+        if (debouncedStartTime && debouncedEndTime && currentResourceTypes?.length > 0) {
+            currentResourceTypes.forEach(type => {
                 getAvailableResourcesForType(type._id, debouncedStartTime, debouncedEndTime);
             });
-        }
-        // Ensure we have valid dates and a list of types to check
-        // if (start_time && end_time && resourceTypes?.length > 0) {
-            
-        //     // For each resource type, trigger the API call to check availability
-        //     resourceTypes.forEach(type => {
-        //         getAvailableResourcesForType(type._id, start_time, end_time);
-        //     });
-        // }
-    }, [debouncedStartTime, debouncedEndTime,formData.start_time, formData.end_time, resourceTypes, getAvailableResourcesForType]);
+        }    }, [debouncedStartTime, debouncedEndTime, stableResourceTypes, getAvailableResourcesForType]);
 
     const handleResourceSelect = (resourceTypeId, event) => {
         const selectedResources = event.target.value;

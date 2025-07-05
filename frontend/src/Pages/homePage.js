@@ -287,7 +287,7 @@ const calendarEvents = useMemo(() => {
                         ],
             dependencies: task.dependencies || [],
             tags: task.tags || [],
-            notes: '',
+            notes: task.notes,
             createdAt: task.createdAt,
             updatedAt: task.updatedAt
           };
@@ -420,7 +420,7 @@ const handleEventCreate = async (newEvent) => {
   }
 };
  
-  const handleDateRangeSelect = (startDate, endDate) => {
+const handleDateRangeSelect = (startDate, endDate) => {
     if (!startDate && !endDate) {
       setFilteredEvents(calendarEvents);
     } else if (startDate && !endDate) {
@@ -443,7 +443,7 @@ const handleEventCreate = async (newEvent) => {
     }
   };
   
-  const handleCalendarDateChange = (startDate, endDate) => {
+const handleCalendarDateChange = (startDate, endDate) => {
     // Update the calendar's start and end date when a date range is selected
     setCalendarStartDate(startDate);
     setCalendarEndDate(endDate);

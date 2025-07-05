@@ -12,6 +12,8 @@ import {
 import { io } from 'socket.io-client';
 import RenderDynamicIcon from '../../Components/common/RenderDynamicIcon';
 import EditResourceTypeModal from '../../Components/resourceTypeComponents/editResourceTypeModal';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ResourceTypesPage = () => {
   const dispatch = useDispatch();
@@ -67,17 +69,23 @@ const ResourceTypesPage = () => {
     }, 3000);
   };
 
+ 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this resource type?')) {
-      try {
-        await dispatch(deleteResourceType(id)).unwrap();
-        showToast('success', 'Resource type deleted successfully');
-      } catch (err) {
-        showToast('error', err.message || 'Failed to delete resource type');
+    if (window.confirm('Are you sure you want to delete this resource type? This cannot be undone.')) {
+      const resultAction = await dispatch(deleteResourceType(id));
+
+      if (deleteResourceType.fulfilled.match(resultAction)) {
+        toast.success('Resource type deleted successfully'); // USE LIBRARY
+      } else {
+        if (resultAction.payload) {
+          toast.error(resultAction.payload); // USE LIBRARY
+        } else {
+          toast.error('Failed to delete resource type. Please try again.'); // USE LIBRARY
+        }
       }
     }
   };
-  
+
   const handleEditClick = (resource) => {
     setSelectedResourceType(resource); // Set which resource to edit
     setIsEditModalOpen(true);          // Open the modal
@@ -105,7 +113,9 @@ const ResourceTypesPage = () => {
   );
 
    return (
+  
     <>
+     
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold text-gray-800">Resource Types</h1>
@@ -114,7 +124,7 @@ const ResourceTypesPage = () => {
             onClick={() => navigate('/create-resource-type')}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
-            Add New Resource Type
+            Add New Asset
           </button>
         )}
       </div>
