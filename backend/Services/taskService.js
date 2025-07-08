@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bookingService = require('./resourceBookingService');
 const { addDays, addWeeks, addMonths, addYears } = require('date-fns'); 
-
+const getBlockableResourceIds =require('../Helper/resourceBlocking')
 const generateRecurringInstances = (baseTask, frequency, endDate) => {
   const tasks = [];
   let currentStart = new Date(baseTask.schedule.start);
@@ -80,57 +80,72 @@ exports.createRecurringTasks = async ({ baseTask, frequency, endDate, TaskModel,
     frequency,
     endDate
   );
+ // --- REVISED: INTELLIGENT CONFLICT CHECK FOR ALL FUTURE INSTANCES ---
+ if (baseTask.resources?.length > 0 && recurringInstances.length > 0) {
+  const allResourceIds = baseTask.resources.map(r => r.resource);
 
-// --- NEW: Check for conflicts for ALL future instances before creating them ---
+  // 1. Get ONLY the IDs of resources that are actually blockable using our new helper.
+  const blockableResourceIds = await getBlockableResourceIds({
+      resourceIds: allResourceIds,
+      organizationId: baseTask.organization,
+      ResourceModel,
+  });
+  
+  // 2. Only if there are blockable resources, check them for conflicts.
+  if (blockableResourceIds.length > 0) {
+      const timeSlots = recurringInstances.map(inst => ({
+          startTime: { $lt: inst.schedule.end },
+          endTime: { $gt: inst.schedule.start },
+      }));
+
+      const conflicts = await ResourceBookingModel.find({
+          // CRITICAL: Check against the filtered list of blockable resources.
+          resource: { $in: blockableResourceIds }, 
+          organization: baseTask.organization,
+          status: 'confirmed',
+          $or: timeSlots
+      }).populate('resource', 'displayName').populate('task', 'title').lean();
+
+      if (conflicts.length > 0) {
+          // NOTE: We should probably delete the root task we just created to avoid leaving orphans.
+          await TaskModel.findByIdAndDelete(rootTask._id);
+          await ResourceBookingModel.deleteMany({ task: rootTask._id });
+          
+          const conflictDetails = conflicts.map(c =>
+              `Resource '${c.resource.displayName}' conflicts with task '${c.task?.title || 'another booking'}'`
+          ).join('; ');
+          throw {
+              statusCode: 409, // 409 Conflict is the correct status code
+              message: `Cannot create recurring schedule due to resource conflicts: ${conflictDetails}`
+          };
+      }
+  }
+}
+// --- END OF REVISED LOGIC ---
+// If no conflicts were found, proceed to save all instances and bookings
+if (recurringInstances.length === 0) {
+  return [rootTask]; // Return just the root task if no other instances were generated
+}
+
+const createdInstances = await TaskModel.insertMany(recurringInstances);
+
+// Create bookings for ALL instances
 if (baseTask.resources?.length > 0) {
-  const resourceIds = baseTask.resources.map(r => r.resource);
-  // This is an advanced query to check all time slots in one go
-  const timeSlots = recurringInstances.map(inst => ({
-      startTime: { $lt: inst.schedule.end },
-      endTime: { $gt: inst.schedule.start },
-  }));
-
-  const conflicts = await ResourceBookingModel.find({
-      resource: { $in: resourceIds },
-      organization: baseTask.organization,
-      status: 'confirmed',
-      $or: timeSlots
-  }).populate('resource', 'displayName').populate('task', 'title').lean();
-
-  if (conflicts.length > 0) {
-      const conflictDetails = conflicts.map(c =>
-          `Resource '${c.resource.displayName}' conflicts with task '${c.task.title}'`
-      ).join('; ');
-      throw {
-          statusCode: 409,
-          message: `Cannot create recurring schedule due to resource conflicts: ${conflictDetails}`
-      };
+  const allBookings = createdInstances.flatMap(instance =>
+    instance.resources.map(res => ({
+      resource: res.resource,
+      task: instance._id,
+      organization: instance.organization,
+      startTime: instance.schedule.start,
+      endTime: instance.schedule.end
+    }))
+  );
+  if (allBookings.length > 0) {
+      await ResourceBookingModel.insertMany(allBookings);
   }
 }
 
-  // Save all instances
-  const createdInstances = await TaskModel.insertMany(recurringInstances);
-
-  // --- NEW: Create bookings for ALL instances ---
-  if (baseTask.resources?.length > 0) {
-    const allBookings = createdInstances.flatMap(instance =>
-      instance.resources.map(res => ({
-        resource: res.resource,
-        task: instance._id,
-        organization: instance.organization,
-        startTime: instance.schedule.start,
-        endTime: instance.schedule.end
-      }))
-    );
-    if (allBookings.length > 0) {
-        await ResourceBookingModel.insertMany(allBookings);
-    }
-  }
-  
-  // --- END OF NEW LOGIC ---
-  
-  // Get IDs of all created tasks (root + instances)
-  const allTaskIds = [rootTask._id, ...createdInstances.map(t => t._id)];
+const allTaskIds = [rootTask._id, ...createdInstances.map(t => t._id)];
 
   // Fetch all tasks with proper population
   const populatedTasks = await TaskModel.find({ _id: { $in: allTaskIds } })
