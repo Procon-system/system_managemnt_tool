@@ -5,7 +5,6 @@ import FormInput from './inputForm';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
-// +++ Helper function for validation (mirrors your backend Joi schema) +++
 const validate = (name, value, formData) => {
   switch (name) {
     case 'first_name':
@@ -37,31 +36,24 @@ const validate = (name, value, formData) => {
 const RegisterForm = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    first_name: '',
-    last_name: '',
-    personal_number: '',
-    access_level: 1,
-    payroll: {
-      rate_type: 'hourly',
-      rate: '',
-      currency: 'USD',
-      overtime_multiplier: '1.5',
-    }
-  });
-    // +++ State for the confirm password field +++
-    const [confirmPassword, setConfirmPassword] = useState('');
+  const initialFormData = {
+    email: '', password: '', first_name: '', last_name: '', personal_number: '', access_level: 1,
+    payroll: { rate_type: 'hourly', rate: '', currency: 'USD', overtime_multiplier: '1.5' }
+  };
   
-    // +++ State to hold all validation errors +++
-    const [errors, setErrors] = useState({});
-    const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState(initialFormData);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  
-  const [confirmationMessage, setConfirmationMessage] = useState('');
 
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  useEffect(() => {
+    setFormData(initialFormData);
+    setConfirmPassword('');
+    setErrors({});
+  }, []); 
   const handleChange = (e) => {
     const { name, value } = e.target;
     let newFormData = { ...formData }; // Create a copy to work with
@@ -167,30 +159,32 @@ const RegisterForm = () => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-0">
-    {/* Pass the error message to each FormInput */}
-    <FormInput label="First Name" name="first_name" type="text" value={formData.first_name} onChange={handleChange} required error={errors.first_name} />
-    <FormInput label="Last Name" name="last_name" type="text" value={formData.last_name} onChange={handleChange} required error={errors.last_name} />
-    <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required error={errors.email} />
-    {/* +++ UPDATE aPassword Input +++ */}
-    <FormInput
+   <FormInput label="First Name" name="first_name" type="text" value={formData.first_name} onChange={handleChange} required error={errors.first_name} autoComplete="off" />
+      <FormInput label="Last Name" name="last_name" type="text" value={formData.last_name} onChange={handleChange} required error={errors.last_name} autoComplete="off" />
+      
+      {/* Tell the browser this is an email but don't autofill it in this context */}
+      <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required error={errors.email} autoComplete="off" />
+      
+      {/* Use "new-password" to signal this is for registration, which most modern browsers respect */}
+      <FormInput
         label="Password"
         name="password"
         value={formData.password}
         onChange={handleChange}
         required
         error={errors.password}
-      
         isPassword={true}
         type={showPassword ? 'text' : 'password'}
         onToggleVisibility={() => setShowPassword(!showPassword)}
+        autoComplete="new-password"
       />
     {/* +++ UPDATED: Password requirements text now matches backend +++ */}
-    <div className="text-sm text-gray-600 pl-1 mt-1">
-        <p className={formData.password.length >= 8 ? 'text-green-600' : 'text-gray-600'}>✓ At least 8 characters</p>
-        <p className={/(?=.*[A-Z])/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}>✓ One uppercase letter</p>
-        <p className={/(?=.*[a-z])/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}>✓ One lowercase letter</p>
-        <p className={/(?=.*[0-9])/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}>✓ One number</p>
-        <p className={/(?=.*[!@#$%^&*])/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}>✓ One special character (!@#$%^&*)</p>
+    <div className="text-sm text-gray-600 pl-1 mt-6">
+        <p className={formData.password.length >= 8 ? 'text-blue-600' : 'text-gray-600'}>✓ At least 8 characters</p>
+        <p className={/(?=.*[A-Z])/.test(formData.password) ? 'text-blue-600' : 'text-gray-600'}>✓ One uppercase letter</p>
+        <p className={/(?=.*[a-z])/.test(formData.password) ? 'text-blue-600' : 'text-gray-600'}>✓ One lowercase letter</p>
+        <p className={/(?=.*[0-9])/.test(formData.password) ? 'text-blue-600' : 'text-gray-600'}>✓ One number</p>
+        <p className={/(?=.*[!@#$%^&*])/.test(formData.password) ? 'text-blue-600' : 'text-gray-600'}>✓ One special character (!@#$%^&*)</p>
     </div>
 
     <FormInput
@@ -204,6 +198,7 @@ const RegisterForm = () => {
         isPassword={true}
         type={showConfirmPassword ? 'text' : 'password'}
         onToggleVisibility={() => setShowConfirmPassword(!showConfirmPassword)}
+        autoComplete="new-password"
       />
     <FormInput label="Personal Number" name="personal_number" type="text" value={formData.personal_number} onChange={handleChange} />
    

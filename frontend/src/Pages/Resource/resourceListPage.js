@@ -1,6 +1,6 @@
 
 import { useParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector,useDispatch } from 'react-redux';
 import { updateResource, deleteResource } from '../../features/resourceSlice';
 import ResourceTable from '../../Components/resourceComponents/resourceTable';
 import DynamicResourceForm from '../../Components/resourceComponents/dynamicResourceForm';
@@ -23,19 +23,27 @@ const ResourceListPage = () => {
     loading, 
     error,
     refreshResources
-  } = useResources([typeId]);
-
+  } = useResources(
+    [typeId], // The array of type IDs to manage
+    { fetchAllOnMount: true } // The options object
+  );
   const resourceType = useSelector((state) => 
     state.resourceTypes.resourceTypes.find(type => type._id === typeId)
   );
+  const dispatch = useDispatch(); // Get the dispatch function
+
   const handleEdit = async (resourceId, updatedData) => {
-    await updateResource({ id: resourceId, updatedData });
-    refreshResources();
+    // Dispatch the thunk from your slice
+    await dispatch(updateResource({ id: resourceId, updatedData }));
+    // refreshResources() is correct here, no change needed
+    refreshResources(); 
   };
 
+ 
   const handleDelete = async (resourceId) => {
     if (window.confirm('Are you sure you want to delete this resource?')) {
-      await deleteResource(resourceId);
+      // Dispatch the thunk from your slice
+      await dispatch(deleteResource(resourceId));
       refreshResources();
     }
   };

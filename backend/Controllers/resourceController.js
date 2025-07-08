@@ -1,6 +1,23 @@
 const resourceService = require('../Services/resourceService');
 const { sendResponse } = require('../utils/responseHandler');
 
+const invalidateResourceCaches = async (cache, resource) => {
+  if (!resource || !resource.type) return;
+  
+  // 1. Invalidate the specific resource's cache
+  const singleResourceCacheKey = `resource:${resource._id}`;
+  await cache.del(singleResourceCacheKey);
+  
+  // 2. Invalidate all paginated list views for this resource's type
+  const resourceTypeId = (typeof resource.type === 'object') ? resource.type._id.toString() : resource.type.toString();
+  const listCachePattern = `resources:type:${resourceTypeId}:*`;
+  
+  // Assuming your cache client has a method like delPattern or scan+del
+  await cache.delPattern(listCachePattern);
+  
+  console.log(`Cache invalidated for resource ${resource._id} and type list ${resourceTypeId}`);
+};
+
 exports.createResource = async (req, res) => {
   try {
     const { type, fields, displayName } = req.body;
@@ -17,7 +34,10 @@ exports.createResource = async (req, res) => {
     const { Resource, ResourceType } = req.tenantModels;
     const resource = await resourceService.createResource(resourceData, Resource, ResourceType);
 
-    await req.tenantCache.flush();
+    // await req.tenantCache.flush();
+    const resourceTypeId = newResource.type.toString();
+    const listCachePattern = `resources:type:${resourceTypeId}:*`;
+    await req.tenantCache.delPattern(listCachePattern);
     
     sendResponse(res, 201, 'Resource created successfully', resource);
   } catch (error) {
@@ -108,22 +128,61 @@ exports.getResourcesByType = async (req, res) => {
   }
 };
 
+// In controllers/resourceController.js
+
 exports.updateResource = async (req, res) => {
   try {
     const resourceId = req.params.id;
     const orgId = req.user.org_id;
     const { Resource } = req.tenantModels;
 
+    // 1. Fetch the resource first to get its type definition
     const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
-    if (!resource) return sendResponse(res, 404, 'Resource not found', null);
+    if (!resource) {
+      return sendResponse(res, 404, 'Resource not found', null);
+    }
 
-    const updatedResource = await resourceService.updateResource(resourceId, req.body, orgId, Resource);
+    // --- FIX: Restructure the incoming payload ---
+    const incomingData = req.body;
+    const updatePayload = {};
+    
+    // Get the names of fields defined in the resource's type
+    const definedCustomFields = resource.type.fieldDefinitions.map(def => def.fieldName);
 
-    const cacheKey = `resource:${resourceId}`;
-    await req.tenantCache.del(cacheKey);
+    // List of known standard (non-custom) fields on the Resource model
+    const standardFields = ['model', 'purchaseDate', 'status', 'tags'];
+
+    // 2. Iterate and build the structured payload
+    for (const key in incomingData) {
+      const value = incomingData[key];
+
+      if (key === 'name') {
+        // Map the incoming 'name' to the schema's 'displayName'
+        updatePayload.displayName = value;
+      } else if (key === 'isBlockableOverride') {
+        // Handle the boolean cast separately
+        updatePayload.isBlockableOverride = (value === '') ? null : value;
+      } else if (standardFields.includes(key)) {
+        // Handle other standard fields
+        updatePayload[key] = value;
+      } else if (definedCustomFields.includes(key)) {
+        // If it's a defined custom field, place it inside the `fields` object
+        // using dot notation for atomic updates with Mongoose.
+        updatePayload[`fields.${key}`] = value;
+      }
+    }
+    // 3. Pass the new, correctly structured payload to the service
+    const updatedResource = await resourceService.updateResource(resourceId, updatePayload, orgId, Resource);
+
+ // Use the helper to perform both invalidations
+ await invalidateResourceCaches(req.tenantCache, updatedResource);
+    
     
     sendResponse(res, 200, 'Resource updated successfully', updatedResource);
   } catch (error) {
+    if (error.name === 'ValidationError' || error.name === 'CastError') {
+      return sendResponse(res, 400, error.message, null);
+    }
     sendResponse(res, 500, error.message, null);
   }
 };
@@ -132,18 +191,21 @@ exports.deleteResource = async (req, res) => {
   try {
     const resourceId = req.params.id;
     const orgId = req.user.org_id;
-    const { Resource } = req.tenantModels;
-
+    
+    const { Resource, Task } = req.tenantModels; 
     const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
     if (!resource) return sendResponse(res, 404, 'Resource not found', null);
 
-    await resourceService.deleteResource(resourceId, orgId, Resource);
+    await resourceService.deleteResource(resourceId, orgId, Resource, Task); 
 
-    const cacheKey = `resource:${resourceId}`;
-    await req.tenantCache.del(cacheKey);
+    await invalidateResourceCaches(req.tenantCache, resource); 
     
     sendResponse(res, 200, 'Resource deleted successfully', null);
   } catch (error) {
+    // Send a 400 Bad Request if the resource is in use
+    if (error.message.includes('assigned to')) {
+        return sendResponse(res, 400, error.message, null);
+    }
     sendResponse(res, 500, error.message, null);
   }
 };

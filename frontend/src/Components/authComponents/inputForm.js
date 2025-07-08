@@ -71,7 +71,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 
-const FormInput = ({ label, name, type, value, onChange, required, options, checked, error, isPassword, onToggleVisibility, ...props }) => {
+const FormInput = ({ label, name, type, value, onChange, required, options, checked, error, isPassword, onToggleVisibility,  autocomplete,...props }) => {
   // +++ Define base and conditional classes for styling +++
   const baseClasses = "w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring";
   const errorClasses = "border-red-500 focus:ring-red-300";
@@ -124,6 +124,7 @@ const FormInput = ({ label, name, type, value, onChange, required, options, chec
               onChange={onChange}
               className={inputClasses}
               required={required}
+              autoComplete={autocomplete} 
               {...props}
             />
             {/* +++ Render the icon button if it's a password field +++ */}
@@ -162,6 +163,7 @@ FormInput.propTypes = {
   error: PropTypes.string, 
   isPassword: PropTypes.bool,
   onToggleVisibility: PropTypes.func,
+  autocomplete: PropTypes.string,
 };
 
 // +++ It's good practice to add defaultProps for non-required props +++
@@ -172,7 +174,8 @@ FormInput.defaultProps = {
   checked: false,
   error: null,
   isPassword: false,
-  onToggleVisibility: () => {}, // Provide a no-op default
+  onToggleVisibility: () => {},
+  autocomplete: 'on',
 };
 
 export default FormInput;
