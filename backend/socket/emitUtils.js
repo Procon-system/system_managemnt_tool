@@ -1,4 +1,4 @@
-const { getSocket, connectedUsers } = require("./index");
+const {  getIoInstance: getSocket, connectedUsers } = require("./index");
 
 function notifyUser(userId, event, data) {
   const socketId = connectedUsers[userId];
