@@ -1,5 +1,25 @@
 const nodemailer = require("nodemailer");
 require('dotenv').config();
+
+const emailConfig = {
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: process.env.SMTP_SECURE !== 'false', 
+  user: process.env.SMTP_USER,
+  pass: process.env.SMTP_PASS,
+  fromName: process.env.EMAIL_FROM_NAME || 'Your Application',
+  fromAddress: process.env.SMTP_USER, 
+  frontendUrl: process.env.FRONTEND_URL, 
+};
+
+
+if (!emailConfig.host || !emailConfig.user || !emailConfig.pass || !emailConfig.frontendUrl) {
+  console.error("FATAL ERROR: Missing required email environment variables.");
+  console.error("Please ensure SMTP_HOST, SMTP_USER, SMTP_PASS, and FRONTEND_URL are set in your .env file.");
+  // In a real application, you might want to exit if email is critical
+  // process.exit(1); 
+}
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST, 
   port: process.env.SMTP_PORT, 
@@ -10,49 +30,65 @@ const transporter = nodemailer.createTransport({
   },
   
 });
+// Create this once and reuse it everywhere for consistency.
+const defaultFrom = `"${emailConfig.fromName}" <${emailConfig.fromAddress}>`;
+
 exports.sendConfirmationEmail = async (email, confirmationCode, username) => {
-  const confirmationLink = `http://localhost:3000/confirm-email/${confirmationCode}`;  // Construct the confirmation URL with the confirmationCode
+  // Use the FRONTEND_URL from the environment configuration
+  const confirmationLink = `${emailConfig.frontendUrl}/confirm-email/${confirmationCode}`;
 
   const mailOptions = {
-    from: `Management Team <${process.env.GMAIL_USERNAME}>`,
+    from: defaultFrom, // Use the standardized "from" field
     to: email,
-    subject: "Account Confirmation",
-    text: `Hey ${username},\n\nWe received a request to sign in to your account, but we didn't recognize the device. To complete the sign-in, click the link below to confirm your email address and finish the process.\n\nConfirmation link: ${confirmationLink}\n\nThanks,\nManagement Team`,
-    html: `Hey ${username},<br><br>We received a request to sign in to your account, but we didn't recognize the device. To complete the sign-in, click the link below to confirm your email address and finish the process.<br><br>
-           <a href="${confirmationLink}" style="font-size: 18px; color: #007bff; text-decoration: none;">Confirm Your Email</a><br><br>Thanks,<br>Management Team`,
+    subject: "Confirm Your Account",
+    text: `Hey ${username},\n\nPlease click the link below to confirm your email address and finish setting up your account.\n\nConfirmation link: ${confirmationLink}\n\nThanks,\nThe ${emailConfig.fromName} Team`,
+    html: `
+      <p>Hey ${username},</p>
+      <p>Please click the link below to confirm your email address and finish setting up your account.</p>
+      <p><a href="${confirmationLink}" style="font-size: 16px; color: #ffffff; background-color: #007bff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirm Your Email</a></p>
+      <p>Thanks,<br>The ${emailConfig.fromName} Team</p>
+    `,
   };
 
   try {
     await transporter.sendMail(mailOptions);
+    console.log(`Confirmation email sent to ${email}`);
   } catch (error) {
     console.error("Error sending confirmation email:", error);
     throw new Error("Failed to send confirmation email");
   }
 };
 
-
+/**
+ * Sends a welcome email after an account is confirmed or created.
+ */
 exports.sendWelcomeEmail = async (email, username) => {
   const mailOptions = {
-    from: `Management Team <${process.env.GMAIL_USERNAME}>`,
+    from: defaultFrom, // Use the standardized "from" field
     to: email,
-    subject: "Welcome to Management Platform",
-    text: `Welcome ${username},<br><br>You’ve just opened an account and are set to begin as a user.<br><br>Thanks,<br>Management Team`,
-    html: `Welcome to our website ${username},<br><br>You have just opened an account and are set to sign in to your account.
-        <br><br>Thanks,<br>Management Team`,
+    subject: `Welcome to ${emailConfig.fromName}`,
+    text: `Welcome ${username},\n\nYour account is now active. You can now sign in and get started.\n\nThanks,\nThe ${emailConfig.fromName} Team`,
+    html: `
+      <p>Welcome ${username},</p>
+      <p>Your account is now active. You can now sign in and get started.</p>
+      <p>Thanks,<br>The ${emailConfig.fromName} Team</p>
+    `,
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Welcome email sent to ${email}`);
+  } catch (error) {
+    console.error("Error sending welcome email:", error);
+    // Don't throw an error here if it's not critical, to avoid breaking the user flow
+  }
 };
-
-// emailService.js
-
 // Corrected function name and signature
 exports.sendResetPasswordLink = async (email, token) => {
-  // The link your user will click. It should point to YOUR FRONTEND APP.
-  const resetLink = `http://localhost:3000/reset-password/${token}`; // Use your production URL here later
+  const resetLink = `${emailConfig.frontendUrl}/reset-password/${token}`;
 
   const mailOptions = {
-    from: `"Tasknitter Support" <${process.env.SMTP_USER}>`, // Use a professional "from" name
+    from: defaultFrom, // Use the standardized "from" field
     to: email,
     subject: 'Your Password Reset Request',
     text: `You requested a password reset. Please click the following link to set a new password: ${resetLink}\n\nIf you did not request this, please ignore this email.`,
