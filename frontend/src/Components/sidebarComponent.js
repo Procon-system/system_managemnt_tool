@@ -193,7 +193,7 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
               </button>
               
             )}
-  
+   
  
             <button
               className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
@@ -313,12 +313,15 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
           size={16} 
         />
       </button>
-      
+     
       <div 
-        className={`overflow-y-auto transition-all duration-300 ease-in-out ${
-          expandedCategories.resources ? 'max-h-[300px]' : 'max-h-0' // Increased max-h to fit more items
-        }`}
-      >
+    className={`
+      overflow-y-auto 
+      transition-all duration-300 ease-in-out
+      ${expandedCategories.resources ? 'max-h-[300px]' : 'max-h-0'}
+    `}
+  >
+    
         <div className="ml-8 mt-1 space-y-1">
           {/* --- 1. ADDED STATIC "MANAGE USERS" LINK --- */}
           <button
@@ -347,8 +350,10 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
             </button>
           ))}
         </div>
+      
       </div>
-    </div>
+      </div>
+    
   </div>
 )}
         </div>
