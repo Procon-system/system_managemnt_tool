@@ -323,16 +323,17 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
   >
     
         <div className="ml-8 mt-1 space-y-1">
-          {/* --- 1. ADDED STATIC "MANAGE USERS" LINK --- */}
-          <button
-            onClick={() => navigate('/user')}
-            className="w-full flex items-center text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
-          >
-            <span className="mr-2" style={{ color: '#435cd1' }}> {/* gray-600 */}
-              <FaUsersCog size={16} />
-            </span>
-            <span className="truncate">Manage Users</span>
-          </button>
+        {access_level === 5 && (
+        <button
+          onClick={() => navigate('/user')}
+          className="w-full flex items-center text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
+        >
+          <span className="mr-2" style={{ color: '#4b5563' }}> {/* gray-600 */}
+            <FaUsersCog size={16} />
+          </span>
+          <span className="truncate">Manage Users</span>
+        </button>
+      )}
 
         
           {categorizedResources.resources && categorizedResources.resources.map(type => (
