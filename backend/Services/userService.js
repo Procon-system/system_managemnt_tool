@@ -56,7 +56,8 @@ class UserService {
         delete updateData.access_level;
       }
 
-      return await this._updateUser(userId, updateData);
+      return await this._updateUser(userId, updateData, UserModel);
+
     } catch (error) {
       if (error instanceof AuthorizationError) {
         throw error;
@@ -87,7 +88,8 @@ class UserService {
         throw new ValidationError('Password cannot be changed through this endpoint');
       }
 
-      return await this._updateUser(userId, updateData);
+      return await this._updateUser(userId, updateData, UserModel);
+
     } catch (error) {
       if (error instanceof NotFoundError || 
           error instanceof AuthorizationError || 
@@ -120,31 +122,43 @@ class UserService {
     }
   }
 
-  // Delete user
-  async deleteUser(userId, requester,UserModel) {
-    try {
-      const user = await UserModel.findById(userId);
-      if (!user) throw new NotFoundError('User not found');
 
-      // Can't delete yourself
-      if (user._id.toString() === requester._id.toString()) {
-        throw new AuthorizationError('Self-deletion is not allowed');
-      }
-
-      // Can't delete super admins unless you're a super admin
-      if (user.access_level === 5 && requester.access_level < 5) {
-        throw new AuthorizationError('Not authorized to delete super admin accounts');
-      }
-
-      await user.remove();
-      return { success: true };
-    } catch (error) {
-      if (error instanceof NotFoundError || error instanceof AuthorizationError) {
-        throw error;
-      }
-      throw new DatabaseError('Failed to delete user');
+async deleteUser(userId, requester, UserModel) {
+  try {
+    const userToDelete = await UserModel.findById(userId);
+    if (!userToDelete) {
+      throw new NotFoundError('User not found');
     }
+
+    const isSelfDelete = userToDelete._id.toString() === requester._id.toString();
+    const isSuperAdmin = requester.access_level === 5;
+
+    if (!isSuperAdmin && !isSelfDelete) {
+      throw new AuthorizationError('Not authorized to delete this user');
+    }
+    
+    // Super admins cannot be deleted by anyone but other super admins (and not themselves through this route)
+    if (userToDelete.access_level === 5 && !isSuperAdmin) {
+       throw new AuthorizationError('Not authorized to delete a super admin account');
+    }
+
+    // Prevent a super admin from deleting themselves via the admin panel
+    if(userToDelete.access_level === 5 && isSelfDelete){
+        throw new AuthorizationError('Super admins cannot delete their own account from this panel.');
+    }
+
+    await UserModel.deleteOne({ _id: userId });
+
+    return { success: true };
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof AuthorizationError) {
+      throw error;
+    }
+    // Log the original error for better debugging
+    console.error("Underlying delete error:", error);
+    throw new DatabaseError('Failed to delete user');
   }
+}
 }
 
 module.exports = new UserService();

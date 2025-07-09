@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { getAllUsers, updateUserProfile, deleteUserAccount } from "../Services/userService";
+import { getAllUsers, updateUserProfile, deleteUserAccount, adminUpdateUser } from "../Services/userService";
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 // Thunks for async operations
 export const getUsers = createAsyncThunk("users/getUserAll", async (_, {getState, rejectWithValue }) => {
@@ -37,20 +37,31 @@ export const updateUser = createAsyncThunk("users/update", async ({ id, updateDa
     return rejectWithValue(error.message);
   }
 });
-
-export const deleteUser = createAsyncThunk("users/delete", async ({ id }, {getState, dispatch,rejectWithValue }) => {
+export const updateUserByAdmin = createAsyncThunk(
+  "users/updateByAdmin",
+  async ({ id, updateData }, { getState, rejectWithValue }) => {
     const token = getState().auth.token;
-    // Check token expiration and handle logout
-   if (checkTokenAndLogout(token, dispatch)) {
-    return null; // Exit if the token is expired
+    try {
+      // Call the admin update service function
+      return await adminUpdateUser(id, updateData, token);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
   }
-  try {
-    return await deleteUserAccount(id, token);
-  } catch (error) {
-    return rejectWithValue(error.message);
+);
+export const deleteUser = createAsyncThunk(
+  "users/delete",
+    async (userId, { getState, rejectWithValue }) => { 
+    const token = getState().auth.token;
+    try {
+      await deleteUserAccount(userId, token);
+     
+      return userId; 
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
   }
-});
-
+);
 // Initial state
 const initialState = {
   users: [],
@@ -90,6 +101,21 @@ const userSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     });
+    builder.addCase(updateUserByAdmin.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(updateUserByAdmin.fulfilled, (state, action) => {
+      state.loading = false;
+      const updatedUser = action.payload; // Assuming the payload is the updated user object
+      state.users = state.users.map((user) =>
+        user._id === updatedUser._id ? updatedUser : user
+      );
+    });
+    builder.addCase(updateUserByAdmin.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
     // Update user
     builder.addCase(updateUser.pending, (state) => {
       state.loading = true;
@@ -107,15 +133,13 @@ const userSlice = createSlice({
       state.error = action.payload;
     });
 
-    // Delete user
     builder.addCase(deleteUser.pending, (state) => {
       state.loading = true;
       state.error = null;
     });
     builder.addCase(deleteUser.fulfilled, (state, action) => {
       state.loading = false;
-      const deletedUserId = action.meta.arg.id;
-      state.users = state.users.filter((user) => user.id !== deletedUserId);
+           state.users = state.users.filter((user) => user._id !== action.payload);
     });
     builder.addCase(deleteUser.rejected, (state, action) => {
       state.loading = false;

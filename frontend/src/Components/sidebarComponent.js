@@ -190,8 +190,19 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
                 <FiClipboard className="text-blue-500 mr-3" size={24} />
                 Filter and Report
               </button>
+              
             )}
   
+  {access_level >= 3 && (
+              <button
+                className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
+                onClick={() => handleNavigation('/user')}
+              >
+                <FiClipboard className="text-blue-500 mr-3" size={24} />
+                Users
+              </button>
+              
+            )}
             <button
               className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
               onClick={handleViewAllDoneTasksClick}

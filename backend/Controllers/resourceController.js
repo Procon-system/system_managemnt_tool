@@ -35,7 +35,7 @@ exports.createResource = async (req, res) => {
     const resource = await resourceService.createResource(resourceData, Resource, ResourceType);
 
     // await req.tenantCache.flush();
-    const resourceTypeId = newResource.type.toString();
+    const resourceTypeId = resource.type.toString();
     const listCachePattern = `resources:type:${resourceTypeId}:*`;
     await req.tenantCache.delPattern(listCachePattern);
     

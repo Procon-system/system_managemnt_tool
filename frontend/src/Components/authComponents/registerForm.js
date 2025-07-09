@@ -158,7 +158,7 @@ const RegisterForm = () => {
  }, [formData, confirmPassword, errors]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-0">
+    <form onSubmit={handleSubmit} className="space-y-2">
    <FormInput label="First Name" name="first_name" type="text" value={formData.first_name} onChange={handleChange} required error={errors.first_name} autoComplete="off" />
       <FormInput label="Last Name" name="last_name" type="text" value={formData.last_name} onChange={handleChange} required error={errors.last_name} autoComplete="off" />
       
@@ -180,11 +180,11 @@ const RegisterForm = () => {
       />
     {/* +++ UPDATED: Password requirements text now matches backend +++ */}
     <div className="text-sm text-gray-600 pl-1 mt-6">
-        <p className={formData.password.length >= 8 ? 'text-blue-600' : 'text-gray-600'}>✓ At least 8 characters</p>
-        <p className={/(?=.*[A-Z])/.test(formData.password) ? 'text-blue-600' : 'text-gray-600'}>✓ One uppercase letter</p>
-        <p className={/(?=.*[a-z])/.test(formData.password) ? 'text-blue-600' : 'text-gray-600'}>✓ One lowercase letter</p>
-        <p className={/(?=.*[0-9])/.test(formData.password) ? 'text-blue-600' : 'text-gray-600'}>✓ One number</p>
-        <p className={/(?=.*[!@#$%^&*])/.test(formData.password) ? 'text-blue-600' : 'text-gray-600'}>✓ One special character (!@#$%^&*)</p>
+        <p className={formData.password.length >= 8 ? 'text-green-600' : 'text-gray-600'}>✓ At least 8 characters</p>
+        <p className={/(?=.*[A-Z])/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}>✓ One uppercase letter</p>
+        <p className={/(?=.*[a-z])/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}>✓ One lowercase letter</p>
+        <p className={/(?=.*[0-9])/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}>✓ One number</p>
+        <p className={/(?=.*[!@#$%^&*])/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}>✓ One special character (!@#$%^&*)</p>
     </div>
 
     <FormInput

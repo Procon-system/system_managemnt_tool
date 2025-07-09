@@ -14,7 +14,6 @@ const {
 } = require("../Helper/sendEmail");
 const { validateRegistration } = require('../Helper/validators');
 
-// Service to register a new user
 const registerUser = async (userData, tenantId, User) => {
   const {
     email, password, last_name, first_name,
@@ -75,7 +74,6 @@ const registerUser = async (userData, tenantId, User) => {
   };
 };
 
-// services/authService.js
 const registerAdminUser = async (userData) => {
   const { 
     email, 
@@ -257,6 +255,7 @@ const loginUser = async (email, password, rememberMe) => {
     };
 
   } catch (error) {
+    console.log("erro",error)
     console.error('Login error:', error.message);
     throw error;
   }

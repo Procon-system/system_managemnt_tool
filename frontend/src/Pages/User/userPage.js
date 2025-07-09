@@ -1,148 +1,147 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getUsers, updateUser, deleteUser } from "../../features/userSlice";
-import { FaEdit, FaPlus, FaTrash } from "react-icons/fa";
+// Assuming 'getUsers' is your action to fetch all users
+import { getUsers, updateUserByAdmin, deleteUser } from "../../features/userSlice"; 
+import { FaPlus } from "react-icons/fa";
 import { toast } from "react-toastify";
 import UserForm from "../../Components/UserComponents/userForm";
+import UserListGroup from "../../Components/UserComponents/userListGroup"; // Import the new component
+import LoadingSpinner from "../../Components/common/LoadingSpinner"; // Good practice to have these
+import ErrorAlert from "../../Components/common/ErrorAlert";
 import { useNavigate } from "react-router-dom";
 
+// Define the access levels mapping
+const ACCESS_LEVEL_MAP = {
+    5: 'Super Admins',
+    4: 'Free Users', // As per your button labels
+    3: 'Managers',
+    2: 'Service Personnels',
+    1: 'Random Users'
+};
+
 const UserManagementPage = () => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const users = useSelector((state) => state.users.users || []);
-  const [editingUser, setEditingUser] = useState(null);
-  const [filter, setFilter] = useState("all"); // State to manage filters
-  const [showForm, setShowForm] = useState(false);
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+    
+    // Get data from Redux store
+    const { users, loading, error } = useSelector((state) => state.users);
 
-  useEffect(() => {
-    dispatch(getUsers());
-  }, [dispatch]);
+    const [editingUser, setEditingUser] = useState(null);
+    const [showForm, setShowForm] = useState(false);
 
-  const handleEditClick = (user) => {
-    setEditingUser(user);
-    setShowForm(true);
-  };
+    useEffect(() => {
+        // Fetch users when the component mounts
+        dispatch(getUsers());
+    }, [dispatch]);
 
-  const handleAddClick = () => {
-    navigate("/register");
-  };
+    const groupedUsers = useMemo(() => {
+        if (!users || !Array.isArray(users)) return {};
+        
+        return users.reduce((acc, user) => {
+            const level = user.access_level;
+            if (!acc[level]) {
+                acc[level] = [];
+            }
+            acc[level].push(user);
+            return acc;
+        }, {});
+    }, [users]);
 
-  const handleDeleteClick = async (id) => {
-    try {
-      await dispatch(deleteUser({ id })).unwrap();
-      toast.success("User deleted successfully!");
-    } catch (error) {
-      toast.error(`Error: ${error}`);
+    const handleEditClick = (user) => {
+        setEditingUser(user);
+        setShowForm(true);
+    };
+
+    const handleAddClick = () => {
+        navigate("/register");
+    };
+
+    const handleDeleteClick = async (id) => {
+        if (window.confirm('Are you sure you want to delete this user?')) {
+            try {
+                // Ensure you pass the correct payload format your thunk expects
+                await dispatch(deleteUser(id)).unwrap(); 
+                toast.success("User deleted successfully!");
+            } catch (err) {
+                toast.error(`Error: ${err.message || 'Could not delete user'}`);
+            }
+        }
+    };
+
+    const handleFormSubmit = async (userData) => {
+        try {
+            await dispatch(updateUserByAdmin({ id: editingUser._id, updateData: userData })).unwrap();
+            toast.success("User updated successfully!");
+            setShowForm(false);
+            setEditingUser(null);
+        } catch (err) {
+            toast.error(`Error: ${err.message || 'Could not update user'}`);
+        }
     }
-  };
+    if (loading) return <LoadingSpinner />;
+    if (error) return <ErrorAlert message={error} />;
 
-  const handleFormSubmit = async (userData) => {
-    try {
-      await dispatch(updateUser({ id: editingUser._id, updateData: userData })).unwrap();
-      toast.success("User updated successfully!");
-      setShowForm(false);
-    } catch (error) {
-      toast.error(`Error: ${error}`);
-    }
-  };
-
-  const filteredUsers = users.filter((user) => {
-    if (filter === "all") return true;
-    return user.access_level === filter;
-  });
-
-  return (
-    <div className="container px-4 py-6 lg:py-8 lg:ml-72">
-      {/* Header */}
-      <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-        <h2 className="text-xl sm:text-2xl border p-2 rounded-md bg-blue-100 font-bold">
-          User Management
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: "All Users", value: "all" },
-            { label: "Managers", value: 3 },
-            { label: "Free Users", value: 4 },
-            { label: "Service Personnels", value: 2 },
-            { label: "Random Users", value: 1 },
-          ].map((btn) => (
-            <button
-              key={btn.value}
-              onClick={() => setFilter(btn.value)}
-              className={`px-4 py-2 rounded-md ${
-                filter === btn.value
-                  ? "bg-blue-500 text-white hover:bg-blue-600"
-                  : "bg-blue-100 text-gray-700 hover:bg-blue-200"
-              }`}
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={handleAddClick}
-          className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition flex items-center space-x-2"
-        >
-          <FaPlus className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-sm sm:text-base">Register User</span>
-        </button>
-      </div>
-
-      {/* User List */}
-      <div className="space-y-4">
-        {filteredUsers.length > 0 ? (
-          filteredUsers.map((user) => (
-            <div
-              key={user._id}
-              className="p-4 border rounded shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-            >
-              <div>
-                <h3 className="text-lg font-semibold">{user.name}</h3>
-                <p className="text-gray-600">{user.email}</p>
-                <p className="text-sm text-gray-500">Access Level: {user.access_level}</p>
-              </div>
-              <div className="flex space-x-3">
+    return (
+        <div className="container mx-auto px-4 py-6 lg:py-8">
+            {/* Header */}
+            <div className="flex flex-wrap justify-between items-center mb-8 gap-4">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                        User Management
+                    </h1>
+                    <p className="mt-1 text-md text-gray-500">View and manage all users by their roles.</p>
+                </div>
                 <button
-                  onClick={() => handleEditClick(user)}
-                  className="text-blue-500 hover:text-blue-700"
+                    onClick={handleAddClick}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center space-x-2"
                 >
-                  <FaEdit className="w-5 h-5" />
+                    <FaPlus />
+                    <span>Register New User</span>
                 </button>
-                <button
-                  onClick={() => handleDeleteClick(user._id)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <FaTrash className="w-5 h-5" />
-                </button>
-              </div>
             </div>
-          ))
-        ) : (
-          <p className="text-gray-600">No users available</p>
-        )}
-      </div>
 
-      {/* User Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-4">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md relative">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-              onClick={() => setShowForm(false)}
-            >
-              &times;
-            </button>
-            <UserForm
-              onSubmit={handleFormSubmit}
-              user={editingUser}
-              onClose={() => setShowForm(false)}
-            />
-          </div>
+            {/* --- REFACTORED: User List Rendering --- */}
+            <div className="space-y-6">
+                {Object.keys(ACCESS_LEVEL_MAP).sort((a,b) => b-a).map(level => (
+                    <UserListGroup
+                        key={level}
+                        title={ACCESS_LEVEL_MAP[level]}
+                        users={groupedUsers[level]}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteClick}
+                    />
+                ))}
+
+                {users.length === 0 && !loading && (
+                    <div className="text-center py-12 bg-white shadow-md rounded-lg">
+                        <h3 className="text-lg font-medium text-gray-900">No Users Found</h3>
+                        <p className="mt-1 text-sm text-gray-500">Click "Register New User" to get started.</p>
+                    </div>
+                )}
+            </div>
+            {/* --- END OF REFACTORED SECTION --- */}
+
+
+            {/* User Form Modal (This part is unchanged) */}
+            {showForm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl relative animate-fade-in-down">
+                        <button
+                            className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl"
+                            onClick={() => setShowForm(false)}
+                        >
+                            ×
+                        </button>
+                        <UserForm
+                            onSubmit={handleFormSubmit}
+                            user={editingUser}
+                            onClose={() => setShowForm(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default UserManagementPage;

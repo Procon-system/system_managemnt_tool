@@ -103,7 +103,7 @@ const App = () => {
             path="/user"
             element={
               <ProtectedRoute requiredAccessLevel={ROLES.ADMIN}>
-                <UserManagementPage />
+               <MainLayout><UserManagementPage /></MainLayout> 
               </ProtectedRoute>
             }
           />
