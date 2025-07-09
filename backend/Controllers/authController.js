@@ -42,9 +42,13 @@ const registerController = async (req, res) => {
     console.error("Registration Error:", err);
     
     const statusCode = err.message.includes('already exists') ? 400 : 500;
+    // res.status(statusCode).json({ 
+    //   success: false,
+    //   error: err.message 
+    // });
     res.status(statusCode).json({ 
       success: false,
-      error: err.message 
+      message: err.message // Use 'message' instead of 'error'
     });
   }
 };

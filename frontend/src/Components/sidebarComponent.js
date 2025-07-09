@@ -2,6 +2,7 @@ import React, { useState,useEffect,useMemo} from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaPlus } from 'react-icons/fa';
+import { FaUsersCog } from 'react-icons/fa';
 import { setTaskView } from '../features/taskSlice';
 import {FiChevronDown } from 'react-icons/fi';
 import { FiList, FiCheckCircle, FiArchive, FiClipboard, FiTool, FiUsers, FiUserPlus,  FiPackage } from "react-icons/fi";
@@ -193,16 +194,7 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
               
             )}
   
-  {access_level >= 3 && (
-              <button
-                className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
-                onClick={() => handleNavigation('/user')}
-              >
-                <FiClipboard className="text-blue-500 mr-3" size={24} />
-                Users
-              </button>
-              
-            )}
+ 
             <button
               className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
               onClick={handleViewAllDoneTasksClick}
@@ -212,10 +204,10 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
             </button>
           </div>
   
-          {/* Resource Types Section */}
-          {access_level >= 3 && categorizedResources && (
+         
+          {/* {access_level >= 3 && categorizedResources && (
             <div className="py-2 pl-4 pr-1 mr-3 border-t border-gray-200">
-              {/* Teams Dropdown */}
+             
               {categorizedResources.teams && (
                 <div className="mb-2">
                   <button
@@ -257,7 +249,6 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
                 </div>
               )}
               
-              {/* Resources Dropdown */}
               {categorizedResources.resources && (
                 <div className="mb-2">
                   <button
@@ -299,8 +290,67 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
                 </div>
               )}
             </div>
-          )}
+          )} */}
+        {access_level >= 3 && categorizedResources && (
+  <div className="py-2 pl-4 pr-1 mr-3 border-t border-gray-200">
+    {/* Teams Dropdown (No changes here) */}
+    {categorizedResources.teams && (
+      <div className="mb-2">
+        {/* ... same as before ... */}
+      </div>
+    )}
+        <div className="mb-2">
+      <button
+        onClick={() => toggleCategory('resources')}
+        className="w-full flex items-center justify-between px-4 py-2 text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-all"
+      >
+        <div className="flex items-center">
+          <FiPackage className="mr-3 text-blue-500" size={18} />
+          <span>Assets</span>
+        </div>
+        <FiChevronDown 
+          className={`transition-transform duration-200 ${expandedCategories.resources ? 'transform rotate-180' : ''}`} 
+          size={16} 
+        />
+      </button>
+      
+      <div 
+        className={`overflow-y-auto transition-all duration-300 ease-in-out ${
+          expandedCategories.resources ? 'max-h-[300px]' : 'max-h-0' // Increased max-h to fit more items
+        }`}
+      >
+        <div className="ml-8 mt-1 space-y-1">
+          {/* --- 1. ADDED STATIC "MANAGE USERS" LINK --- */}
+          <button
+            onClick={() => navigate('/user')}
+            className="w-full flex items-center text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
+          >
+            <span className="mr-2" style={{ color: '#435cd1' }}> {/* gray-600 */}
+              <FaUsersCog size={16} />
+            </span>
+            <span className="truncate">Manage Users</span>
+          </button>
+
         
+          {categorizedResources.resources && categorizedResources.resources.map(type => (
+            <button
+              key={type._id}
+              onClick={() => navigate(`/resource-types/${type._id}`)}
+              className="w-full flex items-center text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
+            >
+              {type.icon && (
+                <span className="mr-2" style={{ color: type.color || '#1f2937' }}>
+                  {RenderDynamicIcon(type.icon, 20)}
+                </span>
+              )}
+              <span className="truncate">{type.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
         </div>
         {access_level >= 2 && (
   <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 pt-2 pb-4 px-4 z-10">

@@ -89,7 +89,7 @@ const UserManagementPage = () => {
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                         User Management
                     </h1>
-                    <p className="mt-1 text-md text-gray-500">View and manage all users by their roles.</p>
+                    
                 </div>
                 <button
                     onClick={handleAddClick}

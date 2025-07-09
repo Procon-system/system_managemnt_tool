@@ -80,10 +80,80 @@ const RegisterForm = () => {
       setErrors(prevErrors => ({ ...prevErrors, confirmPassword: confirmError }));
     }
   };
-  const handleSubmit = async (e) => {
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //      // +++ Final validation check before submitting +++
+  //      const formErrors = {};
+  //   Object.keys(formData).forEach(key => {
+  //       if (key !== 'payroll' && key !== 'personal_number' && key !== 'access_level') { 
+  //            const error = validate(key, formData[key], formData);
+  //            if (error) formErrors[key] = error;
+  //       }
+  //   });
+  //   const confirmPasswordError = validate('confirmPassword', confirmPassword, formData);
+  //   if(confirmPasswordError) formErrors.confirmPassword = confirmPasswordError;
+
+  //   setErrors(formErrors);
+    
+  //   if (Object.keys(formErrors).length > 0) {
+  //       toast.error("Please fix the errors before submitting.");
+  //       return;
+  //   }
+  //   try {
+  //     const resultAction = await dispatch(registerUsers(formData));
+      
+  //     if (registerUsers.fulfilled.match(resultAction)) {
+  //       toast.success('User registered successfully!');
+  //       setFormData({
+  //         email: '', password: '', first_name: '', last_name: '', personal_number: '', access_level: 1,
+  //         payroll: { rate_type: 'hourly', rate: '', currency: 'USD', overtime_multiplier: '1.5' }
+  //       });
+  //       setConfirmPassword(''); // Reset confirm password
+  //       navigate('/home');
+  //     } else if (registerUsers.rejected.match(resultAction)) {
+  //       const error = resultAction.payload;
+        
+  //       if (error.code === 'USER_LIMIT_REACHED') {
+  //         toast.error(
+  //           <div className="p-4">
+  //             <p className="font-medium">{error.message}</p>
+  //             <p className="my-2">
+  //               Current: {error.details?.currentCount || 'N/A'}/
+  //               {error.details?.maxAllowed || 'N/A'} users
+  //             </p>
+  //             {error.details?.upgradeAvailable && (
+  //               <div className="mt-3">
+  //                 <Link 
+  //                   to={error.actions?.[0]?.url || '/subscription'} 
+  //                   className="text-blue-600 hover:text-blue-800 font-medium underline"
+  //                   onClick={() => toast.dismiss()}
+  //                 >
+  //                   {error.actions?.[0]?.label || 'Upgrade subscription'}
+  //                 </Link>
+  //               </div>
+  //             )}
+  //           </div>,
+  //           {
+  //             position: "top-right",
+  //             autoClose: false,
+  //             className: 'border-l-4 border-red-500'
+  //           }
+  //         );
+  //       } else {
+  //         toast.error(error.message || 'Registration failed');
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('Unexpected error:', error);
+  //     toast.error('An unexpected error occurred');
+  //   }
+  // };
+   // --- THIS IS THE MAIN AREA OF CHANGE ---
+   const handleSubmit = async (e) => {
     e.preventDefault();
-       // +++ Final validation check before submitting +++
-       const formErrors = {};
+    
+    // Final validation check (this part is perfect, no changes needed)
+    const formErrors = {};
     Object.keys(formData).forEach(key => {
         if (key !== 'payroll' && key !== 'personal_number' && key !== 'access_level') { 
              const error = validate(key, formData[key], formData);
@@ -92,62 +162,65 @@ const RegisterForm = () => {
     });
     const confirmPasswordError = validate('confirmPassword', confirmPassword, formData);
     if(confirmPasswordError) formErrors.confirmPassword = confirmPasswordError;
-
     setErrors(formErrors);
     
     if (Object.keys(formErrors).length > 0) {
         toast.error("Please fix the errors before submitting.");
         return;
     }
+
     try {
       const resultAction = await dispatch(registerUsers(formData));
       
       if (registerUsers.fulfilled.match(resultAction)) {
+        
         toast.success('User registered successfully!');
-        setFormData({
-          email: '', password: '', first_name: '', last_name: '', personal_number: '', access_level: 1,
-          payroll: { rate_type: 'hourly', rate: '', currency: 'USD', overtime_multiplier: '1.5' }
-        });
-        setConfirmPassword(''); // Reset confirm password
-        navigate('/home');
+        
+        setFormData(initialFormData);
+        setConfirmPassword('');
+        setErrors({});
+        navigate('/user'); 
       } else if (registerUsers.rejected.match(resultAction)) {
         const error = resultAction.payload;
-        
-        if (error.code === 'USER_LIMIT_REACHED') {
-          toast.error(
-            <div className="p-4">
-              <p className="font-medium">{error.message}</p>
-              <p className="my-2">
-                Current: {error.details?.currentCount || 'N/A'}/
-                {error.details?.maxAllowed || 'N/A'} users
-              </p>
-              {error.details?.upgradeAvailable && (
-                <div className="mt-3">
-                  <Link 
-                    to={error.actions?.[0]?.url || '/subscription'} 
-                    className="text-blue-600 hover:text-blue-800 font-medium underline"
-                    onClick={() => toast.dismiss()}
-                  >
-                    {error.actions?.[0]?.label || 'Upgrade subscription'}
-                  </Link>
-                </div>
-              )}
-            </div>,
-            {
-              position: "top-right",
-              autoClose: false,
-              className: 'border-l-4 border-red-500'
-            }
-          );
+      
+                if (error.code === 'USER_LIMIT_REACHED') {
+          
+                    toast.error(
+                      <div className="p-4">
+                        <p className="font-medium">{error.message}</p>
+                        <p className="my-2">
+                          Current: {error.details?.currentCount || 'N/A'}/
+                          {error.details?.maxAllowed || 'N/A'} users
+                        </p>
+                        {error.details?.upgradeAvailable && (
+                          <div className="mt-3">
+                            <Link 
+                              to={error.actions?.[0]?.url || '/subscription'} 
+                              className="text-blue-600 hover:text-blue-800 font-medium underline"
+                              onClick={() => toast.dismiss()}
+                            >
+                              {error.actions?.[0]?.label || 'Upgrade subscription'}
+                            </Link>
+                          </div>
+                        )}
+                      </div>,
+                      {
+                        position: "top-right",
+                        autoClose: false,
+                        className: 'border-l-4 border-red-500'
+                      }
+                    );
         } else {
-          toast.error(error.message || 'Registration failed');
+          // This will now display any other error, like "User with this email already exists"
+          toast.error(`Registration Failed: ${error.message || 'Please check the details and try again.'}`);
         }
-      }
+              }
     } catch (error) {
       console.error('Unexpected error:', error);
       toast.error('An unexpected error occurred');
     }
   };
+
    // +++ Memoize the form validity check +++
    const isFormValid = useCallback(() => {
     if (!formData.first_name || !formData.last_name || !formData.email || !formData.password || !confirmPassword) {

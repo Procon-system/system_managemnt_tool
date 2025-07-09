@@ -25,6 +25,7 @@ export const registerUsers = createAsyncThunk(
     try {
       return await registerUser(userData, token);
     } catch (error) {
+     
       if (error instanceof CustomError) {
         return rejectWithValue({
           message: error.message,
