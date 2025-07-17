@@ -188,7 +188,7 @@ const loginUser = async (email, password, rememberMe) => {
       if (!organization) throw new Error('Organization not found');
 
       const token = superadmin.generateAuthToken();
-       console.log("superadmin",superadmin)
+      
       return {
         user: {
           _id: superadmin._id,

@@ -20,12 +20,12 @@ const authenticateUser = async (req, res, next) => {
   }
 
   const token = authHeader.split(" ")[1].trim();
-console.log("token",token)
+
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
     
     let user;
-    console.log("decoded",decoded)
+    
     if (decoded.isGlobalAdmin) {
       // 🔒 Super admin in MAIN DB
       const Superadmin = req.mainModels?.Superadmin;
