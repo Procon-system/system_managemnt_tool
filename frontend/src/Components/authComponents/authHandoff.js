@@ -52,7 +52,7 @@ const AuthHandoff = () => {
       dispatch(setCredentials(data));
 
       setUiState('success');
-      setMessage('Success! Redirecting to your dashboard...');
+      setMessage('Success! Redirecting to Tasknitter...');
       
       setTimeout(() => {
         socket.disconnect();
@@ -86,7 +86,8 @@ const AuthHandoff = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    // We adjust the classes on this main container div
+    <div className="flex items-start justify-start min-h-screen bg-gray-100 pt-20 pl-96">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <div className="flex justify-center">
           <StatusIcon />
@@ -107,6 +108,7 @@ const AuthHandoff = () => {
       </div>
     </div>
   );
+
 };
 
 export default AuthHandoff;
