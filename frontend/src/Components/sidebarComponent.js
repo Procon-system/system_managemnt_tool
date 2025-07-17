@@ -25,12 +25,11 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
   const dispatch = useDispatch();
   const API_URL = process.env.REACT_APP_API_URL;
 
-  const { access_level } = useSelector((state) => state.auth.user) || {};
+  const { access_level } = useSelector((state) => state.auth.user || state.access_level ) || {};
   const { user } = useSelector((state) => state.auth);
   const resourceTypes = useSelector((state) => 
     state.resourceTypes.resourceTypes || []
   );
-
   useEffect(() => {
     
     // if (!user?.organization || !user?.org_id) return;
@@ -205,92 +204,7 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
           </div>
   
          
-          {/* {access_level >= 3 && categorizedResources && (
-            <div className="py-2 pl-4 pr-1 mr-3 border-t border-gray-200">
-             
-              {categorizedResources.teams && (
-                <div className="mb-2">
-                  <button
-                    onClick={() => toggleCategory('teams')}
-                    className="w-full flex items-center justify-between px-4 py-2 text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-all"
-                  >
-                    <div className="flex items-center">
-                      <FiUsers className="mr-3 text-blue-500" size={18} />
-                      <span>Teams</span>
-                    </div>
-                    <FiChevronDown 
-                      className={`transition-transform duration-200 ${expandedCategories.teams ? 'transform rotate-180' : ''}`} 
-                      size={16} 
-                    />
-                  </button>
-                  
-                  <div 
-                    className={`overflow-y-auto transition-all duration-300 ease-in-out ${
-                      expandedCategories.teams ? 'max-h-[300px]' : 'max-h-0'
-                    }`}
-                  >
-                    <div className="ml-8 mt-1 space-y-1">
-                      {categorizedResources.teams.map(type => (
-                        <button
-                          key={type._id}
-                          onClick={() => navigate(`/resource-types/${type._id}`)}
-                          className="w-full flex items-center text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
-                        >
-                          {type.icon && (
-                            <span className="mr-2" style={{ color: type.color || '#1f2937' }}>
-                              {RenderDynamicIcon(type.icon,20)}
-                            </span>
-                          )}
-                          <span className="truncate">{type.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {categorizedResources.resources && (
-                <div className="mb-2">
-                  <button
-                    onClick={() => toggleCategory('resources')}
-                    className="w-full flex items-center justify-between px-2 py-2 text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-all"
-                  >
-                    <div className="flex items-center">
-                      <FiPackage className="mr-3 text-blue-500" size={24} />
-                      <span>Assets</span>
-                    </div>
-                    <FiChevronDown 
-                      className={`transition-transform duration-200 ${expandedCategories.resources ? 'transform rotate-180' : ''}`} 
-                      size={24} 
-                    />
-                  </button>
-                  
-                  <div 
-                    className={`overflow-y-auto transition-all duration-300 ease-in-out ${
-                      expandedCategories.resources ? 'max-h-[200px]' : 'max-h-0'
-                    }`}
-                  >
-                    <div className="ml-8 mt-1 space-y-1">
-                      {categorizedResources.resources.map(type => (
-                        <button
-                          key={type._id}
-                          onClick={() => navigate(`/resource-types/${type._id}`)}
-                          className="w-full flex items-center text-left px-3 py-2 rounded-md bg-blue-100 hover:bg-blue-200 text-gray-700 transition-colors"
-                        >
-                          {type.icon && (
-                            <span className="mr-2" style={{ color: type.color || '#1f2937' }}>
-                              {RenderDynamicIcon(type.icon,20)}
-                            </span>
-                          )}
-                          <span className="truncate">{type.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )} */}
+         
         {access_level >= 3 && categorizedResources && (
   <div className="py-2 pl-4 pr-1 mr-3 border-t border-gray-200">
     {/* Teams Dropdown (No changes here) */}

@@ -5,7 +5,7 @@ services:
       context: ./flask-user-reg
       dockerfile: Dockerfile
     ports:
-      - "8500:8000"                        # expose Flask on host:5002
+      - "8500:8500"                        # expose Flask on host:5002
     volumes:
       - ./flask-user-reg:/app             # live-sync your code
       - userreg-data:/app/subscribers.db  # persist the SQLite file

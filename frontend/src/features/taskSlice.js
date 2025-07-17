@@ -268,30 +268,7 @@ const taskSlice = createSlice({
         state.status = 'loading';
       })
     
-      // In your taskSlice.js
-// .addCase(createTask.fulfilled, (state, action) => {
-//   state.status = 'succeeded';
-  
-//   // Process payload into array of tasks
-//   const receivedTasks = Array.isArray(action.payload) 
-//     ? action.payload 
-//     : action.payload?.data 
-//       ? Array.isArray(action.payload.data) 
-//         ? action.payload.data 
-//         : [action.payload.data]
-//       : [action.payload].filter(Boolean);
-  
-//   // Create Set of existing task IDs for quick lookup
-//   const existingIds = new Set(state.tasks.map(t => t._id));
-  
-//   // Filter out duplicates and invalid tasks
-//   const uniqueNewTasks = receivedTasks.filter(
-//     task => task?._id && !existingIds.has(task._id)
-//   );
-  
-//   // Merge new tasks with existing ones (IMPORTANT: Use Immer's mutable syntax)
-//   state.tasks.push(...uniqueNewTasks);
-// })
+     
 .addCase(createTask.fulfilled, (state, action) => {
   state.status = 'succeeded';
   
@@ -341,8 +318,8 @@ const taskSlice = createSlice({
         state.status = 'succeeded';
         
         // Validate and sanitize payload
-        if (!Array.isArray(action.payload.data.tasks)) {
-          console.error('Invalid tasks payload:', action.payload.data.tasks);
+        if (!Array.isArray(action.payload?.data?.tasks)) {
+          console.error('Invalid tasks payload:', action.payload?.data?.tasks);
           state.tasks = [];
           return;
         }
@@ -353,7 +330,9 @@ const taskSlice = createSlice({
       })
       .addCase(fetchOrganizationTasks.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload;
+        // action.payload is the value from rejectWithValue
+        state.error = action.payload.message || 'Failed to fetch tasks';
+        state.tasks = []; // Clear tasks on failure
       })
       .addCase(updateTask.fulfilled, (state, action) => {
         state.status = 'succeeded';

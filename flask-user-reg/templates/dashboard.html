@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm mb-5">
+      <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">Your Dashboard</h4>
+      </div>
+      <div class="card-body">
+        <ul class="list-group list-group-flush mb-4">
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Subscription Plan:</span>
+            <!-- subscriber.subscription_type is already correct -->
+            <strong>{{ subscriber.subscription_type.title() }}</strong>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Max Users:</span>
+            <!-- FIX HERE -->
+            <strong>{{ subscriber.max_permitted_user_amount }}</strong>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Max Resources:</span>
+            <!-- FIX HERE -->
+            <strong>{{ subscriber.max_permitted_resource_amount }}</strong>
+          </li>
+        </ul>
+        <div class="d-grid">
+          <a href="{{ go_tasknitter_url }}" class="btn btn-success btn-lg">
+            Go to Tasknitter
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

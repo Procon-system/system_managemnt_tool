@@ -36,7 +36,7 @@ const UserForm = ({ onSubmit, user, onClose }) => {
     },
   });
   const [errors, setErrors] = useState({});
-console.log("userrrr",user)
+
   // Populate form data when the 'user' prop changes, now including new fields
   useEffect(() => {
     if (user) {

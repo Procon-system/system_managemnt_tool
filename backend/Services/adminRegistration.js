@@ -1,8 +1,38 @@
 const mongoose = require("mongoose");
+const jwt = require('jsonwebtoken');
 const { getOrganizationDB } = require("../config/dbManager");
+const config = require('../config/config'); // <-- IMPORT THE CONFIG
 
+async function handleUserLogin(extUser) {
+  try {
+    const { user, organization } = await handleAdminRegistration(extUser);
+
+    const payload = {
+      _id: user._id,
+      email: user.email,
+      first_name: extUser.name?.split(' ')[0] || 'Admin',
+      last_name: extUser.name?.split(' ').slice(1).join(' ') || 'User', 
+      role: user.role,
+      access_level: user.access_level,
+      isGlobalAdmin: true,
+      tenantId: organization._id,
+    };
+
+    const token = jwt.sign(
+      payload,
+      config.jwt.secret, // Use the secret from the config file
+      { expiresIn: config.jwt.expiresIn }
+    );
+  
+    return { token, user, organization };
+  } catch (err) {
+    console.error("User login handling error:", err);
+    throw err;
+  }
+}
 async function handleAdminRegistration(extUser) {
   try {
+    
     const Organization = mongoose.model("Organization");
     let organization = await Organization.findOne({ name: extUser.organization_name });
 
@@ -41,8 +71,8 @@ async function handleAdminRegistration(extUser) {
     const newSuperadmin = await Superadmin.create({
       email: extUser.email,
       password: extUser.password || 'tempPassword123!',
-      first_name: extUser.name?.split(' ')[0] || 'Admin',
-      last_name: extUser.name?.split(' ').slice(1).join(' ') || 'User',
+      first_name: extUser.first_name || 'Admin',
+      last_name: extUser.last_name || 'User',
       personal_number: extUser.id.toString(),
       org_id: organization._id,
       max_permitted_user_amount: extUser.max_permitted_user_amount || 5,
@@ -68,4 +98,4 @@ async function handleAdminRegistration(extUser) {
   }
 }
 
-module.exports = { handleAdminRegistration };
+module.exports = { handleAdminRegistration , handleUserLogin };

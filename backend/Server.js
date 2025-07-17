@@ -1,6 +1,7 @@
 
 const express = require("express");
 const http = require("http");
+
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -78,7 +79,7 @@ async function initializeApplication() {
     await connectRedis();
 
     const { Organization, Superadmin, TenantUser } = initializeMainModels(mongoose.connection);
-
+  
     // Middleware setup
     app.use(bodyParser.json());
     app.use(express.json());

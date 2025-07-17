@@ -162,7 +162,6 @@ const loginUser = async (email, password, rememberMe) => {
       throw new Error(validation.error.details.map(d => d.message).join('<br>'));
     }
 
-    // 2. Try Superadmin (main DB)
     const Superadmin = mongoose.model('Superadmin');
     const superadmin = await Superadmin.findOne({ email })
       .select('+password +loginAttempts +lockUntil');
@@ -189,7 +188,7 @@ const loginUser = async (email, password, rememberMe) => {
       if (!organization) throw new Error('Organization not found');
 
       const token = superadmin.generateAuthToken();
-
+       console.log("superadmin",superadmin)
       return {
         user: {
           _id: superadmin._id,

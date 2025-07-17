@@ -26,6 +26,7 @@ import ResourceTypesPage from './Pages/ResourceType/showResourceTypePage';
 import TeamsPage from './Pages/Team/TeamsPage';
 import TaskAnalytics  from './Pages/Analytics/TaskAnalytics';
 import CalendarImport from './Components/calendarImport';
+import AuthHandoff from './Components/authComponents/authHandoff';
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { connectSocket } from "./socket";
@@ -75,6 +76,7 @@ const App = () => {
           {/* Public Routes */}
           <Route path="/home" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/handoff" element={<AuthHandoff />} />
           <Route path="/logout" element={<LogoutPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

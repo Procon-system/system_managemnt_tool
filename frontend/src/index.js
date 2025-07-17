@@ -6,6 +6,12 @@ import { PersistGate } from 'redux-persist/integration/react';
 import App from './App';
 import store, { persistor } from '../src/Store/store';
 import './index.css';
+import { setupAxiosInterceptors } from './api/axiosConfig';
+
+// --- CALL THE SETUP FUNCTION HERE ---
+// This "injects" the store into the interceptor after everything is initialized.
+setupAxiosInterceptors(store);
+
 
 ReactDOM.render(
   <Provider store={store}>

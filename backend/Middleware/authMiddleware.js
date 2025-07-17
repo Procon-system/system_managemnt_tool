@@ -2,6 +2,7 @@
 const jwt = require('jsonwebtoken');
 
 const { getOrganizationDB } = require('../config/dbManager');
+const config = require('../config/config');
 
 const ROLES = {
   RANDOM_USER: 1,
@@ -12,17 +13,19 @@ const ROLES = {
 };
 const authenticateUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  
+  console.log(`[DEBUG 5 - RECEIVED IN MIDDLEWARE] Header: ${authHeader}`);
+
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Token missing or malformed" });
   }
 
   const token = authHeader.split(" ")[1].trim();
-
+console.log("token",token)
   try {
-    const decoded = jwt.verify(token, process.env.JWT_TOKEN_KEY);
+    const decoded = jwt.verify(token, config.jwt.secret);
     
     let user;
+    console.log("decoded",decoded)
     if (decoded.isGlobalAdmin) {
       // 🔒 Super admin in MAIN DB
       const Superadmin = req.mainModels?.Superadmin;

@@ -7,11 +7,13 @@ import { resetToastFlag } from '../Helper/checkTokenExpire';
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire';
 import {registerUser,CustomError} from '../Services/authService';
+// Get user from localStorage if it exists
+const token = localStorage.getItem('authToken');
 
 const initialState = {
   user: null,
-  token: null,
-  isLoggedIn: false,
+  token: token ? token : null,
+  isLoggedIn: token ? true : false,
   access_level: null, // Add accessLevel to track user permissions
 };
 export const registerUsers = createAsyncThunk(
@@ -46,7 +48,7 @@ const authSlice = createSlice({
   reducers: {
     login: (state, action) => {
       const { token, user, access_level } = action.payload;
-    
+      console.log("action.payload",action.payload)
       if (checkTokenExpiration(token)) {
         throw new Error("Token is expired"); // Prevent setting expired token
       }
@@ -66,14 +68,24 @@ const authSlice = createSlice({
 
       }, expiresIn);
     },
-    
+    // This action will be dispatched from AuthHandoff
+    setCredentials: (state, action) => {
+      
+      const { token,user, access_level } = action.payload;
+      state.user = user;
+      state.access_level = access_level;
+      state.token = token;
+      state.isLoggedIn = true;
+      localStorage.setItem('authToken', token);
+    },
     logout: (state) => {
       state.user = null;
       state.token = null;
       state.access_level = null; // Clear accessLevel
       state.isLoggedIn = false;
       localStorage.removeItem('token');
-sessionStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      sessionStorage.removeItem('token');
     },
   },
   extraReducers: (builder) => {
@@ -92,6 +104,8 @@ sessionStorage.removeItem('token');
   }
 });
 
-export const { login, logout } = authSlice.actions;
+export const {  setCredentials,login, logout } = authSlice.actions;
+export const selectCurrentToken = (state) => state.auth.token;
+export const selectIsAuthenticated = (state) => state.auth.isLoggedIn;
 
 export default authSlice.reducer;

@@ -54,20 +54,35 @@ const notificationSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
+      // .addCase(fetchNotifications.fulfilled, (state, action) => {
+      //   state.loading = false;
+      //   state.items = action.payload;
+      //   state.unreadCount = action.payload?.filter(n => !n.isRead).length;
+      // })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload;
-        state.unreadCount = action.payload.filter(n => !n.isRead).length;
+        
+        // 1. Check if the payload is an array. If not (i.e., it's null), use an empty array.
+        const notifications = Array.isArray(action.payload) ? action.payload : [];
+
+        // 2. Use this guaranteed-to-be-an-array variable for all state updates.
+        state.items = notifications;
+        state.unreadCount = notifications.filter(n => !n.isRead).length;
       })
       .addCase(fetchNotifications.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
+      
       .addCase(markNotificationsAsRead.fulfilled, (state, action) => {
+        // This reducer is now also safe because state.items is guaranteed to be an array.
         state.items = state.items.map(n => action.payload.includes(n._id) ? { ...n, isRead: true } : n);
         state.unreadCount = state.items.filter(n => !n.isRead).length;
       });
+      // .addCase(markNotificationsAsRead.fulfilled, (state, action) => {
+      //   state.items = state.items.map(n => action.payload.includes(n._id) ? { ...n, isRead: true } : n);
+      //   state.unreadCount = state.items.filter(n => !n.isRead).length;
+      // });
   }
 });
 
