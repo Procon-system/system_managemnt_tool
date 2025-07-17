@@ -48,7 +48,7 @@ const authSlice = createSlice({
   reducers: {
     login: (state, action) => {
       const { token, user, access_level } = action.payload;
-      console.log("action.payload",action.payload)
+      
       if (checkTokenExpiration(token)) {
         throw new Error("Token is expired"); // Prevent setting expired token
       }

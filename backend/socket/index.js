@@ -140,10 +140,6 @@ function initSocket(httpServer) {
   io = new Server(httpServer, {
     cors: { origin: "*", methods: ["GET", "POST"] }
   });
-
-  //==================================================================
-  // 1. INTERNAL NAMESPACE - For secure communication with Flask
-  //==================================================================
   const internalNamespace = io.of("/internal");
 
   // Authentication middleware for the internal namespace
