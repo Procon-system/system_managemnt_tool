@@ -13,8 +13,7 @@ const ROLES = {
 };
 const authenticateUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  console.log(`[DEBUG 5 - RECEIVED IN MIDDLEWARE] Header: ${authHeader}`);
-
+ 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Token missing or malformed" });
   }

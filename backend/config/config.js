@@ -19,7 +19,7 @@ module.exports = {
    retryWrites: process.env.RETRY_WRITES !== 'false',
    writeConcern: process.env.WRITE_CONCERN || 'majority',
   port: process.env.PORT || 5000,
-  corsOrigin:"http://localhost:3000" || process.env.CORS_ORIGIN,
+  corsOrigin: process.env.CORS_ORIGIN,
   jwt: {
     secret: checkEnv('JWT_TOKEN_KEY'), // This will now throw an error on start if missing
     expiresIn: '1d'

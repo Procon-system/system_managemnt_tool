@@ -5,19 +5,19 @@ services:
       context: ./flask-user-reg
       dockerfile: Dockerfile
     ports:
-      - "8500:8500"                        # expose Flask on host:5002
+      - "8500:8500"                       
     volumes:
-      - ./flask-user-reg:/app             # live-sync your code
-      - userreg-data:/app/subscribers.db  # persist the SQLite file
+      - ./flask-user-reg:/app            
+      - userreg-data:/app/subscribers.db  
     environment:
       - SOCKETIO_URL=http://app:5000
-      - INTERNAL_SOCKET_SECRET=${INTERNAL_SOCKET_SECRET} # Reads from the .env file in the root
-      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}             # Reads from the .env file in the root
+      - INTERNAL_SOCKET_SECRET=${INTERNAL_SOCKET_SECRET} 
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}             
       - FLASK_ENV=development
       - FLASK_APP=app.py
     depends_on:
       app:
-        condition: service_started   # waits for container to start (no health check)
+        condition: service_started   
 
     networks:
       - app-network
