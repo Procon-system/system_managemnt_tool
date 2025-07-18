@@ -44,7 +44,7 @@ const AuthHandoff = () => {
         console.error("Invalid token received in payload from server:", data);
         setUiState('error');
         setMessage('Received an invalid authentication payload from the server.');
-        setTimeout(() => navigate('/login'), 4000);
+        // setTimeout(() => navigate('/login'), 4000);
         return;
       }
 
@@ -62,7 +62,7 @@ const AuthHandoff = () => {
     socket.on('connect_error', (err) => {
       setUiState('error');
       setMessage(`Connection failed: ${err.message}. Please try again.`);
-      setTimeout(() => navigate('/login'), 4000);
+      // setTimeout(() => navigate('/login'), 4000);
     });
 
     // Cleanup on component unmount
