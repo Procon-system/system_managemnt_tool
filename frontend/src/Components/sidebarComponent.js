@@ -85,30 +85,47 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
     navigate('/home', {
       state: {
         calendarView: 'timeGridWeek',
-        calendarDate: (new Date()).toISOString(),
+        calendarDate: (new Date()),
       }
     });
     // setIsOpen(false);
   };
 
-  const handleViewYourTasksClick = () => {
-    dispatch(setTaskView('userTasks'));
-    navigate('/home');
-    setIsOpen(false);
-  };
+// Sidebar.tsx
 
-  const handleViewYourDoneTasksClick = () => {
-    dispatch(setTaskView('userDoneTasks'));
-    navigate('/home');
-    setIsOpen(false);
-  };
+const handleViewYourTasksClick = () => {
+  dispatch(setTaskView('userTasks'));
+  navigate('/home', {
+    state: {
+      calendarView: 'timeGridWeek',
+      calendarDate: (new Date()),
+    }
+  });
+  setIsOpen(false);
+};
 
-  const handleViewAllDoneTasksClick = () => {
-    dispatch(setTaskView('allDoneTasks'));
-    navigate('/home');
-    setIsOpen(false);
-  };
- 
+const handleViewYourDoneTasksClick = () => {
+  dispatch(setTaskView('userDoneTasks'));
+  navigate('/home', {
+    state: {
+      calendarView: 'timeGridWeek',
+      calendarDate: (new Date()),
+    }
+  });
+  setIsOpen(false);
+};
+
+const handleViewAllDoneTasksClick = () => {
+  dispatch(setTaskView('allDoneTasks'));
+  navigate('/home', {
+    state: {
+      calendarView: 'timeGridWeek',
+      calendarDate: (new Date()),
+    }
+  });
+  setIsOpen(false);
+};
+
   const StyledAddButton = ({ icon, label, onClick }) => (
     <button 
       className="relative group bg-blue-400 text-white p-3 rounded-full shadow-md hover:bg-blue-500 transition-all duration-200 transform hover:scale-110 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-300"
