@@ -425,17 +425,16 @@ const handleDateRangeSelect = (startDate, endDate) => {
       setFilteredEvents(calendarEvents);
     } else if (startDate && !endDate) {
       
-      const filtered = calendarEvents.filter((event) => {
+        const filtered = calendarEvents.filter((event) => {
         const eventStart = new Date(event.schedule.start);
         const selected = new Date(startDate);
-  
         return eventStart.toDateString() === selected.toDateString();
       });
       
       setFilteredEvents(filtered);
     } else {
       
-      const filtered = calendarEvents.filter((event) => {
+        const filtered = calendarEvents.filter((event) => {
         const eventStart = new Date(event.schedule.start);
         return eventStart >= new Date(startDate) && eventStart <= new Date(endDate);
       });
@@ -596,6 +595,7 @@ if (mergedEvent.newImages && mergedEvent.newImages.length > 0) {
   const handleTaskButtonClick = () => {
     setShowTaskPage(true); // Show the TaskPage
   };
+  
   return (
     <div className=' mt-7 lg:ml-72 mb-8'>
     

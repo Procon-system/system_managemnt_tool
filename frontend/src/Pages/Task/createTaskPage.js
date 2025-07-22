@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 const TaskPage = ({ onClose, onEventCreate, event, isOffset = false }) => {
   // Get all resource types from Redux store
   const { resourceTypes } = useSelector((state) => state.resourceTypes);
-  
+ 
   const initialTaskData = {
     title: event?.title || "",
     start_time: event?.start_time || "",

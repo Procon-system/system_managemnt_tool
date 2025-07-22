@@ -8,8 +8,40 @@ import { useUsers } from '../../hooks/useUsers';
 import { useDebounce } from '../../hooks/useDebounce'; // Import the new hook
 
 import RecurrencePicker from './recurrencePicker';
+// const formatDateTimeLocal = (date) => {
+//     if (!date) return ''; // Handle cases where date might be null
+//     const year = date.getFullYear();
+//     const month = String(date.getMonth() + 1).padStart(2, '0');
+//     const day = String(date.getDate()).padStart(2, '0');
+//     const hours = String(date.getHours()).padStart(2, '0');
+//     const minutes = String(date.getMinutes()).padStart(2, '0');
+//     return `${year}-${month}-${day}T${hours}:${minutes}`;
+// };
+// const getInitialFormData = (initialData) => {
+    
+//     const defaultStartTime = new Date();
+//     const defaultEndTime = new Date(defaultStartTime);
+//     defaultEndTime.setHours(defaultStartTime.getHours() + 1);
+//     const startTime = initialData.start_time ? new Date(initialData.start_time) : defaultStartTime;
+//     const endTime = initialData.end_time
+//         ? new Date(initialData.end_time)
+//         : new Date(new Date(startTime).setHours(startTime.getHours() + 1));
+//     return {
+//         title: initialData.title || "",
+//         start_time: formatDateTimeLocal(startTime),
+//         end_time: formatDateTimeLocal(endTime),
+//         status: initialData.status || 'pending',
+//         assignedResources: initialData.assignedResources || [],
+//         assigned_to: initialData.assigned_to || [],
+//         resources: initialData.resources || {},
+//         notes: initialData.notes || '',
+//         repeat_frequency: initialData.repeat_frequency || 'none',
+//         task_period: initialData.task_period || {},
+        
+//     };
+// };
 const formatDateTimeLocal = (date) => {
-    if (!date) return ''; // Handle cases where date might be null
+    if (!date || !(date instanceof Date) || isNaN(date.valueOf())) return '';
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -18,23 +50,70 @@ const formatDateTimeLocal = (date) => {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
-const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
-    const getInitialState = () => {
-        // Default start time is now
-        const defaultStartTime = new Date();
-        // Default end time is one hour after the start time
-        const defaultEndTime = new Date(defaultStartTime);
-        defaultEndTime.setHours(defaultStartTime.getHours() + 1);
+// **NEW FUNCTION**: This formats a date object using its UTC values.
+const formatDateTimeFromUTCString = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString); // Create date object from the UTC string
+    if (isNaN(date.valueOf())) return ''; // Check if the date is valid
 
-        const defaults = {
-            start_time: formatDateTimeLocal(defaultStartTime),
-            end_time: formatDateTimeLocal(defaultEndTime),
-            status: 'pending', // Also a good place for other defaults!
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+
+const getInitialFormData = (initialData) => {
+    // If a start_time is provided (from dateClick), use it and format from UTC.
+    if (initialData?.start_time) {
+        const startTimeString = initialData.start_time;
+        const endTimeString = initialData.end_time ||
+            // Calculate end time also in UTC
+            new Date(new Date(startTimeString).setUTCHours(new Date(startTimeString).getUTCHours() + 1)).toISOString();
+
+        return {
+            title: initialData.title || "new task",
+            start_time: formatDateTimeFromUTCString(startTimeString),
+            end_time: formatDateTimeFromUTCString(endTimeString),
+            status: initialData.status || 'pending',
+            assignedResources: initialData.assignedResources || [],
+            assigned_to: initialData.assigned_to || [],
+            resources: initialData.resources || {},
+            notes: initialData.notes || '',
+            repeat_frequency: initialData.repeat_frequency || 'none',
+            task_period: initialData.task_period || null,
         };
-        return (defaults);
+    }
+
+    // --- Fallback for when NO initialData is provided ---
+    // (e.g., clicking a generic "Create Task" button)
+    const defaultStartTime = new Date();
+    const defaultEndTime = new Date(new Date(defaultStartTime).setHours(defaultStartTime.getHours() + 1));
+
+    return {
+        title: "",
+        start_time: formatDateTimeLocal(defaultStartTime), // Use the local formatter here
+        end_time: formatDateTimeLocal(defaultEndTime),   // Use the local formatter here
+        status: 'pending',
+        assignedResources: [],
+        assigned_to: [],
+        resources: {},
+        notes: '',
+        repeat_frequency: 'none',
+        task_period: null,
     };
-   
-    const [formData, setFormData] = useState(getInitialState());
+};
+const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
+
+    const [formData, setFormData] = useState(() => getInitialFormData(initialData));
+    useEffect(() => {
+        setFormData(getInitialFormData(initialData));
+    }, [JSON.stringify(initialData)]);
+
+
     const debouncedStartTime = useDebounce(formData.start_time, 500); // 500ms delay
     const debouncedEndTime = useDebounce(formData.end_time, 500);
     
@@ -42,7 +121,7 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
         availableResources,
         isFetchingAvailable,
         getAvailableResourcesForType,
-    } = useResources(); // No arguments needed
+    } = useResources();
   
     const { users, loading: usersLoading } = useUsers();
     
@@ -80,54 +159,6 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
         }));
     }, []); 
 
-    // const renderResourceFields = () => {
-    //     if (!resourceTypes?.length) return null;
-
-    //     return Object.entries(
-    //         resourceTypes.reduce((acc, type) => {
-    //             const category = type.category || 'other';
-    //             if (!acc[category]) acc[category] = [];
-    //             acc[category].push(type);
-    //             return acc;
-    //         }, {})
-    //     ).map(([category, types]) => (
-    //         <div key={category} className="space-y-4">
-    //             <h2 className="text-lg font-semibold capitalize">{category}</h2>
-    //             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    //                 {types.map(type => {
-    //                     const resources = getResourcesByType(type._id);
-    //                     const isLoading = !resources.length && resourcesLoading;
-
-    //                     return (
-    //                         <div key={type._id} className="border rounded-lg p-4 bg-white">
-    //                             {isLoading ? (
-    //                                 <div>Loading {type.name} resources...</div>
-    //                             ) : (
-    //                                 <DynamicFormField
-    //                                     field={{
-    //                                         fieldName: `resources.${type._id}`,
-    //                                         displayName: type.name,
-    //                                         fieldType: 'select',
-    //                                         multiple: true,
-    //                                         options: resources.map(res => ({
-    //                                             label: res.displayName || res.name,
-    //                                             value: res._id
-    //                                         }))
-    //                                     }}
-    //                                     value={formData.resources?.[type._id] || []}
-    //                                     onChange={(selected) => handleResourceSelect(type._id, selected)}
-    //                                 />
-    //                             )}
-    //                             {type.description && (
-    //                                 <p className="text-xs text-gray-500 mt-2">{type.description}</p>
-    //                             )}
-    //                         </div>
-    //                     );
-    //                 })}
-    //             </div>
-    //         </div>
-    //     ));
-    // };
     const renderResourceFields = () => {
         if (!resourceTypes?.length) return null;
     
@@ -143,8 +174,6 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
                 <h2 className="text-lg font-semibold capitalize">{category}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {types.map(type => {
-                        // +++ UPDATE THIS LOGIC +++
-                        // 1. Get the list of available resources for this specific type from the Redux state map.
                         const resources = availableResources[type._id] || [];
                         
                         // 2. Use the new loading state.
@@ -163,14 +192,14 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
                                             displayName: type.name,
                                             fieldType: 'select',
                                             multiple: true,
-                                            // 3. Map over the NEW resources list
+                                            
                                             options: resources.map(res => ({
-                                                label: res.displayName || res.name, // The backend sends the full resource object
+                                                label: res.displayName || res.name, 
                                                 value: res._id
                                             }))
                                         }}
                                         value={formData.resources?.[type._id] || []}
-                                        // Make sure the onChange is correct
+                                        
                                         onChange={(e) => handleResourceSelect(type._id, e)}
                                     />
                                 )}
@@ -188,31 +217,7 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
         e.preventDefault();
         onSubmit(formData);
     };
-    // const handleSubmit = (e) => {
-    //     e.preventDefault();
     
-    //     // +++ ADD LOGIC TO FLATTEN RESOURCES +++
-    //     const resourcesByTypeId = formData.resources || {};
-    //     const flattenedResources = Object.values(resourcesByTypeId)
-    //         .flat() // Flatten the array of arrays
-    //         .map(resourceId => ({ resource: resourceId })); // Format for the backend
-    
-    //     const payload = {
-    //         ...formData,
-    //         resources: flattenedResources, // Overwrite with the correct format
-    //         // The backend expects `schedule.start` and `schedule.end`
-    //         schedule: {
-    //             start: formData.start_time,
-    //             end: formData.end_time,
-    //         }
-    //     };
-    
-    //     // Clean up top-level time fields if the backend doesn't expect them
-    //     delete payload.start_time;
-    //     delete payload.end_time;
-    
-    //     onSubmit(payload); // Submit the correctly formatted payload
-    // };
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));

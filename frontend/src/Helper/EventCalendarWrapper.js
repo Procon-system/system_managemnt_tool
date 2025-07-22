@@ -16,19 +16,30 @@ import {
    handleEventDuplication, 
   handleEventResize } from './calendarHandlers';
 import './custom.css';
-const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdate,calendarStartDate, onEventCreate, openForm, openCreateForm }) => {
+import { useLocation } from 'react-router-dom';
+const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdate, calendarStartDate, onEventCreate, openForm, openCreateForm }) => {
+  const location = useLocation();
+  const navState = location.state || {};
+  const navView  = navState.calendarView;
+  const navDate  = navState.calendarDate;
   const calendarContainer = useRef(null);
-  const [changedView, setChangedView] = useState('timeGridWeek'); // To keep track of current view
+  const [changedView, setChangedView] = useState('timeGridWeek'); 
   const calendarRef = useRef(null);
   const user = useSelector((state) => state.auth);
-  const currentDateRef = useRef(new Date()); // Initialize with a default value
+  const currentDateRef = useRef(new Date()); 
   const [selectedEvents, setSelectedEvents] = useState(new Set());
-  const selectedEventsRef = useRef(new Set()); // Add this ref to persist selection
+  const selectedEventsRef = useRef(new Set()); 
   const dragStartPositionsRef = useRef(new Map());
-  const [calendarDate, setCalendarDate] = useState(new Date());  // Default to today's date
-  const isDateChangeAllowed = useRef(true); // Add this line to define the ref
-
- 
+  const [calendarDate, setCalendarDate] = useState(new Date()); 
+  const isDateChangeAllowed = useRef(true); 
+  useEffect(() => {
+   
+    if ((navView && navView !== changedView) || (navDate && navDate !== calendarDate)) {
+      setCalendarDate(navDate);
+      setChangedView(navView);
+    }
+  }, [location.key]);
+  
   const handleDateChange = useCallback((args) => {
     const currentView = args.view.type;
     let normalizedArgsStart;
@@ -311,7 +322,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
         options: {
           // date: currentDateRef.current,
           date: calendarStartDate || calendarDate,
-          view: changedView,
+          view: changedView ,
           selectable: true,
           selectMirror: true,
           unselectAuto: false,
@@ -332,8 +343,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             setTimeout(() => { isDateChangeAllowed.current = true }, 100);
             handleDateChange(args);
           },
-        
-         
           customButtons: {
             month: {
               text: 'Month',
@@ -357,7 +366,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             },
             resource: {
               text: 'Resource',
-              click: () => handleViewChange('resourceTimeGridWeek'),
+              click: () => handleViewChange('resourceTimeGridDay'),
             },
             timeline: {
               text: 'Timeline',
@@ -514,44 +523,7 @@ openForm(updatedEvent);
         },
       },
     });
-    // Add this to your useEffect that handles styles
-    // const style = document.createElement('style');
-    // style.textContent = `
-    //     .time-picker-dialog {
-    //         position: fixed;
-    //         top: 0;
-    //         left: 0;
-    //         right: 0;
-    //         bottom: 0;
-    //         background: rgba(0,0,0,0.5);
-    //         display: flex;
-    //         align-items: center;
-    //         justify-content: center;
-    //         z-index: 9999;
-    //     }
-        
-    //     .time-picker-dialog input[type="time"] {
-    //         padding: 8px;
-    //         margin: 5px;
-    //         border: 1px solid #ddd;
-    //         border-radius: 4px;
-    //     }
-        
-    //     .time-picker-dialog button {
-    //         cursor: pointer;
-    //         border-radius: 4px;
-    //         border: 1px solid #ddd;
-    //     }
-        
-    //     .time-picker-dialog button:hover {
-    //         opacity: 0.8;
-    //     }
-    // `;
-    // document.head.appendChild(style);
-
-    // return () => {
-    //   document.head.removeChild(style);
-    // };
+    
   }, [events, assigned_resources, changedView]);
     // Update clearEventSelection to handle both state and ref
     const clearEventSelection = useCallback(() => {

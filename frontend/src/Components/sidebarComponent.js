@@ -81,7 +81,13 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
 
   const handleHomeClick = () => {
     dispatch(setTaskView('allTasks'));
-    navigate('/home');
+    // navigate('/home');
+    navigate('/home', {
+      state: {
+        calendarView: 'timeGridWeek',
+        calendarDate: (new Date()).toISOString(),
+      }
+    });
     // setIsOpen(false);
   };
 

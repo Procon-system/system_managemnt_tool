@@ -76,7 +76,7 @@ const App = () => {
           {/* Public Routes */}
           <Route path="/home" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/handoff" element={<AuthHandoff />} />
+          <Route path="/auth/handoff" element={<MainLayout><AuthHandoff /></MainLayout>} />
           <Route path="/logout" element={<LogoutPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
