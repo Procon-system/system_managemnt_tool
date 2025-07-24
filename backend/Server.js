@@ -1,7 +1,7 @@
 
 const express = require("express");
 const http = require("http");
-
+const { mqttClient } = require('./utils/mqttClient'); 
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -66,6 +66,8 @@ app.use(async (req, res, next) => {
   }
 });
 
+
+
 // Main app initialization
 async function initializeApplication() {
   try {
@@ -75,7 +77,7 @@ async function initializeApplication() {
       maxPoolSize: 10,
       socketTimeoutMS: 30000
     });
-
+    
     await connectRedis();
 
     const { Organization, Superadmin, TenantUser } = initializeMainModels(mongoose.connection);

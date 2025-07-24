@@ -168,7 +168,7 @@ function initSocket(httpServer) {
         const flaskId = data.data.flask_subscriber_id;
         const redisKey = `handoff:${flaskId}`;
         const payload = jwt.decode(token);
-
+console.log("payload",payload)
         // 3. Construct the full handoff object
         const handoffData = {
           token: token,

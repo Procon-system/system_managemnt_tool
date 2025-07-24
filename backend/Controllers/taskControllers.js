@@ -2,6 +2,7 @@ const taskService = require('../Services/taskService');
 const notificationService = require('../Services/notificationService');
 const { sendResponse } = require('../utils/responseHandler');
 const calculateTaskPeriod = require('../Helper/taskPeriodCalc');
+const { mqttClient } = require('../utils/mqttClient'); // ✅ Import the shared MQTT client instance
 const getColorForStatus =require('../utils/getColorForStatus');
 const uploadFileToGridFS = require('../utils/uploadImage'); 
 const { notifyUser, notifyOrg } = require('../socket/emitUtils');
@@ -60,10 +61,9 @@ exports.importICal = async (req, res) => {
 };
 exports.createTask = async (req, res) => {
   try {
-    console.log("req.tenantModel",req.tenantModels)
     const { Task, Resource, Notification, ResourceBooking } = req.tenantModels;
     const cache = req.tenantCache;
-
+console.log("req.body", req.body);
     // Validate required fields
     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
       return res.status(400).json({
@@ -151,14 +151,52 @@ exports.createTask = async (req, res) => {
       })
     );
   }
-  
+
+const mqttPayload = {
+  title: createdTask.title,
+  status: createdTask.status,
+  assigned_to: createdTask.assignments.map(a => ({
+    id:   a.user._id.toString(),
+    name: `${a.user.first_name} ${a.user.last_name}`
+  })),
+  resources: createdTask.resources.map(r => ({
+    resource:        r.resource._id.toString(),
+    name:            r.resource.fields.name,
+  })),
+  notes:           createdTask.notes,
+  repeat_frequency:createdTask.repeat_frequency,
+  task_period:     createdTask.task_period,
+  schedule: {
+    start:    createdTask.schedule.start.toISOString().slice(0,16),
+    end:      createdTask.schedule.end.toISOString().slice(0,16),
+    timezone: createdTask.schedule.timezone
+  }
+};
+  // Publish to MQTT only if the client is connected
+  if (mqttClient.connected) {
+      mqttClient.publish(
+          'tasks/new',
+          JSON.stringify(mqttPayload),
+          { qos: 1, retain: false }, // qos: 1 for "at least once" delivery
+          (err) => {
+              if (err) {
+                  console.error('MQTT publish error:', err);
+              } else {
+                  console.log(`✅ Published new task to MQTT: ${mqttPayload.id}`);
+              }
+          }
+      );
+  } else {
+      console.warn('⚠️ MQTT client not connected. Skipping message publication.');
+  }
+
     // Ensure we're sending a response
     return res.status(201).json({
       success: true,
       message: 'Task created successfully',
       data: createdTask
     });
-
+ 
   } catch (error) {
     console.error('Error in createTask:', error);
     return res.status(error.statusCode || 500).json({

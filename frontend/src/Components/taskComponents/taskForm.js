@@ -67,8 +67,7 @@ const formatDateTimeFromUTCString = (dateString) => {
 
 
 const getInitialFormData = (initialData) => {
-    // If a start_time is provided (from dateClick), use it and format from UTC.
-    if (initialData?.start_time) {
+       if (initialData?.start_time) {
         const startTimeString = initialData.start_time;
         const endTimeString = initialData.end_time ||
             // Calculate end time also in UTC
@@ -88,8 +87,6 @@ const getInitialFormData = (initialData) => {
         };
     }
 
-    // --- Fallback for when NO initialData is provided ---
-    // (e.g., clicking a generic "Create Task" button)
     const defaultStartTime = new Date();
     const defaultEndTime = new Date(new Date(defaultStartTime).setHours(defaultStartTime.getHours() + 1));
 

@@ -54,12 +54,15 @@ services:
     env_file:
       - ./backend/.env  # Load environment variables from .env file in backend directory
     environment:
+      - MQTT_URL=mqtt://mosquitto:1883 
       - INTERNAL_SOCKET_SECRET=${INTERNAL_SOCKET_SECRET}
     ports:
       - '5000:5000' 
     expose:
       - '5000'
     depends_on:
+      mosquitto:
+        condition: service_started
       mongo:
         condition: service_healthy
      
@@ -67,7 +70,21 @@ services:
       - app-network
     restart: unless-stopped
     
-    
+   # The Mosquitto MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto-1
+    ports:
+      - "1883:1883"
+      - "9002:9001"
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - app-network
+    restart: unless-stopped
+
     # MongoDB service
   mongo:
     image: mongo:8.0
