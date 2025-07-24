@@ -1,7 +1,7 @@
 // src/mqttClient.js
 const mqtt = require('mqtt');
 
-const url = process.env.MQTT_URL || 'mqtt://mosquitto:1883';
+const url = process.env.MQTT_URL;
 const opts = {
   // A unique client ID is important for brokers
   clientId: `api-server-${Math.random().toString(16).substring(2, 10)}`,
