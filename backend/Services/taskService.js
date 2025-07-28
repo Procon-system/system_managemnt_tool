@@ -298,7 +298,7 @@ exports.getTaskById = async (taskId, TaskModel) => {
   
   return task;
 };
-exports.updateTask = async (taskId, updateData, TaskModel, ResourceBookingModel) => {
+exports.updateTask = async (taskId, updateData, TaskModel,ResourceModel, ResourceBookingModel) => {
  
   const taskBeforeUpdate = await TaskModel.findById(taskId);
 
@@ -410,11 +410,7 @@ exports.updateTask = async (taskId, updateData, TaskModel, ResourceBookingModel)
     updateData.$push.timeLogs = { $each: newTimeLogs };
     updateData.$push.resourceLogs = { $each: newResourceLogs };
   }
-  // const task = await TaskModel.findOneAndUpdate(
-  //   { _id: taskId },
-  //   updateData,
-  //   { new: true, runValidators: true }
-  // );
+
   const updatedTask = await TaskModel.findByIdAndUpdate(
     taskId,
     updateData,
@@ -443,24 +439,6 @@ exports.updateTask = async (taskId, updateData, TaskModel, ResourceBookingModel)
     }
   }
 
-  // .populate({
-  //   path: 'resources.resource',
-  //   populate: {
-  //     path: 'type',
-  //     model: 'ResourceType',
-  //     select: 'name icon color'
-  //   }
-  // })
-  // .populate({
-  //   path: 'assignments.user',
-  //   select: 'first_name last_name email avatar'
-  // })
-    
-  // if (!task) {
-  //   throw { message: 'Task not found', statusCode: 404 };
-  // }
-  
-  // return task;
   return await TaskModel.findById(updatedTask._id)
     .populate([
       {
