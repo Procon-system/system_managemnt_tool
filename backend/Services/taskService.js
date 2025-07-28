@@ -314,29 +314,50 @@ exports.updateTask = async (taskId, updateData, TaskModel, ResourceBookingModel)
     };
   }
 
-  // 2. Determine if a conflict check is needed
   const newSchedule = updateData.schedule;
   const newResources = updateData.resources;
+
+  // 1. Determine if schedule has actually changed
   const scheduleChanged = newSchedule && (
     new Date(taskBeforeUpdate.schedule.start).getTime() !== new Date(newSchedule.start).getTime() ||
     new Date(taskBeforeUpdate.schedule.end).getTime() !== new Date(newSchedule.end).getTime()
   );
-  const resourcesChanged = newResources !== undefined;
 
-  // 3. Perform conflict check if schedule or resources changed
+  // 2. Determine if the set of resources has actually changed
+  let resourcesChanged = false;
+  if (newResources !== undefined) {
+    const oldResourceIds = (taskBeforeUpdate.resources || []).map(r => r.resource.toString()).sort();
+    const newResourceIds = (newResources || []).map(r => r.resource.toString()).sort();
+    if (JSON.stringify(oldResourceIds) !== JSON.stringify(newResourceIds)) {
+      resourcesChanged = true;
+    }
+  }
+
+  // 3. Perform conflict check ONLY if schedule/resources changed, and ONLY on BLOCKABLE resources
   if (scheduleChanged || resourcesChanged) {
-    // Use the new data if available, otherwise fall back to the old data.
     const resourcesToCheck = newResources || taskBeforeUpdate.resources;
+    
     if (resourcesToCheck && resourcesToCheck.length > 0) {
-        const resourceIds = resourcesToCheck.map(r => r.resource);
+      const allResourceIds = resourcesToCheck.map(r => r.resource);
+
+      // Filter the full list to get only the ones that can actually cause conflicts.
+      const blockableResourceIds = await getBlockableResourceIds({
+        resourceIds: allResourceIds,
+        organizationId: taskBeforeUpdate.organization,
+        ResourceModel // Pass the model we received
+      });
+      
+      // 3B. Only run the DB check if there are any blockable resources to check.
+      if (blockableResourceIds.length > 0) {
         await bookingService.checkForConflictsAndThrow({
-            resourceIds,
-            startTime: newSchedule?.start || taskBeforeUpdate.schedule.start,
-            endTime: newSchedule?.end || taskBeforeUpdate.schedule.end,
-            organizationId: taskBeforeUpdate.organization,
-            ResourceBookingModel,
-            excludeTaskId: taskId // CRUCIAL: Don't let the task conflict with itself!
+          resourceIds: blockableResourceIds, // <-- Use the FILTERED list
+          startTime: newSchedule?.start || taskBeforeUpdate.schedule.start,
+          endTime: newSchedule?.end || taskBeforeUpdate.schedule.end,
+          organizationId: taskBeforeUpdate.organization,
+          ResourceBookingModel,
+          excludeTaskId: taskId // CRUCIAL: Don't let the task conflict with itself!
         });
+      }
     }
   }
 

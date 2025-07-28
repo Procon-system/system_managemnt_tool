@@ -39,7 +39,4 @@ const getBlockableResourceIds = async ({ resourceIds, organizationId, ResourceMo
 
   return blockableIds;
 };
-
-// +++ THIS IS THE MOST IMPORTANT LINE +++
-// Make this function the export of this module.
 module.exports = getBlockableResourceIds;

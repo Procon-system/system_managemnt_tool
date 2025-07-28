@@ -63,7 +63,7 @@ exports.createTask = async (req, res) => {
   try {
     const { Task, Resource, Notification, ResourceBooking } = req.tenantModels;
     const cache = req.tenantCache;
-console.log("req.body", req.body);
+
     // Validate required fields
     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
       return res.status(400).json({
@@ -211,7 +211,7 @@ exports.updateTask = async (req, res) => {
     const taskId = req.params.id;
     const updateData = {};
     const mongoose = require('mongoose');
-    const { Task ,Notification,ResourceBooking } = req.tenantModels;
+    const { Task , Resource,Notification,ResourceBooking } = req.tenantModels;
    
     // Parse the assigned_resources if it exists
     if (req.body.assigned_resources) {
@@ -293,6 +293,7 @@ exports.updateTask = async (req, res) => {
       taskId,
       updateData,
       Task,
+      Resource, 
       ResourceBooking 
     );
     
