@@ -469,15 +469,14 @@ exports.deleteTask = async (taskId, TaskModel) => {
     { $pull: { dependencies: { task: taskId } } }
   );
 };
-exports.getTasksByOrganization = async (TaskModel, options = {}) => {
-  const { page = 1, limit = 100 } = options;
-  
-  const tasks = await TaskModel.find({ 
-    
+exports.getTasksByOrganization = async (TaskModel) => {
+  const queryFilter = { 
+   
     status: { $ne: 'done' } // Exclude done tasks
-  })
-    .skip((page - 1) * limit)
-    .limit(parseInt(limit))
+  };
+
+  const tasks = await TaskModel.find(queryFilter) 
+    .sort({ 'schedule.start': -1 }) 
     .populate({
       path: 'resources.resource',
       populate: {
@@ -490,18 +489,10 @@ exports.getTasksByOrganization = async (TaskModel, options = {}) => {
       path: 'assignments.user',
       select: 'first_name last_name email avatar'
     })
+    .lean(); // .lean() is great for fast, read-only queries
     
-  const count = await TaskModel.countDocuments({ 
-    
-    status: { $ne: 'done' } // Consistent count query
-  });
   
-  return {
-    tasks,
-    total: count,
-    pages: Math.ceil(count / limit),
-    currentPage: page
-  };
+    return tasks;
 };
 exports.filterTasksByOrganization = async (organizationId,TaskModel, options = {}) => {
   const { page = 1, limit = 100, filters = {} } = options;

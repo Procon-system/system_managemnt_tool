@@ -306,7 +306,7 @@ useEffect(() => {
 useEffect(() => {
   if (currentView === 'allTasks') {
    
-    dispatch(fetchOrganizationTasks({page :1, limit :100})); // Fetch all tasks
+    dispatch(fetchOrganizationTasks()); // Fetch all tasks
   } else if (currentView === 'userTasks') {
     
     dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user

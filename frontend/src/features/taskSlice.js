@@ -70,16 +70,14 @@ export const getAllDoneTasks = createAsyncThunk(
 // Fetch Tasks
 export const fetchOrganizationTasks = createAsyncThunk(
   'tasks/fetchOrganizationTasks',
-  async ({ page = 1, limit = 100 }, { rejectWithValue, dispatch, getState }) =>{
-      try {
-        const token = getState().auth.token; // Get the token from Redux state
-        if (checkTokenAndLogout(token, dispatch)) {
-          return null; // Exit if the token is expired
-        }
-        return await taskService.getOrganizationTasks(
-          { page, limit },
-          token
-        );
+  async (_, { rejectWithValue, dispatch, getState }) => {
+    try {
+      const token = getState().auth.token;
+      if (checkTokenAndLogout(token, dispatch)) {
+        return null;
+      }
+      // CHANGED: The service call is now much simpler.
+      return await taskService.getOrganizationTasks(token);
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -317,14 +315,13 @@ const taskSlice = createSlice({
       .addCase(fetchOrganizationTasks.fulfilled, (state, action) => {
         state.status = 'succeeded';
         
-        // Validate and sanitize payload
-        if (!Array.isArray(action.payload?.data?.tasks)) {
-          console.error('Invalid tasks payload:', action.payload?.data?.tasks);
+        if (!Array.isArray(action.payload)) {
+          console.error('Invalid tasks payload:', action.payload);
           state.tasks = [];
           return;
         }
-      
-        state.tasks = action.payload.data.tasks.filter(task => 
+        // state.tasks = action.payload; 
+        state.tasks = action.payload.filter(task => 
           task?._id
         );
       })

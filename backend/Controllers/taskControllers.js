@@ -469,20 +469,25 @@ exports.deleteTask = async (req, res) => {
 };
 exports.getTasksByOrganization = async (req, res) => {
   try {
-    const { page = 1, limit = 100 } = req.query;
+    // REMOVED: We no longer read page or limit from req.query
     const { Task } = req.tenantModels;
     const orgId = req.user.org_id;
     const cache = req.tenantCache;
 
-    const cacheKey = `tasks:org:${orgId}:page:${page}:limit:${limit}`;
+    // CHANGED: The cache key is simplified as it no longer depends on pagination.
+    const cacheKey = `tasks:org:${orgId}:all-active`;
+    
     const cached = await cache.get(cacheKey);
     if (cached) {
+      // Assuming sendResponse is your helper to format JSON responses
       return sendResponse(res, 200, 'Tasks retrieved from cache', JSON.parse(cached));
     }
 
-    const tasks = await taskService.getTasksByOrganization(Task, { page, limit });
+    // CHANGED: The service call is now simpler. It just needs the Model and orgId.
+    const tasks = await taskService.getTasksByOrganization(Task);
 
-    await cache.set(cacheKey, JSON.stringify(tasks), { expiration: 300 });
+    // Cache the result (which is now a simple array).
+    await cache.set(cacheKey, JSON.stringify(tasks), { EX: 300 }); // Using EX for seconds is common
     
     sendResponse(res, 200, 'Tasks retrieved successfully', tasks);
   } catch (error) {

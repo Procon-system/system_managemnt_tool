@@ -150,13 +150,12 @@ const taskService = {
    * @param {string} token - Auth token
    * @returns {Promise<Object>} Tasks and pagination data
    */
-  getOrganizationTasks: async ({ page = 1, limit = 10 }, token) => {
+  getOrganizationTasks: async (token) => {
     try {
       const response = await axios.get(`${API_URL}`, { // Note: No organizationId in URL
         headers: { Authorization: `Bearer ${token}` },
-        params: { page, limit }
       });
-      return response.data;
+      return response.data.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
