@@ -119,76 +119,118 @@ exports.createTask = async (req, res) => {
    // Invalidate all paginated task lists
    await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
 
-   if (taskData.assignments && taskData.assignments.length > 0) {
+  //  if (taskData.assignments && taskData.assignments.length > 0) {
     
-    await Promise.all(
-      taskData.assignments.map((assignment) => {
-        const userId = assignment.user.toString();
+  //   await Promise.all(
+  //     taskData.assignments.map((assignment) => {
+  //       const userId = assignment.user.toString();
   
-        // Real-time notification
-        notifyUser(userId, 'task:assigned', {
-          taskId: createdTask._id,
-          title: taskData.title,
-          message: `You've been assigned a new task: "${taskData.title}"`,
-          createdBy: req.user.first_name || 'A team member',
-          organization: req.user.org_id,
-        });
+  //       // Real-time notification
+  //       notifyUser(userId, 'task:assigned', {
+  //         taskId: createdTask._id,
+  //         title: taskData.title,
+  //         message: `You've been assigned a new task: "${taskData.title}"`,
+  //         createdBy: req.user.first_name || 'A team member',
+  //         organization: req.user.org_id,
+  //       });
   
-        // Persistent DB notification
-        return notificationService.createNotification(
-          {
-            user: userId,
-            organization: req.user.org_id,
-            title: 'New Task Assigned',
-            message: `You've been assigned a new task: "${taskData.title}"`,
-            type: 'task',
-            referenceId: createdTask._id,
-            referenceModel: 'Task',
-            isRead: false,
-          },
-          Notification
-        );
-      })
-    );
-  }
+  //       // Persistent DB notification
+  //       return notificationService.createNotification(
+  //         {
+  //           user: userId,
+  //           organization: req.user.org_id,
+  //           title: 'New Task Assigned',
+  //           message: `You've been assigned a new task: "${taskData.title}"`,
+  //           type: 'task',
+  //           referenceId: createdTask._id,
+  //           referenceModel: 'Task',
+  //           isRead: false,
+  //         },
+  //         Notification
+  //       );
+  //     })
+  //   );
+  // }
+ 
+    // Normalize the result into an array so we can always loop through it.
+    const tasksToProcess = Array.isArray(createdTask) ? createdTask : [createdTask];
 
-const mqttPayload = {
-  title: createdTask.title,
-  status: createdTask.status,
-  assigned_to: createdTask.assignments.map(a => ({
-    id:   a.user._id.toString(),
-    name: `${a.user.first_name} ${a.user.last_name}`
-  })),
-  resources: createdTask.resources.map(r => ({
-    resource:        r.resource._id.toString(),
-    name:            r.resource.fields.name,
-  })),
-  notes:           createdTask.notes,
-  repeat_frequency:createdTask.repeat_frequency,
-  task_period:     createdTask.task_period,
-  schedule: {
-    start:    createdTask.schedule.start.toISOString().slice(0,16),
-    end:      createdTask.schedule.end.toISOString().slice(0,16),
-    timezone: createdTask.schedule.timezone
-  }
-};
-  // Publish to MQTT only if the client is connected
-  if (mqttClient.connected) {
-      mqttClient.publish(
-          'tasks/new',
-          JSON.stringify(mqttPayload),
-          { qos: 1, retain: false }, // qos: 1 for "at least once" delivery
-          (err) => {
-              if (err) {
-                  console.error('MQTT publish error:', err);
-              } else {
-                  console.log(`✅ Published new task to MQTT: ${mqttPayload.id}`);
-              }
-          }
-      );
-  } else {
-      console.warn('⚠️ MQTT client not connected. Skipping message publication.');
-  }
+    if (!tasksToProcess || tasksToProcess.length === 0 || !tasksToProcess[0]) {
+        throw new Error('Task creation failed to return any valid task objects.');
+    }
+
+    // Process notifications and MQTT for EACH task created.
+    for (const task of tasksToProcess) {
+      // 1. Send Notifications for this specific task instance
+      if (task.assignments && task.assignments.length > 0) {
+        await Promise.all(
+          task.assignments.map((assignment) => {
+            if (!assignment.user) return null; // Safety check
+            const userId = assignment.user._id.toString();
+            
+            notifyUser(userId, 'task:assigned', {
+              taskId: task._id,
+              title: task.title,
+              message: `You've been assigned a new task: "${task.title}" for ${task.schedule.start.toLocaleDateString()}`,
+              createdBy: req.user.first_name || 'A team member',
+              organization: req.user.org_id,
+            });
+      
+            return notificationService.createNotification({
+                user: userId,
+                organization: req.user.org_id,
+                title: 'New Task Assigned',
+                message: `You've been assigned a new task: "${task.title}" for ${task.schedule.start.toLocaleDateString()}`,
+                type: 'task',
+                referenceId: task._id,
+                referenceModel: 'Task',
+                isRead: false,
+              },
+              Notification
+            );
+          })
+        );
+      }
+
+      // 2. Publish MQTT message for this specific task instance
+      const mqttPayload = {
+        _id: task._id.toString(), // Include ID in MQTT message
+        title: task.title,
+        status: task.status,
+        assigned_to: (task.assignments || []).map(a => ({
+          id:   a.user?._id.toString(),
+          name: `${a.user?.first_name} ${a.user?.last_name}`
+        })),
+        resources: (task.resources || []).map(r => ({
+          resource: r.resource?._id.toString(),
+          name:     r.resource?.displayName || r.resource?.fields?.name, // Prefer displayName
+        })),
+        notes: task.notes,
+        repeat_frequency: task.repeat_frequency,
+        task_period: task.task_period,
+        schedule: {
+          start:    task.schedule.start.toISOString().slice(0,16),
+          end:      task.schedule.end.toISOString().slice(0,16),
+          timezone: task.schedule.timezone
+        }
+      };
+
+      if (mqttClient.connected) {
+        mqttClient.publish(
+            'tasks/new',
+            JSON.stringify(mqttPayload),
+            { qos: 1, retain: false },
+            (err) => {
+                if (err) {
+                    console.error(`MQTT publish error for task ${task._id}:`, err);
+                }
+            }
+        );
+      } else {
+        console.warn('⚠️ MQTT client not connected. Skipping message publication.');
+      }
+    }
+    // --- END: REVISED LOGIC ---
 
     // Ensure we're sending a response
     return res.status(201).json({
