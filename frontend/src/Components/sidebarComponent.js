@@ -81,14 +81,14 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
 
   const handleHomeClick = () => {
     dispatch(setTaskView('allTasks'));
-    // navigate('/home');
+    
     navigate('/home', {
       state: {
         calendarView: 'timeGridWeek',
         calendarDate: (new Date()),
       }
     });
-    // setIsOpen(false);
+    
   };
 
 // Sidebar.tsx
@@ -167,23 +167,26 @@ const handleViewAllDoneTasksClick = () => {
   
           {/* Navigation Buttons */}
           <div className="space-y-2 mt-4 px-4">
-            <button
-              className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
-              onClick={handleHomeClick}
-            >
-              <AiOutlineHome className="text-blue-500 mr-3" size={24} />
-              Home
-            </button>
+          {access_level >= 3 && (
+  <>
+    <button
+      className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
+      onClick={handleHomeClick}
+    >
+      <AiOutlineHome className="text-blue-500 mr-3" size={24} />
+      Home
+    </button>
 
-            {access_level >= 3 && (
-            <button
-  className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 mt-2 rounded-md hover:bg-blue-200 transition"
-  onClick={() => handleNavigation('/analytics')}
->
-  <MdDashboard className="text-blue-500 mr-3" size={24} />
-  Analytics Dashboard
-</button>
+    <button
+      className="w-full flex items-center text-gray-800 bg-blue-100 px-4 py-3 mt-2 rounded-md hover:bg-blue-200 transition"
+      onClick={() => handleNavigation('/analytics')}
+    >
+      <MdDashboard className="text-blue-500 mr-3" size={24} />
+      Analytics Dashboard
+    </button>
+  </>
 )}
+
 
   
             {access_level === 2 && (
@@ -193,14 +196,14 @@ const handleViewAllDoneTasksClick = () => {
                   onClick={handleViewYourTasksClick}
                 >
                   <FiList className="text-blue-500 mr-3" size={24} />
-                  Your Tasks
+                  Home
                 </button>
                 <button
                   className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
                   onClick={handleViewYourDoneTasksClick}
                 >
                   <FiCheckCircle className="text-blue-500 mr-3" size={24} />
-                  Your Tasks History
+                  Tasks History
                 </button>
               </>
             )}
@@ -216,7 +219,7 @@ const handleViewAllDoneTasksClick = () => {
               
             )}
    
- 
+   {access_level >= 3 && (
             <button
               className="w-full flex text-left text-gray-800 bg-blue-100 px-4 py-3 rounded-md hover:bg-blue-200 transition"
               onClick={handleViewAllDoneTasksClick}
@@ -224,6 +227,7 @@ const handleViewAllDoneTasksClick = () => {
               <FiArchive className="text-blue-500 mr-3" size={24} />
               Tasks History
             </button>
+          )}
           </div>
   
          
@@ -259,7 +263,9 @@ const handleViewAllDoneTasksClick = () => {
     `}
   >
     
-        <div className="ml-8 mt-1 space-y-1">
+        <div className="ml-4 mt-1 space-y-1 max-w-full overflow-x-auto">
+  <div className="flex flex-col w-full min-w-[220px]">
+
         {access_level === 5 && (
         <button
           onClick={() => navigate('/user')}
@@ -291,10 +297,11 @@ const handleViewAllDoneTasksClick = () => {
       
       </div>
       </div>
-    
+      </div>
   </div>
 )}
         </div>
+       
         {access_level >= 2 && (
   <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 pt-2 pb-4 px-4 z-10">
     <div className="relative flex justify-end">

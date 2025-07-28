@@ -38,20 +38,26 @@ export const fetchResourcesByType = createAsyncThunk(
     }
   }
 );
-// export const fetchAvailableResources = createAsyncThunk(
-//   'resources/fetchAvailable',
-//   async ({ typeId, startTime, endTime }, { getState, dispatch, rejectWithValue }) => {
-//     const token = getState().auth.token;
-//     if (checkTokenAndLogout(token, dispatch)) return null;
-//     try {
-//       const response = await resourceService.getAvailableResources({ typeId, startTime, endTime }, token);
-//       // Return a payload that includes the typeId to store data correctly
-//       return { typeId, resources: response.data };
-//     } catch (error) {
-//       return rejectWithValue(error.message || 'Error fetching available resources');
-//     }
-//   }
-// );
+export const checkRecurringAvailability = createAsyncThunk(
+  'resources/checkRecurring',
+  async (checkData, { getState, rejectWithValue }) => {
+    const token = getState().auth.token;
+    // You might not need token check here if it's handled globally by an axios interceptor
+
+    // Don't proceed if the data isn't valid for a check
+    if (!checkData.resourceIds?.length || checkData.frequency === 'none' || !checkData.task_period) {
+      // We don't reject, we just return a "clear" signal
+      return { clear: true }; 
+    }
+
+    try {
+      const data = await resourceService.checkRecurringAvailability(checkData, token);
+      return data; // This will be the { success, available, conflicts, ... } object
+    } catch (error) {
+      return rejectWithValue(error.message || 'Error checking recurring availability');
+    }
+  }
+);
 export const fetchAvailableResources = createAsyncThunk(
   'resources/fetchAvailable',
   async ({ typeId, startTime, endTime }, { getState,dispatch,  rejectWithValue }) => {
@@ -163,6 +169,8 @@ const initialState = {
   availableResources: {},
   availableStatus: 'idle',
   currentResource: null,
+  recurringConflict: null,
+  isCheckingRecurring: false,
   status: 'idle',
   error: null,
   loading: false
@@ -204,7 +212,10 @@ const resourceSlice = createSlice({
     clearAvailableResources: (state) => {
       state.availableResources = {};
       state.availableStatus = 'idle';
-  }
+  },
+  clearRecurringConflict: (state) => {
+    state.recurringConflict = null;
+   }
   },
   extraReducers: (builder) => {
     builder
@@ -281,21 +292,27 @@ const resourceSlice = createSlice({
         state.availableStatus = 'failed';
         state.error = action.payload;
       })
-      // .addCase(fetchAvailableResources.pending, (state) => {
-      //   state.availableStatus = 'loading';
-      // })
-      // .addCase(fetchAvailableResources.fulfilled, (state, action) => {
-      //   state.availableStatus = 'succeeded';
-      //   if (action.payload) {
-      //     const { typeId, resources } = action.payload;
-      //     state.availableResources[typeId] = resources;
-      //   }
-      // })
-      // .addCase(fetchAvailableResources.rejected, (state, action) => {
-      //   state.availableStatus = 'failed';
-      //   state.error = action.payload; // You might want a separate error state for this
-      // })
-  
+      .addCase(checkRecurringAvailability.pending, (state) => {
+        state.isCheckingRecurring = true;
+        state.recurringConflict = null; // Clear old conflicts on new check
+      })
+      .addCase(checkRecurringAvailability.fulfilled, (state, action) => {
+        state.isCheckingRecurring = false;
+        if (action.payload.clear) {
+            state.recurringConflict = null;
+        } else if (action.payload.success && !action.payload.available) {
+            // A conflict was found, store the details
+            state.recurringConflict = action.payload;
+        } else {
+            // It was successful and available, or it was a clear action
+            state.recurringConflict = null;
+        }
+      })
+      .addCase(checkRecurringAvailability.rejected, (state, action) => {
+        state.isCheckingRecurring = false;
+        // Set a generic error so the UI can react
+        state.recurringConflict = { available: false, message: action.payload };
+      })
       // Fetch Resource by ID
       .addCase(fetchResourceById.pending, (state) => {
         state.status = 'loading';
@@ -383,7 +400,8 @@ export const {
   resourceDeleted,
   setCurrentResource,
   resetResourceState,
-  clearAvailableResources
+  clearAvailableResources,
+  clearRecurringConflict 
 } = resourceSlice.actions;
 
 export default resourceSlice.reducer;

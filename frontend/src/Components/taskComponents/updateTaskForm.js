@@ -259,14 +259,19 @@ const handleChange = (e) => {
     handleFormSubmit(cleanPayload);
   };
    const handleStatusChange = async (newStatus) => {
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const fallbackTimezoneOffset = new Date().getTimezoneOffset() / -60;
+    const timezoneToUse = userTimezone || fallbackTimezoneOffset;  
+    const adjustedStartTime = adjustTimeForBackend(editableEvent.start, timezoneToUse);
+    const adjustedEndTime = adjustTimeForBackend(editableEvent.end, timezoneToUse);
+
     // Create an updated event object with only the status changed
     const updatedEvent = {
       ...editableEvent,
+      start: adjustedStartTime, // Use the adjusted time
+     end: adjustedEndTime, 
       status: newStatus,
     };
-  
-    // Call the main form submission handler with this updated event
-    // This assumes handleFormSubmit can handle the full event object
     await handleFormSubmit(updatedEvent);
   
     // Close the menu after selection
@@ -595,11 +600,11 @@ const handleChange = (e) => {
 
             </>
           ): (
-            <div className="space-y-4">              <div className="flex justify-between items-center border-b pb-4">
-                {/* --- LEFT SIDE: Title and Status Changer --- */}
+            <div className="space-y-4">            
+             <div className="flex justify-between items-center border-b pb-4">
+               
                 <div className="flex items-center gap-x-4">
                  
-                  {/* --- STATUS QUICK-CHANGER --- */}
                   <div className="relative">
                     <button
                       type="button"

@@ -1,5 +1,44 @@
 const Task = require('../Models/TaskSchema');
+// In services/resource.service.js
 
+const getBlockableResourceIds = require('../Helper/resourceBlocking'); // Make sure this is imported
+exports.filterOutUnavailableResources = async ({ resourceIdsToCheck, timeSlots, organizationId, models }) => {
+  const { ResourceModel, ResourceBookingModel } = models;
+
+  if (!resourceIdsToCheck || resourceIdsToCheck.length === 0 || !timeSlots || timeSlots.length === 0) {
+    return resourceIdsToCheck || []; // Return original list if there's nothing to check against
+  }
+
+  // 1. From the given list, find out which ones are actually blockable.
+  const blockableIds = await getBlockableResourceIds({
+      resourceIds: resourceIdsToCheck,
+      organizationId,
+      ResourceModel,
+  });
+
+  // If none of the resources to check are blockable, they are all considered available.
+  if (blockableIds.length === 0) {
+      return resourceIdsToCheck;
+  }
+
+  // 2. Build the query to find conflicting bookings for the blockable resources across all time slots.
+  const conflictQueryTimeSlots = timeSlots.map(slot => ({
+      startTime: { $lt: new Date(slot.endTime) },
+      endTime: { $gt: new Date(slot.startTime) },
+  }));
+
+  const conflictingBookings = await ResourceBookingModel.find({
+      resource: { $in: blockableIds },
+      organization: organizationId,
+      status: 'confirmed',
+      $or: conflictQueryTimeSlots,
+  }).lean();
+
+  const bookedResourceIds = new Set(conflictingBookings.map(b => b.resource.toString()));
+
+  // 3. Return the original list of IDs, but with the booked ones removed.
+  return resourceIdsToCheck.filter(id => !bookedResourceIds.has(id.toString()));
+};
 exports.createResource = async (resourceData, ResourceModel, ResourceTypeModel) => {
   // Verify the resource type exists
   const resourceType = await ResourceTypeModel.findOne({
@@ -85,54 +124,79 @@ exports.getResourceById = async (resourceId, organizationId,ResourceModel) => {
 };
 
 exports.getAvailableResourcesByType = async (typeId, startTime, endTime, { ResourceModel, ResourceBookingModel }) => {
-  // 1. Fetch all resources of the given type.
-  // We need to populate 'type' to check the 'isBlockable' flag.
-  const allResources = await ResourceModel.find({ type: typeId })
-    .populate('type', 'isBlockable')
-    .lean();
+  // 1. Fetch all resources of the given type. This part doesn't change.
+  const allResources = await ResourceModel.find({ type: typeId }).lean();
 
   if (allResources.length === 0) {
     return [];
   }
 
-  // 2. Separate resources into blockable and non-blockable.
-  const nonBlockableResources = [];
-  const blockableResources = [];
+  const allResourceIds = allResources.map(r => r._id);
+  const organizationId = allResources[0].organization; // Get org ID from the first resource
 
-  allResources.forEach(resource => {
-    const isEffectivelyBlockable = resource.isBlockableOverride ?? resource.type?.isBlockable ?? false;
-    if (isEffectivelyBlockable) {
-      blockableResources.push(resource);
-    } else {
-      nonBlockableResources.push(resource); // Non-blockable resources are always "available".
-    }
+  // 2. Use the new service to get back a list of ONLY the available IDs.
+  const availableResourceIds = await exports.filterOutUnavailableResources({
+      resourceIdsToCheck: allResourceIds,
+      timeSlots: [{ startTime, endTime }], // For this function, there is only one time slot
+      organizationId,
+      models: { ResourceModel, ResourceBookingModel }
   });
 
-  // If there are no blockable resources, we can return everything immediately.
-  if (blockableResources.length === 0) {
-    return allResources;
-  }
+  const availableIdsSet = new Set(availableResourceIds.map(id => id.toString()));
 
-  // 3. Find which of the blockable resources are already booked in the given time frame.
-  const blockableResourceIds = blockableResources.map(r => r._id);
-
-  const conflictingBookings = await ResourceBookingModel.find({
-    resource: { $in: blockableResourceIds },
-    status: 'confirmed', // Or whatever statuses mean "booked"
-    startTime: { $lt: new Date(endTime) },
-    endTime: { $gt: new Date(startTime) },
-  }).lean();
-
-  const bookedResourceIds = new Set(conflictingBookings.map(b => b.resource.toString()));
-
-  // 4. Filter out the booked resources from the blockable list.
-  const availableBlockableResources = blockableResources.filter(
-    resource => !bookedResourceIds.has(resource._id.toString())
-  );
-
-  // 5. Combine the lists and return.
-  return [...nonBlockableResources, ...availableBlockableResources];
+  // 3. Filter the original full resource objects based on the available IDs.
+  return allResources.filter(resource => availableIdsSet.has(resource._id.toString()));
 };
+
+// exports.getAvailableResourcesByType = async (typeId, startTime, endTime, { ResourceModel, ResourceBookingModel }) => {
+//   // 1. Fetch all resources of the given type.
+//   // We need to populate 'type' to check the 'isBlockable' flag.
+//   const allResources = await ResourceModel.find({ type: typeId })
+//     .populate('type', 'isBlockable')
+//     .lean();
+
+//   if (allResources.length === 0) {
+//     return [];
+//   }
+
+//   // 2. Separate resources into blockable and non-blockable.
+//   const nonBlockableResources = [];
+//   const blockableResources = [];
+
+//   allResources.forEach(resource => {
+//     const isEffectivelyBlockable = resource.isBlockableOverride ?? resource.type?.isBlockable ?? false;
+//     if (isEffectivelyBlockable) {
+//       blockableResources.push(resource);
+//     } else {
+//       nonBlockableResources.push(resource); // Non-blockable resources are always "available".
+//     }
+//   });
+
+//   // If there are no blockable resources, we can return everything immediately.
+//   if (blockableResources.length === 0) {
+//     return allResources;
+//   }
+
+//   // 3. Find which of the blockable resources are already booked in the given time frame.
+//   const blockableResourceIds = blockableResources.map(r => r._id);
+
+//   const conflictingBookings = await ResourceBookingModel.find({
+//     resource: { $in: blockableResourceIds },
+//     status: 'confirmed', // Or whatever statuses mean "booked"
+//     startTime: { $lt: new Date(endTime) },
+//     endTime: { $gt: new Date(startTime) },
+//   }).lean();
+
+//   const bookedResourceIds = new Set(conflictingBookings.map(b => b.resource.toString()));
+
+//   // 4. Filter out the booked resources from the blockable list.
+//   const availableBlockableResources = blockableResources.filter(
+//     resource => !bookedResourceIds.has(resource._id.toString())
+//   );
+
+//   // 5. Combine the lists and return.
+//   return [...nonBlockableResources, ...availableBlockableResources];
+// };
 exports.getResourcesByType = async (typeId, organizationId, options = {},ResourceModel) => {
   const { page = 1, limit = 10 } = options;
   
@@ -177,26 +241,7 @@ exports.updateResource = async (resourceId, updateData, organizationId,ResourceM
   return resource;
 };
 
-// exports.deleteResource = async (resourceId, organizationId,ResourceModel) => {
-//   // Check if the resource is referenced in any tasks
-//   const taskCount = await Task.countDocuments({
-//     'relatedResources.resource': resourceId,
-//     organization: organizationId
-//   });
-  
-//   if (taskCount > 0) {
-//     throw new Error('Cannot delete resource referenced in tasks');
-//   }
-  
-//   const resource = await ResourceModel.findOneAndDelete({
-//     _id: resourceId,
-//     organization: organizationId
-//   });
-  
-//   if (!resource) {
-//     throw new Error('Resource not found');
-//   }
-// };
+
 exports.deleteResource = async (resourceId, organizationId, ResourceModel, TaskModel) => { 
   // Check if the resource is referenced in any tasks
   // FIX: Use the passed-in TaskModel

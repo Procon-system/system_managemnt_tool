@@ -1,75 +1,76 @@
 const mongoose = require('mongoose');
 const bookingService = require('./resourceBookingService');
-const { addDays, addWeeks, addMonths, addYears } = require('date-fns'); 
+// const { addDays, addWeeks, addMonths, addYears } = require('date-fns'); 
 const getBlockableResourceIds =require('../Helper/resourceBlocking')
-const generateRecurringInstances = (baseTask, frequency, endDate) => {
-  const tasks = [];
-  let currentStart = new Date(baseTask.schedule.start);
-  let currentEnd = new Date(baseTask.schedule.end);
-  const periodEnd = new Date(endDate);
+const generateRecurringInstances=require('../Helper/recurringFunction');
+// const generateRecurringInstances = (baseTask, frequency, endDate) => {
+//   const tasks = [];
+//   let currentStart = new Date(baseTask.schedule.start);
+//   let currentEnd = new Date(baseTask.schedule.end);
+//   const periodEnd = new Date(endDate);
 
-  // Calculate duration of the original task to maintain it for all instances
-  const durationMs = currentEnd.getTime() - currentStart.getTime();
+//   // Calculate duration of the original task to maintain it for all instances
+//   const durationMs = currentEnd.getTime() - currentStart.getTime();
 
-  // --- REFACTORED PARSING LOGIC ---
-  const freqLower = frequency.toLowerCase();
-  let interval = 1;
-  let unit = freqLower;
+//   // --- REFACTORED PARSING LOGIC ---
+//   const freqLower = frequency.toLowerCase();
+//   let interval = 1;
+//   let unit = freqLower;
 
-  const match = freqLower.match(/^(\d+)\s*(daily|weekly|monthly|yearly|day|week|month|year)s?$/);
+//   const match = freqLower.match(/^(\d+)\s*(daily|weekly|monthly|yearly|day|week|month|year)s?$/);
 
-  if (match) {
-    interval = parseInt(match[1], 10);
-    // Normalize the unit to its singular form
-    unit = match[2].replace(/s$/, ''); // remove plural 's'
-  }
-  // --- END OF REFACTORED PARSING LOGIC ---
+//   if (match) {
+//     interval = parseInt(match[1], 10);
+//     // Normalize the unit to its singular form
+//     unit = match[2].replace(/s$/, ''); // remove plural 's'
+//   }
+//   // --- END OF REFACTORED PARSING LOGIC ---
 
-  while (currentStart <= periodEnd) {
-    // We only create clones for dates *after* the original start date
-    if (currentStart > new Date(baseTask.schedule.start)) {
-      const taskClone = {
-        ...baseTask,
-        _id: undefined, // Let MongoDB generate a new ID
-        schedule: {
-          start: new Date(currentStart),
-          end: new Date(currentStart.getTime() + durationMs), // Apply original duration
-          timezone: baseTask.schedule.timezone,
-        },
-        isRecurringInstance: true,
-        rootTask: baseTask._id || null,
-      };
-      tasks.push(taskClone);
-    }
+//   while (currentStart <= periodEnd) {
+//     // We only create clones for dates *after* the original start date
+//     if (currentStart > new Date(baseTask.schedule.start)) {
+//       const taskClone = {
+//         ...baseTask,
+//         _id: undefined, // Let MongoDB generate a new ID
+//         schedule: {
+//           start: new Date(currentStart),
+//           end: new Date(currentStart.getTime() + durationMs), // Apply original duration
+//           timezone: baseTask.schedule.timezone,
+//         },
+//         isRecurringInstance: true,
+//         rootTask: baseTask._id || null,
+//       };
+//       tasks.push(taskClone);
+//     }
 
-    // --- UNIFIED INCREMENT LOGIC ---
-    // Increment the start date for the next loop
-    switch (unit) {
-      case 'daily':
-      case 'day':
-        currentStart = addDays(currentStart, interval);
-        break;
-      case 'weekly':
-      case 'week':
-        currentStart = addWeeks(currentStart, interval);
-        break;
-      case 'monthly':
-      case 'month':
-        currentStart = addMonths(currentStart, interval);
-        break;
-      case 'yearly':
-      case 'year':
-        currentStart = addYears(currentStart, interval);
-        break;
-      default:
-        // If frequency is invalid, break the loop to prevent infinite execution
-        console.error(`Invalid recurrence unit: ${unit}`);
-        return tasks;
-    }
-  }
+//     // --- UNIFIED INCREMENT LOGIC ---
+//     // Increment the start date for the next loop
+//     switch (unit) {
+//       case 'daily':
+//       case 'day':
+//         currentStart = addDays(currentStart, interval);
+//         break;
+//       case 'weekly':
+//       case 'week':
+//         currentStart = addWeeks(currentStart, interval);
+//         break;
+//       case 'monthly':
+//       case 'month':
+//         currentStart = addMonths(currentStart, interval);
+//         break;
+//       case 'yearly':
+//       case 'year':
+//         currentStart = addYears(currentStart, interval);
+//         break;
+//       default:
+//         // If frequency is invalid, break the loop to prevent infinite execution
+//         console.error(`Invalid recurrence unit: ${unit}`);
+//         return tasks;
+//     }
+//   }
 
-  return tasks;
-};
+//   return tasks;
+// };
 exports.createRecurringTasks = async ({ baseTask, frequency, endDate, TaskModel, ResourceModel, ResourceBookingModel }) => {
   // First create the root task
   const rootTask = await exports.createTask(baseTask, TaskModel, ResourceModel, ResourceBookingModel); 

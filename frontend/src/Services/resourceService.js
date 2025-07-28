@@ -41,6 +41,18 @@ const resourceService = {
       throw error.response?.data || error.message;
     }
   },
+  checkRecurringAvailability: async (checkData, token) => {
+    try {
+      // Use the correct endpoint you defined in your Express routes
+      const response = await axios.post(`${API_URL}/check-availability`, checkData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data; // This will be { success, available, conflicts, message }
+    } catch (error) {
+      // Re-throw the error so the thunk can catch it and reject the promise
+      throw error.response?.data || { message: 'Network error checking availability.' };
+    }
+  },
   getResourceById: async (id, token) => {
     try {
       

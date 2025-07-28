@@ -1,7 +1,8 @@
 
 import { useEffect, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchResourcesByType, fetchAvailableResources } from '../features/resourceSlice';
+import { fetchResourcesByType, fetchAvailableResources , checkRecurringAvailability, // <-- IMPORT THE NEW THUNK
+  clearRecurringConflict } from '../features/resourceSlice';
 
 export const useResources = (typeIds = [], options = {}) => {
   const { fetchAllOnMount = false } = options; // Default to false
@@ -11,6 +12,8 @@ export const useResources = (typeIds = [], options = {}) => {
     data: resourcesStateData,
     availableResources,
     availableStatus,
+    recurringConflict,      
+    isCheckingRecurring, 
     loading,
     error
   } = useSelector(state => state.resources);
@@ -55,6 +58,16 @@ export const useResources = (typeIds = [], options = {}) => {
       dispatch(fetchResourcesByType(typeId));
     });
   }, [dispatch, typeIds.join(',')]);
+ 
+  const performCheckRecurring = useCallback((checkData) => {
+    dispatch(checkRecurringAvailability(checkData));
+  }, [dispatch]);
+  
+  // A function to manually clear the conflict state if needed
+  const clearConflict = useCallback(() => {
+    dispatch(clearRecurringConflict());
+  }, [dispatch]);
+
   return {
     typeSpecificResources,
     availableResources,
@@ -64,6 +77,11 @@ export const useResources = (typeIds = [], options = {}) => {
     loading,
     error,
     refreshResources,
+    
+    recurringConflict,
+    isCheckingRecurring,
+    checkRecurringAvailability: performCheckRecurring, 
+    clearRecurringConflict: clearConflict,
   };
  
 };

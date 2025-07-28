@@ -1,5 +1,6 @@
 const resourceService = require('../Services/resourceService');
 const { sendResponse } = require('../utils/responseHandler');
+const generateRecurringInstances=require('../Helper/recurringFunction');
 
 const invalidateResourceCaches = async (cache, resource) => {
   if (!resource || !resource.type) return;
@@ -102,7 +103,55 @@ exports.getAvailableResourcesByType = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.checkRecurringAvailability = async (req, res) => {
+  try {
+    const { Resource, ResourceBooking } = req.tenantModels;
+    const {
+      resourceIds,      // Array of resource IDs the user selected
+      frequency,
+      task_period,
+      schedule,
+      organizationId
+    } = req.body;
 
+    // ... (validation remains the same) ...
+
+    // 1. Generate all future instances.
+    const instances = generateRecurringInstances({ schedule, organization: organizationId }, frequency, task_period);
+    instances.unshift({ schedule }); // Check the first instance too.
+
+    // 2. Use the refactored service to filter the selected resources.
+    const availableResourceIds = await resourceService.filterOutUnavailableResources({
+        resourceIdsToCheck: resourceIds,
+        timeSlots: instances.map(inst => inst.schedule), // Pass all time slots
+        organizationId,
+        models: { ResourceModel: Resource, ResourceBookingModel: ResourceBooking }
+    });
+
+    // 3. Determine if there's a conflict by comparing the original list to the available list.
+    if (availableResourceIds.length < resourceIds.length) {
+      const availableSet = new Set(availableResourceIds.map(id => id.toString()));
+      const unavailableIds = resourceIds.filter(id => !availableSet.has(id.toString()));
+      
+      // Fetch the names of the unavailable resources for a better error message
+      const unavailableResources = await Resource.find({ _id: { $in: unavailableIds } }, 'displayName').lean();
+
+      return res.status(200).json({
+        success: true,
+        available: false,
+        message: `The following resources are not available for the entire recurring schedule: ${unavailableResources.map(r => r.displayName).join(', ')}.`,
+        unavailableResourceIds: unavailableIds
+      });
+    }
+
+    // If we get here, all selected resources are available.
+    return res.status(200).json({ success: true, available: true });
+
+  } catch (error) {
+    console.error('Error in checkRecurringAvailability:', error);
+    res.status(500).json({ success: false, message: 'Server error while checking availability.' });
+  }
+};
 exports.getResourcesByType = async (req, res) => {
   try {
     const typeId = req.params.typeId;

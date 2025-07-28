@@ -35,6 +35,7 @@ const HomePage = () => {
   const [showTaskPage, setShowTaskPage] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const socket = useRef(null);
+  const { access_level } = useSelector((state) => state.auth.user || state.access_level ) || {};
 
   useEffect(() => {
     socket.current = io(API_URL, {
@@ -304,19 +305,28 @@ useEffect(() => {
 
 // First useEffect for fetching tasks
 useEffect(() => {
-  if (currentView === 'allTasks') {
-   
-    dispatch(fetchOrganizationTasks()); // Fetch all tasks
-  } else if (currentView === 'userTasks') {
-    
-    dispatch(getTasksByAssignedUser(user._id)); // Fetch tasks for the user
-  } else if (currentView === 'userDoneTasks') {
-   
-    dispatch(getTasksDoneByAssignedUser(user._id)); // Fetch tasks done by the user
-  } else if (currentView === 'allDoneTasks') {
-    dispatch(getAllDoneTasks()); // Fetch all done tasks
+  if (!user) return;
+
+  if (access_level >= 3) {
+    // Admin or manager: see org-wide tasks
+    if (currentView === 'allTasks') {
+      dispatch(fetchOrganizationTasks());
+    } else if (currentView === 'allDoneTasks') {
+      dispatch(getAllDoneTasks());
+    } else if (currentView === 'userTasks') {
+      dispatch(getTasksByAssignedUser(user._id));
+    } else if (currentView === 'userDoneTasks') {
+      dispatch(getTasksDoneByAssignedUser(user._id));
+    }
+  } else {
+    // Regular user: restrict to own tasks
+    if (currentView === 'allTasks' || currentView === 'userTasks') {
+      dispatch(getTasksByAssignedUser(user._id));
+    } else if (currentView === 'allDoneTasks' || currentView === 'userDoneTasks') {
+      dispatch(getTasksDoneByAssignedUser(user._id));
+    }
   }
-}, [currentView, dispatch, user?._id]);
+}, [currentView, dispatch, user._id, access_level, user]);
 
 useEffect(() => {
   
