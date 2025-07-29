@@ -93,53 +93,18 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
         checkRecurringAvailability,
         allResourcesByType,
         isCheckingRecurring,
-        recurringConflict
+        recurringConflict,
+        clearRecurringConflict
     } = useResources(typeIds, { fetchAllOnMount: true })
   
     const { users, loading: usersLoading } = useUsers();
     
     const stableResourceTypes = JSON.stringify(resourceTypes);
 
-    // useEffect(() => {
-    //     // We need to parse the stringified types back into an array to use it.
-    //     const currentResourceTypes = JSON.parse(stableResourceTypes);
-
-    //     if (debouncedStartTime && debouncedEndTime && currentResourceTypes?.length > 0) {
-    //         currentResourceTypes.forEach(type => {
-    //             getAvailableResourcesForType(type._id, debouncedStartTime, debouncedEndTime);
-    //         });
-    //     }    }, [debouncedStartTime, debouncedEndTime, stableResourceTypes, getAvailableResourcesForType]);
-        
-    //     useEffect(() => {
-    //         if (formData.repeat_frequency === 'none') return;
-          
-    //         // parse your types from the stable JSON
-    //         const currentTypes = JSON.parse(stableResourceTypes);
-          
-    //         currentTypes.forEach(type => {
-    //           const selectedIds = formData.resources[type._id] || [];
-          
-    //          checkRecurringAvailability({
-    //             resourceIds: selectedIds,
-    //             frequency: formData.repeat_frequency,      // e.g. 'daily' or '2 weekly'
-    //             task_period: formData.task_period,         // ISO string of series end
-    //             schedule: {                                // the root task
-    //               start: formData.start_time,
-    //               end:   formData.end_time
-    //          }
-    //                       });
-    //         });
-    //       }, [
-    //         formData.repeat_frequency,
-    //         formData.task_period,
-    //         formData.start_time,
-    //         formData.end_time,
-    //         stableResourceTypes,
-    //         checkRecurringAvailability
-    //       ]);
+   
     useEffect(() => {
         const types = JSON.parse(stableResourceTypes);
-      
+        clearRecurringConflict();
         types.forEach(type => {
           if (formData.repeat_frequency === 'none') {
             // simple one-off
@@ -168,17 +133,7 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
             });
           }
         });
-      }, [
-        debouncedStartTime,
-        debouncedEndTime,
-        formData.repeat_frequency,
-        formData.task_period,
-        stableResourceTypes,
-        allResourcesByType,
-        getAvailableResourcesForType,
-        checkRecurringAvailability,
-        currentUser.organizationId
-      ]);
+      }, [debouncedStartTime, debouncedEndTime, formData.repeat_frequency, formData.task_period, stableResourceTypes, allResourcesByType, getAvailableResourcesForType, checkRecurringAvailability]);
         
 
     const handleResourceSelect = (resourceTypeId, event) => {
@@ -218,7 +173,6 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
                 <h2 className="text-lg font-semibold capitalize">{category}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {types.map(type => {
-                        const resources = availableResources[type._id] || [];
                         
                         const isLoading = isFetchingAvailable || (formData.repeat_frequency !== 'none' && isCheckingRecurring);
                         return (

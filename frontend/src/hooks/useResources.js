@@ -58,7 +58,8 @@ export const useResources = (typeIds = [], options = {}) => {
       dispatch(fetchResourcesByType(typeId));
     });
   }, [dispatch, typeIds.join(',')]);
- 
+  
+
   const performCheckRecurring = useCallback((checkData) => {
     dispatch(checkRecurringAvailability(checkData));
   }, [dispatch]);
