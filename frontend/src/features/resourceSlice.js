@@ -41,18 +41,20 @@ export const fetchResourcesByType = createAsyncThunk(
 export const checkRecurringAvailability = createAsyncThunk(
   'resources/checkRecurring',
   async (checkData, { getState, rejectWithValue }) => {
+    console.log("checkData",checkData)
     const token = getState().auth.token;
-    // You might not need token check here if it's handled globally by an axios interceptor
-
-    // Don't proceed if the data isn't valid for a check
-    if (!checkData.resourceIds?.length || checkData.frequency === 'none' || !checkData.task_period) {
-      // We don't reject, we just return a "clear" signal
-      return { clear: true }; 
+    if (
+      !Array.isArray(checkData.resourceIds)   ||
+      checkData.resourceIds.length === 0       ||
+      !checkData.frequency                    ||
+      !checkData.task_period                  ||
+      !checkData.schedule
+    ) {
+      return { clear: true };
     }
-
     try {
       const data = await resourceService.checkRecurringAvailability(checkData, token);
-      return data; // This will be the { success, available, conflicts, ... } object
+      return data;
     } catch (error) {
       return rejectWithValue(error.message || 'Error checking recurring availability');
     }
@@ -294,25 +296,47 @@ const resourceSlice = createSlice({
       })
       .addCase(checkRecurringAvailability.pending, (state) => {
         state.isCheckingRecurring = true;
-        state.recurringConflict = null; // Clear old conflicts on new check
-      })
+        const { typeId } = state.currentCheckArg || {};
+   if (typeId) delete state.recurringConflict[typeId];    
+    })
       .addCase(checkRecurringAvailability.fulfilled, (state, action) => {
-        state.isCheckingRecurring = false;
-        if (action.payload.clear) {
-            state.recurringConflict = null;
-        } else if (action.payload.success && !action.payload.available) {
-            // A conflict was found, store the details
-            state.recurringConflict = action.payload;
-        } else {
-            // It was successful and available, or it was a clear action
-            state.recurringConflict = null;
-        }
-      })
-      .addCase(checkRecurringAvailability.rejected, (state, action) => {
-        state.isCheckingRecurring = false;
-        // Set a generic error so the UI can react
-        state.recurringConflict = { available: false, message: action.payload };
-      })
+           state.isCheckingRecurring = false;
+        
+            // if we returned { clear: true } from the thunk, bail
+            if (action.payload.clear) return;
+        
+           const { typeId } = action.meta.arg;
+          const { available, unavailableResourceIds = [], message } = action.payload;
+      
+          // 1. Grab the full “catalog” for this type from your slice:
+          //    prefer resourcesByType if you populated it; otherwise fall back to filtering the flat list.
+           const allForType =
+             (state.data.resourcesByType?.[typeId]) ??
+             state.data.resources.filter(r =>
+              (r.type?._id === typeId) || (r.type === typeId)
+           );
+    
+         // 2. Write back into the same availableResources map
+          if (available) {
+           state.availableResources[typeId] = allForType;
+           } else {
+             const blocked = new Set(unavailableResourceIds.map(id => id.toString()));
+             state.availableResources[typeId] = allForType.filter(
+               r => !blocked.has(r._id.toString())
+             );
+           // 3. Store the human-readable conflict message keyed by type
+           state.recurringConflict = state.recurringConflict || {};
+             state.recurringConflict[typeId] = message;
+         }
+       })
+    
+         .addCase(checkRecurringAvailability.rejected, (state, action) => {
+           state.isCheckingRecurring = false;
+         // Put the error text into the same conflict map
+         const { typeId } = action.meta.arg;
+         state.recurringConflict = state.recurringConflict || {};
+           state.recurringConflict[typeId] = action.payload || action.error.message;
+         })
       // Fetch Resource by ID
       .addCase(fetchResourceById.pending, (state) => {
         state.status = 'loading';

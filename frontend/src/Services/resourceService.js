@@ -43,6 +43,7 @@ const resourceService = {
   },
   checkRecurringAvailability: async (checkData, token) => {
     try {
+      console.log("checkData,123fg",checkData)
       // Use the correct endpoint you defined in your Express routes
       const response = await axios.post(`${API_URL}/check-availability`, checkData, {
         headers: { Authorization: `Bearer ${token}` }

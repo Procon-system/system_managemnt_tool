@@ -1,16 +1,4 @@
-// This is the entire content of your new helper file.
 
-/**
- * Filters a list of resource IDs to return only those that are effectively blockable.
- * An effectively blockable resource is one where its 'isBlockableOverride' is true,
- * or if that is not set, its type's 'isBlockable' is true.
- * @param {object} params - The parameters.
- * @param {string[]} params.resourceIds - An array of resource IDs to check.
- * @param {string} params.organizationId - The ID of the organization for security.
- * @param {mongoose.Model} params.ResourceModel - The Mongoose model for resources.
- * @returns {Promise<string[]>} A promise that resolves to an array of blockable resource IDs.
- * @throws Will throw an error if some resources are not found.
- */
 const getBlockableResourceIds = async ({ resourceIds, organizationId, ResourceModel }) => {
   if (!resourceIds || resourceIds.length === 0) {
     return []; // No resources to check, return early.

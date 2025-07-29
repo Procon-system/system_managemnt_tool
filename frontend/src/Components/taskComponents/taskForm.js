@@ -8,6 +8,8 @@ import { useUsers } from '../../hooks/useUsers';
 import { useDebounce } from '../../hooks/useDebounce'; // Import the new hook
 import { useSelector } from 'react-redux';
 import RecurrencePicker from './recurrencePicker';
+import { AiOutlineExclamationCircle } from 'react-icons/ai';
+
 const formatDateTimeLocal = (date) => {
     if (!date || !(date instanceof Date) || isNaN(date.valueOf())) return '';
     const year = date.getFullYear();
@@ -82,26 +84,102 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
 
     const debouncedStartTime = useDebounce(formData.start_time, 500); // 500ms delay
     const debouncedEndTime = useDebounce(formData.end_time, 500);
-    
+    const typeIds = resourceTypes.map(t => t._id);
+
     const { 
         availableResources,
         isFetchingAvailable,
         getAvailableResourcesForType,
-    } = useResources();
+        checkRecurringAvailability,
+        allResourcesByType,
+        isCheckingRecurring,
+        recurringConflict
+    } = useResources(typeIds, { fetchAllOnMount: true })
   
     const { users, loading: usersLoading } = useUsers();
     
     const stableResourceTypes = JSON.stringify(resourceTypes);
 
-    useEffect(() => {
-        // We need to parse the stringified types back into an array to use it.
-        const currentResourceTypes = JSON.parse(stableResourceTypes);
+    // useEffect(() => {
+    //     // We need to parse the stringified types back into an array to use it.
+    //     const currentResourceTypes = JSON.parse(stableResourceTypes);
 
-        if (debouncedStartTime && debouncedEndTime && currentResourceTypes?.length > 0) {
-            currentResourceTypes.forEach(type => {
-                getAvailableResourcesForType(type._id, debouncedStartTime, debouncedEndTime);
+    //     if (debouncedStartTime && debouncedEndTime && currentResourceTypes?.length > 0) {
+    //         currentResourceTypes.forEach(type => {
+    //             getAvailableResourcesForType(type._id, debouncedStartTime, debouncedEndTime);
+    //         });
+    //     }    }, [debouncedStartTime, debouncedEndTime, stableResourceTypes, getAvailableResourcesForType]);
+        
+    //     useEffect(() => {
+    //         if (formData.repeat_frequency === 'none') return;
+          
+    //         // parse your types from the stable JSON
+    //         const currentTypes = JSON.parse(stableResourceTypes);
+          
+    //         currentTypes.forEach(type => {
+    //           const selectedIds = formData.resources[type._id] || [];
+          
+    //          checkRecurringAvailability({
+    //             resourceIds: selectedIds,
+    //             frequency: formData.repeat_frequency,      // e.g. 'daily' or '2 weekly'
+    //             task_period: formData.task_period,         // ISO string of series end
+    //             schedule: {                                // the root task
+    //               start: formData.start_time,
+    //               end:   formData.end_time
+    //          }
+    //                       });
+    //         });
+    //       }, [
+    //         formData.repeat_frequency,
+    //         formData.task_period,
+    //         formData.start_time,
+    //         formData.end_time,
+    //         stableResourceTypes,
+    //         checkRecurringAvailability
+    //       ]);
+    useEffect(() => {
+        const types = JSON.parse(stableResourceTypes);
+      
+        types.forEach(type => {
+          if (formData.repeat_frequency === 'none') {
+            // simple one-off
+            getAvailableResourcesForType(
+              type._id,
+              debouncedStartTime,
+              debouncedEndTime
+            );
+          } else {
+          
+            const allIds = allResourcesByType[type._id]?.map(r => r._id) || [];
+     
+            if (allIds.length === 0 || !formData.task_period) return;
+      
+            checkRecurringAvailability({
+              typeId:        type._id,             // so the slice knows who to update
+              resourceIds:   allIds,               // ask about every resource of that type
+              frequency:     formData.repeat_frequency,
+              task_period:   formData.task_period,
+              schedule: {
+                start:  formData.start_time,
+                end:    formData.end_time,
+                // timezone: 'Africa/Addis_Ababa'  // include if your API needs it
+              },
+              organizationId: currentUser.organizationId
             });
-        }    }, [debouncedStartTime, debouncedEndTime, stableResourceTypes, getAvailableResourcesForType]);
+          }
+        });
+      }, [
+        debouncedStartTime,
+        debouncedEndTime,
+        formData.repeat_frequency,
+        formData.task_period,
+        stableResourceTypes,
+        allResourcesByType,
+        getAvailableResourcesForType,
+        checkRecurringAvailability,
+        currentUser.organizationId
+      ]);
+        
 
     const handleResourceSelect = (resourceTypeId, event) => {
         const selectedResources = event.target.value;
@@ -142,38 +220,68 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
                     {types.map(type => {
                         const resources = availableResources[type._id] || [];
                         
-                        // 2. Use the new loading state.
-                        const isLoading = isFetchingAvailable;
-    
+                        const isLoading = isFetchingAvailable || (formData.repeat_frequency !== 'none' && isCheckingRecurring);
                         return (
                             <div key={type._id} className="border rounded-lg p-4 bg-white">
-                                {isLoading ? (
-                                    <div className="text-sm text-gray-500 animate-pulse">
-                                        Checking availability...
+                              {isLoading ? (
+                                <div className="animate-pulse text-sm text-gray-500">
+                                  {formData.repeat_frequency === 'none'
+                                    ? 'Checking availability…'
+                                    : 'Checking recurring availability…'}
+                                </div>
+                              ) : (
+                                <div className="relative group">
+                                  <DynamicFormField
+                                    field={{
+                                      fieldName: `resources.${type._id}`,
+                                      displayName: type.name,
+                                      fieldType: 'select',
+                                      multiple: true,
+                                      options: (availableResources[type._id] || []).map(res => ({
+                                        label: res.displayName || res.name,
+                                        value: res._id
+                                      }))
+                                    }}
+                                    value={formData.resources?.[type._id] || []}
+                                    onChange={e => handleResourceSelect(type._id, e)}
+                                  />
+                          
+                                  {recurringConflict?.[type._id] && (
+                                    <div className="absolute top-0 right-2 flex items-center">
+                                      <AiOutlineExclamationCircle 
+                                        className="w-5 h-5 text-red-500 cursor-pointer" 
+                                      />
+                                      {/* the tooltip itself */}
+                                      <div className="
+                                        absolute 
+                                        bottom-full 
+                                        right-0 
+                                        mb-2 
+                                        w-44 
+                                        p-2 
+                                        text-xs 
+                                        text-white 
+                                        bg-red-500 
+                                        rounded 
+                                        opacity-0 
+                                        pointer-events-none 
+                                        transition-opacity 
+                                        group-hover:opacity-100
+                                      ">
+                                        {recurringConflict[type._id]}
+                                      </div>
                                     </div>
-                                ) : (
-                                    <DynamicFormField
-                                        field={{
-                                            fieldName: `resources.${type._id}`,
-                                            displayName: type.name,
-                                            fieldType: 'select',
-                                            multiple: true,
-                                            
-                                            options: resources.map(res => ({
-                                                label: res.displayName || res.name, 
-                                                value: res._id
-                                            }))
-                                        }}
-                                        value={formData.resources?.[type._id] || []}
-                                        
-                                        onChange={(e) => handleResourceSelect(type._id, e)}
-                                    />
-                                )}
-                                {type.description && (
-                                    <p className="text-xs text-gray-500 mt-2">{type.description}</p>
-                                )}
+                                  )}
+                                </div>
+                              )}
+                          
+                              {type.description && (
+                                <p className="text-xs text-gray-500 mt-2">
+                                  {type.description}
+                                </p>
+                              )}
                             </div>
-                        );
+                          );
                     })}
                 </div>
             </div>
@@ -183,11 +291,7 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
         e.preventDefault();
         onSubmit(formData);
     };
-    
-    // const handleChange = (e) => {
-    //     const { name, value } = e.target;
-    //     setFormData(prev => ({ ...prev, [name]: value }));
-    // };
+   
     const handleChange = useCallback((e) => {
         const { name, value } = e.target;
         if (name === "assigned_to" && isRegularUser) {

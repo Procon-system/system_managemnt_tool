@@ -84,23 +84,7 @@ useEffect(() => {
         return (
             // This is the styled "widget" container
             <div className="mt-4 bg-gray-50 p-4 px-4 rounded-lg border border-gray-200 space-y-4">
-                {/* --- "Repeat Every" Section --- */}
-                {/* <div className="flex items-baseline space-x-2">
-                    <span className="font-medium text-gray-700">Repeat every</span>
-                    <input
-                        type="number"
-                        value={interval}
-                        onChange={(e) => setInterval(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                        className="w-16 py-1 px-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <span className="text-gray-600">
-                        {`${frequency}${interval > 1 ? 's' : ''}`}
-                    </span>
-                </div> */}
-
-                {/* <hr className="border-gray-200"/> */}
-
-                {/* --- "Ends" Section --- */}
+                
                 <div>
                     <label className="block mb-2 text-sm font-medium text-gray-700">Ends</label>
                     <div className="space-y-3">

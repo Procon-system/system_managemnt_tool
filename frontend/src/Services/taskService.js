@@ -152,7 +152,7 @@ const taskService = {
    */
   getOrganizationTasks: async (token) => {
     try {
-      const response = await axios.get(`${API_URL}`, { // Note: No organizationId in URL
+      const response = await axios.get(`${API_URL}`, { 
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data.data;

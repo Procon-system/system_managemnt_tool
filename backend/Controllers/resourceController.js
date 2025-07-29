@@ -111,9 +111,9 @@ exports.checkRecurringAvailability = async (req, res) => {
       frequency,
       task_period,
       schedule,
-      organizationId
+     
     } = req.body;
-
+const organizationId=req.user.org_id;
     // ... (validation remains the same) ...
 
     // 1. Generate all future instances.
