@@ -13,7 +13,7 @@ const upload = multer({ storage });
 router.get('/report-data',authorize([2, 3, 4, 5]),taskController.getTaskReportData)
 
 router.post('/import',authorize([1, 2, 3, 4, 5]),taskController.importICal)
-router.post('/',authorize([3, 4, 5]), taskController.createTask);
+router.post('/',authorize([2,3, 4, 5]), taskController.createTask);
 router.get('/', authorize([3, 4, 5]),taskController.getTasksByOrganization);
 router.get('/:id', authorize([2,3, 4, 5]),taskController.getTaskById);
 router.put('/:id',upload.array('images', 5),authorize([2, 3, 4, 5]),taskController.updateTask);

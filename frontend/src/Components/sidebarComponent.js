@@ -35,7 +35,7 @@ const Sidebar = ({ tasksWithDates, onDateRangeSelect, onCalendarDateChange }) =>
     // if (!user?.organization || !user?.org_id) return;
    
     // Initial fetch
-    if (access_level >= 3) {
+    if (access_level >= 2) {
       dispatch(fetchResourceTypes());
     }
   

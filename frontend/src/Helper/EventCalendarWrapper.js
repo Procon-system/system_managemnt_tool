@@ -378,7 +378,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
           },
 
           select: (info) => {
-            if (user.access_level < 3) {
+            if (user.access_level < 2) {
               toast.error('You do not have permission to create events.try logging in again');
               return;
             }
@@ -398,7 +398,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
           },
           
           dateClick: (info) => {
-            if (user.access_level < 3) {
+            if (user.access_level < 2) {
               toast.error('You do not have permission to create events. try logging in again');
               return;
             }

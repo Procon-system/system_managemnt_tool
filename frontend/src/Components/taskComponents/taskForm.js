@@ -6,40 +6,8 @@ import RichTextEditor from './richTextEditor';
 import { useResources } from '../../hooks/useResources';
 import { useUsers } from '../../hooks/useUsers';
 import { useDebounce } from '../../hooks/useDebounce'; // Import the new hook
-
+import { useSelector } from 'react-redux';
 import RecurrencePicker from './recurrencePicker';
-// const formatDateTimeLocal = (date) => {
-//     if (!date) return ''; // Handle cases where date might be null
-//     const year = date.getFullYear();
-//     const month = String(date.getMonth() + 1).padStart(2, '0');
-//     const day = String(date.getDate()).padStart(2, '0');
-//     const hours = String(date.getHours()).padStart(2, '0');
-//     const minutes = String(date.getMinutes()).padStart(2, '0');
-//     return `${year}-${month}-${day}T${hours}:${minutes}`;
-// };
-// const getInitialFormData = (initialData) => {
-    
-//     const defaultStartTime = new Date();
-//     const defaultEndTime = new Date(defaultStartTime);
-//     defaultEndTime.setHours(defaultStartTime.getHours() + 1);
-//     const startTime = initialData.start_time ? new Date(initialData.start_time) : defaultStartTime;
-//     const endTime = initialData.end_time
-//         ? new Date(initialData.end_time)
-//         : new Date(new Date(startTime).setHours(startTime.getHours() + 1));
-//     return {
-//         title: initialData.title || "",
-//         start_time: formatDateTimeLocal(startTime),
-//         end_time: formatDateTimeLocal(endTime),
-//         status: initialData.status || 'pending',
-//         assignedResources: initialData.assignedResources || [],
-//         assigned_to: initialData.assigned_to || [],
-//         resources: initialData.resources || {},
-//         notes: initialData.notes || '',
-//         repeat_frequency: initialData.repeat_frequency || 'none',
-//         task_period: initialData.task_period || {},
-        
-//     };
-// };
 const formatDateTimeLocal = (date) => {
     if (!date || !(date instanceof Date) || isNaN(date.valueOf())) return '';
     const year = date.getFullYear();
@@ -50,11 +18,10 @@ const formatDateTimeLocal = (date) => {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
-// **NEW FUNCTION**: This formats a date object using its UTC values.
 const formatDateTimeFromUTCString = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString); // Create date object from the UTC string
-    if (isNaN(date.valueOf())) return ''; // Check if the date is valid
+    const date = new Date(dateString); 
+    if (isNaN(date.valueOf())) return ''; 
 
     const year = date.getUTCFullYear();
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -65,8 +32,8 @@ const formatDateTimeFromUTCString = (dateString) => {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
-
-const getInitialFormData = (initialData) => {
+const getInitialFormData = (initialData,currentUser) => {
+    const isRegularUser = currentUser?.access_level === 2;
        if (initialData?.start_time) {
         const startTimeString = initialData.start_time;
         const endTimeString = initialData.end_time ||
@@ -79,7 +46,7 @@ const getInitialFormData = (initialData) => {
             end_time: formatDateTimeFromUTCString(endTimeString),
             status: initialData.status || 'pending',
             assignedResources: initialData.assignedResources || [],
-            assigned_to: initialData.assigned_to || [],
+            assigned_to: isRegularUser ? [currentUser._id] : [],
             resources: initialData.resources || {},
             notes: initialData.notes || '',
             repeat_frequency: initialData.repeat_frequency || 'none',
@@ -96,7 +63,7 @@ const getInitialFormData = (initialData) => {
         end_time: formatDateTimeLocal(defaultEndTime),   // Use the local formatter here
         status: 'pending',
         assignedResources: [],
-        assigned_to: [],
+        assigned_to: isRegularUser ? [currentUser._id] : [],
         resources: {},
         notes: '',
         repeat_frequency: 'none',
@@ -104,12 +71,14 @@ const getInitialFormData = (initialData) => {
     };
 };
 const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
+    const currentUser = useSelector((state) => state.auth.user);
+    const isRegularUser = currentUser?.access_level === 2;
 
-    const [formData, setFormData] = useState(() => getInitialFormData(initialData));
+    const [formData, setFormData] = useState(() => getInitialFormData(initialData, currentUser));
+
     useEffect(() => {
-        setFormData(getInitialFormData(initialData));
-    }, [JSON.stringify(initialData)]);
-
+        setFormData(getInitialFormData(initialData, currentUser));
+    }, [JSON.stringify(initialData), currentUser]);
 
     const debouncedStartTime = useDebounce(formData.start_time, 500); // 500ms delay
     const debouncedEndTime = useDebounce(formData.end_time, 500);
@@ -215,10 +184,18 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
         onSubmit(formData);
     };
     
-    const handleChange = (e) => {
+    // const handleChange = (e) => {
+    //     const { name, value } = e.target;
+    //     setFormData(prev => ({ ...prev, [name]: value }));
+    // };
+    const handleChange = useCallback((e) => {
         const { name, value } = e.target;
+        if (name === "assigned_to" && isRegularUser) {
+            return;
+        }
         setFormData(prev => ({ ...prev, [name]: value }));
-    };
+    }, [isRegularUser]); 
+
     const handleNotesChange = (value) => {
         setFormData({ ...formData, notes: value });
     };
@@ -246,7 +223,7 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
                             onChange={handleChange}
                         />
                     </div>
-                    <div>
+                    {/* <div>
                         <DynamicFormField
                             field={{
                                 fieldName: "assigned_to",
@@ -262,7 +239,39 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
                             onChange={handleChange}
                             isLoading={usersLoading}
                         />
-                    </div>
+                    </div> */}
+                    <div>
+                    {isRegularUser ? (
+                        // If user has access_level 2, show a disabled field with their name.
+                        <div>
+                            <label className="block mb-1 text-sm font-medium text-gray-700">Assign To</label>
+                            <input
+                                type="text"
+                                value={`${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email}
+                                disabled
+                                className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed"
+                                title="As a user, you can only assign tasks to yourself."
+                            />
+                        </div>
+                    ) : (
+                        // For all other users, show the full multi-select dropdown.
+                        <DynamicFormField
+                            field={{
+                                fieldName: "assigned_to",
+                                displayName: "Assign To",
+                                fieldType: "select",
+                                multiple: true,
+                                options: users.map(user => ({
+                                    label: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+                                    value: user._id
+                                }))
+                            }}
+                            value={formData.assigned_to || []}
+                            onChange={handleChange}
+                            isLoading={usersLoading}
+                        />
+                    )}
+                </div>
                 </div>
 
                 {/* Second Row - Start and End Times (2 cols) */}

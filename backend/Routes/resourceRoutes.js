@@ -9,7 +9,7 @@ router.post('/check-availability',authorize([2,3, 4, 5]),resourceController.chec
 router.get('/type/:typeId',authorize([2,3, 4, 5]), resourceController.getResourcesByType);
 router.get('/available/:typeId',authorize([2, 3, 4, 5]),resourceController.getAvailableResourcesByType);
 
-router.get('/:id', authorize([3, 4, 5]),resourceController.getResourceById);
+router.get('/:id', authorize([2,3, 4, 5]),resourceController.getResourceById);
 router.put('/:id',authorize([3, 4, 5]), resourceController.updateResource);
 router.delete('/:id',authorize([3, 4, 5]), resourceController.deleteResource);
 
