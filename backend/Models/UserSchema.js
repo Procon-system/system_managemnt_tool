@@ -43,13 +43,20 @@ module.exports = (connection) => {
     sparse: true,
     default: null 
   },
+
+  role: {
+    type: String,
+    enum: ['user','monitor','admin','superadmin'],
+    default: 'user'
+  },
+
   access_level: {
     type: Number,
     required: true,
     min: 1,
     max: 5,
     enum: [1, 2, 3, 4, 5],
-    default: 2 // Default to standard user access
+    default: 2 
   },
  
   max_permitted_user_amount: { type: Number},

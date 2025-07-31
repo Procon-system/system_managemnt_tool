@@ -63,7 +63,7 @@ exports.createTask = async (req, res) => {
   try {
     const { Task, Resource, Notification, ResourceBooking } = req.tenantModels;
     const cache = req.tenantCache;
-
+    const organizationId = req.user.org_id;
     // Validate required fields
     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
       return res.status(400).json({
@@ -112,54 +112,16 @@ exports.createTask = async (req, res) => {
         ResourceBookingModel: ResourceBooking 
       });
     } else {
-      // Handle single task
-      
       createdTask = await taskService.createTask(taskData, Task, Resource, ResourceBooking );
     }
-   // Invalidate all paginated task lists
-   await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
 
-  //  if (taskData.assignments && taskData.assignments.length > 0) {
-    
-  //   await Promise.all(
-  //     taskData.assignments.map((assignment) => {
-  //       const userId = assignment.user.toString();
-  
-  //       // Real-time notification
-  //       notifyUser(userId, 'task:assigned', {
-  //         taskId: createdTask._id,
-  //         title: taskData.title,
-  //         message: `You've been assigned a new task: "${taskData.title}"`,
-  //         createdBy: req.user.first_name || 'A team member',
-  //         organization: req.user.org_id,
-  //       });
-  
-  //       // Persistent DB notification
-  //       return notificationService.createNotification(
-  //         {
-  //           user: userId,
-  //           organization: req.user.org_id,
-  //           title: 'New Task Assigned',
-  //           message: `You've been assigned a new task: "${taskData.title}"`,
-  //           type: 'task',
-  //           referenceId: createdTask._id,
-  //           referenceModel: 'Task',
-  //           isRead: false,
-  //         },
-  //         Notification
-  //       );
-  //     })
-  //   );
-  // }
- 
-    // Normalize the result into an array so we can always loop through it.
+    await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
     const tasksToProcess = Array.isArray(createdTask) ? createdTask : [createdTask];
 
     if (!tasksToProcess || tasksToProcess.length === 0 || !tasksToProcess[0]) {
         throw new Error('Task creation failed to return any valid task objects.');
     }
 
-    // Process notifications and MQTT for EACH task created.
     for (const task of tasksToProcess) {
       // 1. Send Notifications for this specific task instance
       if (task.assignments && task.assignments.length > 0) {
@@ -194,7 +156,7 @@ exports.createTask = async (req, res) => {
 
       // 2. Publish MQTT message for this specific task instance
       const mqttPayload = {
-        _id: task._id.toString(), // Include ID in MQTT message
+        _id: task._id.toString(), 
         title: task.title,
         status: task.status,
         assigned_to: (task.assignments || []).map(a => ({
@@ -203,7 +165,7 @@ exports.createTask = async (req, res) => {
         })),
         resources: (task.resources || []).map(r => ({
           resource: r.resource?._id.toString(),
-          name:     r.resource?.displayName || r.resource?.fields?.name, // Prefer displayName
+          name:     r.resource?.displayName || r.resource?.fields?.name,
         })),
         notes: task.notes,
         repeat_frequency: task.repeat_frequency,
@@ -216,23 +178,19 @@ exports.createTask = async (req, res) => {
       };
 
       if (mqttClient.connected) {
+        const topic = `tasks/new/${organizationId}`;
         mqttClient.publish(
-            'tasks/new',
-            JSON.stringify(mqttPayload),
-            { qos: 1, retain: false },
-            (err) => {
-                if (err) {
-                    console.error(`MQTT publish error for task ${task._id}:`, err);
-                }
-            }
-        );
+             topic,      
+             JSON.stringify(mqttPayload),
+             { qos: 1, retain: false },
+            err => err
+              ? console.error(`MQTT publish error for ${topic}:`, err): console.log(`▲ published to ${topic}`)
+       );
       } else {
         console.warn('⚠️ MQTT client not connected. Skipping message publication.');
       }
     }
-    // --- END: REVISED LOGIC ---
 
-    // Ensure we're sending a response
     return res.status(201).json({
       success: true,
       message: 'Task created successfully',

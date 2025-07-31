@@ -13,67 +13,6 @@ const {
   sendResetPasswordLink
 } = require("../Helper/sendEmail");
 const { validateRegistration } = require('../Helper/validators');
-
-const registerUser = async (userData, tenantId, User) => {
-  const {
-    email, password, last_name, first_name,
-    org_id, personal_number, access_level,
-    isConfirmed, isActive,payroll
-  } = userData;
-
-  const validation = validateRegistration({ email, password });
-  if (validation.error) {
-    throw new Error(validation.error.details.map(d => d.message).join('<br>'));
-  }
-
-  const existingUser = await User.findOne({ email });
-  if (existingUser) throw new Error('User already exists with this email');
-
-  if (personal_number) {
-    const existingWithPN = await User.findOne({ personal_number });
-    if (existingWithPN) throw new Error('This personal number is already in use');
-  }
-
-  const newUser = new User({
-    email,
-    password,
-    last_name,
-    first_name,
-    access_level,
-    personal_number: personal_number || null,
-    org_id: org_id,
-    isConfirmed: isConfirmed || false,
-    isActive: isActive !== false,
-    confirmationCode: crypto.randomBytes(20).toString('hex'),
-    payroll: { // +++ Add the payroll object here +++
-      rate_type: payroll?.rate_type || 'hourly',
-      rate: payroll?.rate || 0,
-      currency: payroll?.currency || 'USD',
-      overtime_multiplier: payroll?.overtime_multiplier || 1.5,
-    }
-  });
-
-  await newUser.save();
-
-  // Save minimal user reference in main DB
-  const TenantUser = mongoose.model('TenantUser');
-  await TenantUser.create({
-    tenantId,
-    email: newUser.email,
-    userIdInTenantDB: newUser._id,
-    access_level: newUser.access_level
-  });
-
-  return {
-    _id: newUser._id,
-    email: newUser.email,
-    first_name: newUser.first_name,
-    last_name: newUser.last_name,
-    payroll: newUser.payroll ,
-    org_id
-  };
-};
-
 const registerAdminUser = async (userData) => {
   const { 
     email, 
@@ -152,6 +91,67 @@ const registerAdminUser = async (userData) => {
     tenantId: organization._id // Return tenant ID for JWT
   };
 };
+const registerUser = async (userData, tenantId, User) => {
+  const {
+    email, password, last_name, first_name,
+    org_id, personal_number, access_level,role,
+    isConfirmed, isActive,payroll
+  } = userData;
+
+  const validation = validateRegistration({ email, password });
+  if (validation.error) {
+    throw new Error(validation.error.details.map(d => d.message).join('<br>'));
+  }
+
+  const existingUser = await User.findOne({ email });
+  if (existingUser) throw new Error('User already exists with this email');
+
+  if (personal_number) {
+    const existingWithPN = await User.findOne({ personal_number });
+    if (existingWithPN) throw new Error('This personal number is already in use');
+  }
+
+  const newUser = new User({
+    email,
+    password,
+    last_name,
+    first_name,
+    access_level,
+    role,
+    personal_number: personal_number || null,
+    org_id: org_id,
+    isConfirmed: isConfirmed || false,
+    isActive: isActive !== false,
+    confirmationCode: crypto.randomBytes(20).toString('hex'),
+    payroll: { // +++ Add the payroll object here +++
+      rate_type: payroll?.rate_type || 'hourly',
+      rate: payroll?.rate || 0,
+      currency: payroll?.currency || 'USD',
+      overtime_multiplier: payroll?.overtime_multiplier || 1.5,
+    }
+  });
+
+  await newUser.save();
+
+  // Save minimal user reference in main DB
+  const TenantUser = mongoose.model('TenantUser');
+  await TenantUser.create({
+    tenantId,
+    email: newUser.email,
+    userIdInTenantDB: newUser._id,
+    access_level: newUser.access_level
+  });
+
+  return {
+    _id: newUser._id,
+    email: newUser.email,
+    first_name: newUser.first_name,
+    last_name: newUser.last_name,
+    payroll: newUser.payroll ,
+    org_id
+  };
+};
+
 const loginUser = async (email, password, rememberMe) => {
   try {
     password = password.trim();

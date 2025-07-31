@@ -27,16 +27,7 @@ export const registerUser = async (userData, token) => {
     const response = await axios(request);
     return response.data;
   } catch (error) {
-    // if (error.response?.data?.error?.code === 'USER_LIMIT_REACHED') {
-    //   throw new CustomError(
-    //     error.response.data.error.message,
-    //     'USER_LIMIT_REACHED',
-    //     {
-    //       ...error.response.data.error, // Include all error details
-    //       limitReached: true
-    //     }
-    //   );
-    // }
+   
     const errorResponse = error.response?.data;
 
     // Handle USER_LIMIT_REACHED specifically if it has a unique structure
@@ -54,13 +45,7 @@ export const registerUser = async (userData, token) => {
       errorMessage,
       'REGISTRATION_ERROR'
     );
-    // throw new CustomError(
-    //   error.response?.data?.error?.message ||
-    //   error.response?.data?.message ||
-    //   error.message ||
-    //   'Error during registration',
-    //   'REGISTRATION_ERROR'
-    // );
+    
   }
 };
 

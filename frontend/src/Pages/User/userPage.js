@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 // Define the access levels mapping
 const ACCESS_LEVEL_MAP = {
     5: 'Super Admins',
-    4: 'Free Users', // As per your button labels
+    4: 'Monitors', // As per your button labels
     3: 'Managers',
     2: 'Service Personnels',
     1: 'Random Users'

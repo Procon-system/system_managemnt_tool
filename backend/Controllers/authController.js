@@ -13,12 +13,20 @@ const registerController = async (req, res) => {
     const tenantId = req.user.org_id;
     const {  User } = req.tenantModels;
     
-    const { email, password, last_name, first_name, personal_number,access_level,
+    const { email, password, personal_number,role = 'user',
       isConfirmed,
       isActive,
       payroll 
     } = req.body;
-
+ // For monitors, auto‐fill a safe default name
+ let first_name = req.body.first_name;
+ let last_name  = req.body.last_name;
+ let access_level = req.body.access_level 
+ if (role === 'monitor') {
+   first_name = first_name || 'Monitor';
+   last_name  = last_name  || 'Service';
+   access_level = 4;
+ }
     const user = await registerUser({
       email,
       password,
@@ -27,6 +35,7 @@ const registerController = async (req, res) => {
       org_id: tenantId ,
       personal_number,
       access_level,
+      role, 
       isConfirmed: isConfirmed || false, // Default false for normal users
       isActive: isActive || true, // Default true
       payroll: payroll 
@@ -52,7 +61,46 @@ const registerController = async (req, res) => {
     });
   }
 };
-// controllers/authController.js
+
+const loginController = async (req, res) => {
+  try {
+    const { email, password, rememberMe } = req.body;
+
+    const result = await loginUser(email, password, rememberMe);
+
+    res.cookie('jwt', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
+      path: '/',
+      domain: process.env.COOKIE_DOMAIN || undefined
+    });
+
+    res.json({
+      success: true,
+      data: result.user,
+      token: result.token,
+      message: 'Login successful'
+    });
+
+  } catch (error) {
+    console.error('Login error:', error.message);
+
+    const statusCode =
+      error.message.includes('not found') ||
+      error.message.includes('Incorrect') ||
+      error.message.includes('locked')
+        ? 401
+        : 400;
+
+    res.status(statusCode).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 const registerAdminController = async (req, res) => {
   try {
     const { 
@@ -111,44 +159,6 @@ const registerAdminController = async (req, res) => {
     res.status(statusCode).json({ 
       success: false,
       error: err.message 
-    });
-  }
-};
-const loginController = async (req, res) => {
-  try {
-    const { email, password, rememberMe } = req.body;
-
-    const result = await loginUser(email, password, rememberMe);
-
-    res.cookie('jwt', result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
-      path: '/',
-      domain: process.env.COOKIE_DOMAIN || undefined
-    });
-
-    res.json({
-      success: true,
-      data: result.user,
-      token: result.token,
-      message: 'Login successful'
-    });
-
-  } catch (error) {
-    console.error('Login error:', error.message);
-
-    const statusCode =
-      error.message.includes('not found') ||
-      error.message.includes('Incorrect') ||
-      error.message.includes('locked')
-        ? 401
-        : 400;
-
-    res.status(statusCode).json({
-      success: false,
-      error: error.message
     });
   }
 };
