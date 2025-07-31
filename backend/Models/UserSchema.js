@@ -39,7 +39,7 @@ module.exports = (connection) => {
   },
   personal_number: {
     type: String,
-    unique: true,
+    // unique: true,
     sparse: true,
     default: null 
   },

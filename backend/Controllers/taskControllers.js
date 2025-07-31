@@ -64,6 +64,7 @@ exports.createTask = async (req, res) => {
     const { Task, Resource, Notification, ResourceBooking } = req.tenantModels;
     const cache = req.tenantCache;
     const organizationId = req.user.org_id;
+    console.log("organizationId",organizationId)
     // Validate required fields
     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
       return res.status(400).json({
@@ -176,9 +177,9 @@ exports.createTask = async (req, res) => {
           timezone: task.schedule.timezone
         }
       };
-
-      if (mqttClient.connected) {
-        const topic = `tasks/new/${organizationId}`;
+     const id =organizationId.toString()
+     if (mqttClient && mqttClient.connected)  {
+        const topic = `tasks/new/${id}`;
         mqttClient.publish(
              topic,      
              JSON.stringify(mqttPayload),
