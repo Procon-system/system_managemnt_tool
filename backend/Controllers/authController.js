@@ -13,7 +13,7 @@ const registerController = async (req, res) => {
     const tenantId = req.user.org_id;
     const {  User } = req.tenantModels;
     
-    const { email, password, personal_number,role = 'user',
+    const { email, password, role = 'user',
       isConfirmed,
       isActive,
       payroll 
@@ -22,10 +22,13 @@ const registerController = async (req, res) => {
  let first_name = req.body.first_name;
  let last_name  = req.body.last_name;
  let access_level = req.body.access_level 
+ let personal_number=req.body.personal_number;
  if (role === 'monitor') {
    first_name = first_name || 'Monitor';
    last_name  = last_name  || 'Service';
    access_level = 4;
+   personal_number = personal_number || Math.floor(1e9 + Math.random() * 9e9).toString();
+
  }
     const user = await registerUser({
       email,
@@ -67,7 +70,7 @@ const loginController = async (req, res) => {
     const { email, password, rememberMe } = req.body;
 
     const result = await loginUser(email, password, rememberMe);
-
+console.log("result",result)
     res.cookie('jwt', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
