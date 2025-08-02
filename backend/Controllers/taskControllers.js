@@ -2,7 +2,6 @@ const taskService = require('../Services/taskService');
 const notificationService = require('../Services/notificationService');
 const { sendResponse } = require('../utils/responseHandler');
 const calculateTaskPeriod = require('../Helper/taskPeriodCalc');
-const { mqttClient } = require('../utils/mqttClient'); // ✅ Import the shared MQTT client instance
 const getColorForStatus =require('../utils/getColorForStatus');
 const uploadFileToGridFS = require('../utils/uploadImage'); 
 const { notifyUser, notifyOrg } = require('../socket/emitUtils');
@@ -63,8 +62,8 @@ exports.createTask = async (req, res) => {
   try {
     const { Task, Resource, Notification, ResourceBooking } = req.tenantModels;
     const cache = req.tenantCache;
-    const organizationId = req.user.org_id;
-    console.log("organizationId",organizationId)
+   
+    
     // Validate required fields
     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
       return res.status(400).json({
@@ -154,43 +153,38 @@ exports.createTask = async (req, res) => {
           })
         );
       }
+      const { mqttClient, opts} = require('../utils/mqttClient'); // ✅ Import the shared MQTT client instance
 
-      // 2. Publish MQTT message for this specific task instance
-      const mqttPayload = {
-        _id: task._id.toString(), 
-        title: task.title,
-        status: task.status,
-        assigned_to: (task.assignments || []).map(a => ({
-          id:   a.user?._id.toString(),
-          name: `${a.user?.first_name} ${a.user?.last_name}`
-        })),
-        resources: (task.resources || []).map(r => ({
-          resource: r.resource?._id.toString(),
-          name:     r.resource?.displayName || r.resource?.fields?.name,
-        })),
-        notes: task.notes,
-        repeat_frequency: task.repeat_frequency,
-        task_period: task.task_period,
-        schedule: {
-          start:    task.schedule.start.toISOString().slice(0,16),
-          end:      task.schedule.end.toISOString().slice(0,16),
-          timezone: task.schedule.timezone
-        }
-      };
-     const id =organizationId.toString()
-     if (mqttClient && mqttClient.connected)  {
-        const topic = `tasks/new/${id}`;
-        mqttClient.publish(
-             topic,      
-             JSON.stringify(mqttPayload),
-             { qos: 1, retain: false },
-            err => err
-              ? console.error(`MQTT publish error for ${topic}:`, err): console.log(`▲ published to ${topic}`)
-       );
-      } else {
-        console.warn('⚠️ MQTT client not connected. Skipping message publication.');
+     // 2. Publish MQTT message
+    const topic   = `tasks/new/${req.user.org_id}`;
+    const payload = {
+      _id:            task._id.toString(),
+      title:          task.title,
+      status:         task.status,
+      assigned_to:    (task.assignments || []).map(a => ({
+                         id:   a.user?._id.toString(),
+                         name: `${a.user?.first_name} ${a.user?.last_name}`
+                       })),
+      resources:      (task.resources || []).map(r => ({
+                         resource: r.resource?._id.toString(),
+                         name:     r.resource?.displayName || r.resource?.fields?.name,
+                       })),
+      notes:          task.notes,
+      repeat_frequency: task.repeat_frequency,
+      task_period:      task.task_period,
+      schedule: {
+        start:    task.schedule.start.toISOString().slice(0,16),
+        end:      task.schedule.end.toISOString().slice(0,16),
+        timezone: task.schedule.timezone
       }
-    }
+    };
+
+    const message = JSON.stringify(payload);
+    mqttClient.publish(topic, message, { qos: 1 }, err => {
+      if (err) console.error(`❌ Publish error to ${topic}:`, err);
+      else     console.log(`▲ Published to ${topic}`);
+    });
+  }
 
     return res.status(201).json({
       success: true,
@@ -303,7 +297,74 @@ exports.updateTask = async (req, res) => {
       assigned_resources: updatedTask.resources || [], // Use the 'resources' field from the task
       images: updatedTask.images || [],
     };
+    const taskForPayload = await Task.findById(taskId)
+    .populate([
+      {
+        path: 'assignments.user',
+        select: 'first_name last_name' // Only fetch what's needed
+      },
+      {
+        path: 'resources.resource',
+        select: 'displayName fields.name' // Fetch both possible name fields
+      }
+    ])
+    .lean(); // Use .lean() for a plain JS object, which is faster
 
+  if (!taskForPayload) {
+      // This is a safety net in case the task was deleted between update and fetch
+      console.warn(`[MQTT] Task ${taskId} not found after update, skipping publish.`);
+  } else {
+      // 2. Lazily require the MQTT client
+      const { mqttClient } = require('../utils/mqttClient');
+
+      // 3. Construct the topic and the rich payload
+      const topic = `tasks/update/${req.user.org_id}`;
+      const payload = {
+          _id: taskForPayload._id.toString(),
+          title: taskForPayload.title,
+          status: taskForPayload.status,
+          notes: taskForPayload.notes,
+          repeat_frequency: taskForPayload.repeat_frequency,
+          task_period: taskForPayload.task_period,
+          // Add who performed the update
+          updatedByName: `${req.user.first_name || 'System'}`,
+
+          // Map assignments to the desired structure
+          assigned_to: (taskForPayload.assignments || []).map(a => {
+              if (!a.user) return null; // Handle potential null users
+              return {
+                  id: a.user._id.toString(),
+                  name: `${a.user.first_name || ''} ${a.user.last_name || ''}`.trim()
+              };
+          }).filter(Boolean), // Filter out any nulls
+
+          // Map resources to the desired structure
+          resources: (taskForPayload.resources || []).map(r => {
+              if (!r.resource) return null; // Handle potential null resources
+              return {
+                  resource: r.resource._id.toString(),
+                  name: r.resource.displayName || r.resource.fields?.name || 'Unnamed Resource'
+              };
+          }).filter(Boolean),
+
+          // Format schedule
+          schedule: {
+              start: taskForPayload.schedule.start.toISOString().slice(0, 16),
+              end: taskForPayload.schedule.end.toISOString().slice(0, 16),
+              timezone: taskForPayload.schedule.timezone
+          }
+      };
+
+      // 4. Publish the message
+      const message = JSON.stringify(payload);
+      mqttClient.publish(topic, message, { qos: 1 }, (err) => {
+          if (err) {
+              console.error(`❌ MQTT Publish error to ${topic}:`, err);
+          } else {
+              console.log(`▲ Published rich update to ${topic}`);
+          }
+      });
+  }
     // Invalidate cache
     const cache = req.tenantCache;
 

@@ -19,6 +19,8 @@ mqttClient.on('connect', () => {
   console.log(`✅ Connected to ${url}`);
   // subscribe to tasks/update/<any-org-id>
   mqttClient.subscribe('tasks/update/+', { qos: 1 });
+  mqttClient.subscribe('tasks/new/+', { qos: 1 })
+  console.log(' Mqtt Subscribed to tasks/update/+ and tasks/new/+');
 });
 
 mqttClient.on('error', err => {
@@ -29,15 +31,61 @@ mqttClient.on('close', () => {
   console.log('🔌 MQTT client disconnected');
 });
 
+// mqttClient.on('message', async (topic, msgBuf) => {
+//   try {
+//     const [, , orgId] = topic.split('/');
+//     const msg = JSON.parse(msgBuf.toString());
+//     console.log(`📨 MQTT msg for org ${orgId}:`, msg);
+
+//     if (msg.origin !== 'monitor') return;
+
+//     // ———————— Build a fake req/res just like Express ————————
+//     const tenantDB = await getOrganizationDB(orgId);
+//     const tenantModels = {
+//       Task:            tenantDB.models.get('Task'),
+//       Resource:        tenantDB.models.get('Resource'),
+//       ResourceBooking: tenantDB.models.get('ResourceBooking'),
+//       Notification:    tenantDB.models.get('Notification'),
+//     };
+
+//     const req = {
+//       params:        { id: msg._id },
+//       body:          { status: msg.status /* add any other fields you want to pass */ },
+//       files:         [],                                       // no file uploads here
+//       tenantDB,                                              
+//       tenantModels,                                          
+//       tenantCache:    getTenantRedis(orgId),                 // same cache you use in HTTP
+//       user:           { 
+//                        org_id: orgId, 
+//                        first_name: msg.updatedByName || 'Monitor' 
+//                      },
+//     };
+
+//     const res = {
+//       status: code => ({
+//         json: data => console.log(`[MQTT][updateTask] ${code}`, data)
+//       })
+//     };
+
+//     // ———————— Call your HTTP controller ————————
+//     await taskController.updateTask(req, res);
+
+//   } catch (err) {
+//     console.error('❌ Error in MQTT handler:', err);
+//   }
+// });
 mqttClient.on('message', async (topic, msgBuf) => {
   try {
-    const [, , orgId] = topic.split('/');
+    const [topicPrefix, action, orgId] = topic.split('/');
     const msg = JSON.parse(msgBuf.toString());
-    console.log(`📨 MQTT msg for org ${orgId}:`, msg);
-
+    
+    // Ignore messages that don't come from a monitor or another designated source
+    // This prevents API servers from processing their own published messages.
     if (msg.origin !== 'monitor') return;
 
-    // ———————— Build a fake req/res just like Express ————————
+    console.log(`📨 MQTT msg [${action}] for org ${orgId}:`, msg);
+
+    // ———————— Common setup for any action ————————
     const tenantDB = await getOrganizationDB(orgId);
     const tenantModels = {
       Task:            tenantDB.models.get('Task'),
@@ -45,32 +93,65 @@ mqttClient.on('message', async (topic, msgBuf) => {
       ResourceBooking: tenantDB.models.get('ResourceBooking'),
       Notification:    tenantDB.models.get('Notification'),
     };
+    const tenantCache = getTenantRedis(orgId);
 
-    const req = {
-      params:        { id: msg._id },
-      body:          { status: msg.status /* add any other fields you want to pass */ },
-      files:         [],                                       // no file uploads here
-      tenantDB,                                              
-      tenantModels,                                          
-      tenantCache:    getTenantRedis(orgId),                 // same cache you use in HTTP
-      user:           { 
-                       org_id: orgId, 
-                       first_name: msg.updatedByName || 'Monitor' 
-                     },
-    };
-
+    // A mock response object for logging controller output
     const res = {
       status: code => ({
-        json: data => console.log(`[MQTT][updateTask] ${code}`, data)
+        json: data => console.log(`[MQTT][${action}Task] Response ${code}:`, data.message || data)
       })
     };
+    
+    let req;
 
-    // ———————— Call your HTTP controller ————————
-    await taskController.updateTask(req, res);
+    // ———————— Route to the correct logic based on topic ————————
+    switch (action) {
+      case 'update':
+        req = {
+          params: { id: msg._id },
+          // For updates, we typically only pass the fields that changed
+          body: { status: msg.status /* add other fields from msg if needed */ },
+          files: [],
+          tenantDB,
+          tenantModels,
+          tenantCache,
+          user: {
+            org_id: orgId,
+            // Assume the message payload tells us who initiated the update
+            first_name: msg.updatedByName || 'Monitor'
+          },
+        };
+        await taskController.updateTask(req, res);
+        break;
+
+      case 'new':
+        // For creation, the body is the entire task definition
+        req = {
+          params: {}, // No params for creation
+          body: msg, // Pass the entire message payload as the body
+          files: [],
+          tenantDB,
+          tenantModels,
+          tenantCache,
+          user: {
+            org_id: orgId,
+            _id: msg.createdBy ,
+            first_name: msg.createdByName || 'Monitor'
+          },
+        };
+        if (!req.user._id) {
+          console.error(`❌ Cannot create task via MQTT: Missing 'createdBy' in payload and no fallback SYSTEM_USER_ID is set. Topic: ${topic}`);
+          return; // Stop processing to prevent a crash
+      }
+        await taskController.createTask(req, res);
+        break;
+
+      default:
+        console.warn(`🤷‍♀️ Unhandled MQTT action '${action}' on topic: ${topic}`);
+    }
 
   } catch (err) {
-    console.error('❌ Error in MQTT handler:', err);
+    console.error(`❌ Error in MQTT handler for topic "${topic}":`, err);
   }
 });
-
-module.exports = { mqttClient };
+module.exports = { mqttClient, opts };
