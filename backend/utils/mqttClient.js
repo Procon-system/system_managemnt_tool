@@ -62,7 +62,7 @@ mqttClient.on('message', async (topic, msgBuf) => {
 
     // ———————— Route to the correct logic based on topic ————————
     switch (action) {
-      case 'update':
+      case 'update_monitor':
         req = {
           params: { id: msg._id },
           // For updates, we typically only pass the fields that changed
@@ -80,7 +80,7 @@ mqttClient.on('message', async (topic, msgBuf) => {
         await taskController.updateTask(req, res);
         break;
 
-      case 'new':
+      case 'new_monitor':
       
         req = {
           params: {}, 
