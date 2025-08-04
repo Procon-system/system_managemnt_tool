@@ -1,23 +1,23 @@
 
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { logout } from "../features/authSlice"; // Import logout action
-import { deleteUser, updateUser } from "../features/userSlice"; // Import user actions
-import ProfileModal from "./profileModal"; // Assuming you have a reusable Modal component
-import { toast } from "react-toastify"; // Import toast for notifications
-import "react-toastify/dist/ReactToastify.css"; // Toast CSS
+import { logout } from "../features/authSlice"; 
+import { deleteUser, updateUser } from "../features/userSlice";
+import ProfileModal from "./profileModal";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css"; 
 
 const ProfilePage = () => {
   const user = useSelector((state) => state.auth.user);
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const dispatch = useDispatch();
-  console.log("user",user)
+ 
   const [firstName, setFirstName] = useState(user?.first_name || "");
   const [lastName, setLastName] = useState(user?.last_name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [password, setPassword] = useState("");
-  const [showDeleteModal, setShowDeleteModal] = useState(false); // State for delete confirmation modal
-  const [showUpdateModal, setShowUpdateModal] = useState(false); // State for update confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false); 
+  const [showUpdateModal, setShowUpdateModal] = useState(false); 
 
   const handleLogout = () => {
     dispatch(logout());

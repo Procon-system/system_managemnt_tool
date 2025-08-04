@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire';
 import resourceTypeService from '../Services/resourceTypeService';
+import { logout } from './authSlice'; // Adjust the path if necessary
 
 // Async Thunks using the service layer
 export const createResourceType = createAsyncThunk(
@@ -71,16 +72,23 @@ export const deleteResourceType = createAsyncThunk(
     }
   }
 );
-
+const initialState = {
+  resourceTypes: [],
+  status: 'idle',
+  loading: false, // You might consider removing this and just using 'status'
+  error: null,
+  lastSocketUpdate: null
+};
 const resourceTypeSlice = createSlice({
   name: 'resourceTypes',
-  initialState: {
-    resourceTypes: [],
-    status: 'idle',
-    loading: false,
-    error: null,
-    lastSocketUpdate: null
-  },
+  // initialState: {
+  //   resourceTypes: [],
+  //   status: 'idle',
+  //   loading: false,
+  //   error: null,
+  //   lastSocketUpdate: null
+  // },
+  initialState,
   reducers: {
     // Add this new reducer for socket updates
    
@@ -203,6 +211,9 @@ const resourceTypeSlice = createSlice({
         state.status = 'failed';
         state.loading = false; // Ensure loading is always reset
         console.warn('Delete resource type failed:', action.payload); // Good for debugging
+      })
+     .addCase(logout, (state, action) => {
+        return initialState;
       });
   }
 });

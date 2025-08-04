@@ -2,7 +2,6 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import taskService from '../Services/taskService';
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 
-
 export const createTask = createAsyncThunk(
   'tasks/createTask',
   async (taskData, { getState, dispatch, rejectWithValue }) => {
@@ -198,6 +197,7 @@ export const filterTasks = createAsyncThunk(
     }
   }
 );
+
 const taskSlice = createSlice({
   name: 'tasks',
   initialState: {
@@ -457,6 +457,7 @@ const taskSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload || 'Failed to update tasks';
       })
+     
   },
 });
 export const { setTaskView,addMultipleTasksFromSocket ,resetFilteredTasks} = taskSlice.actions;

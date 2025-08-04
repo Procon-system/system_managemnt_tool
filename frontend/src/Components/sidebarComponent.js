@@ -344,6 +344,7 @@ const handleViewAllDoneTasksClick = () => {
                   setShowAddOptions(false);
                 }}
               />
+              {access_level ===5 && (
               <StyledAddButton 
                 icon={<FiUserPlus size={18} />} 
                 label="User" 
@@ -352,6 +353,7 @@ const handleViewAllDoneTasksClick = () => {
                   setShowAddOptions(false);
                 }}
               />
+              )}
             </>
           )}
 

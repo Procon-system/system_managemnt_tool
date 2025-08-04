@@ -307,7 +307,6 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   
   useEffect(() => {
     if (!calendarContainer.current) return;
-    // Destroy existing calendar to prevent multiple instances
     if (calendarRef.current) {
       calendarRef.current.destroy();
     }
@@ -370,7 +369,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             },
             timeline: {
               text: 'Timeline',
-              click: () => handleViewChange('resourceTimelineDay'), // Corrected view name
+              click: () => handleViewChange('resourceTimelineDay'), 
             },
           },
           eventClassNames: (arg) => {
@@ -513,7 +512,90 @@ const updatedEvent = {
 openForm(updatedEvent);
           }
           },
-          
+          eventDidMount: function(info) {
+            try {
+              const users = info.event.extendedProps.assigned_resources?.assigned_to;
+              if (!Array.isArray(users) || users.length === 0) {
+                return;
+              }
+
+              const eventEl = info.el;
+              const originalChildren = Array.from(eventEl.childNodes);
+
+              // 2. Create a "master wrapper" that will fill the event element
+              //    without altering the event element itself. THIS is the key.
+              const masterWrapper = document.createElement('div');
+              Object.assign(masterWrapper.style, {
+                position: 'relative', // Our positioning context is on this wrapper.
+                width: '100%',
+                height: '100%',
+                display: 'flex',       // Use flexbox for robust content layout.
+                flexDirection: 'column'
+              });
+
+              // 3. Create a sub-wrapper for the original content. This helps
+              //    prevent text from overflowing into our badge area.
+              const contentWrapper = document.createElement('div');
+              Object.assign(contentWrapper.style, {
+                flexGrow: '1', // Allow content to take up available space.
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              });
+              
+              // 4. Move the original children into our content wrapper.
+              originalChildren.forEach(child => contentWrapper.appendChild(child));
+
+              // 5. Create the badge container as before.
+              const badgeContainer = document.createElement('div');
+              Object.assign(badgeContainer.style, {
+                position: 'absolute', // Positioned relative to masterWrapper.
+                bottom: '1px', 
+                right: '1px',
+                display: 'flex',
+                alignItems: 'center',
+                zIndex: '5'
+              });
+
+              // (The code for creating individual badges remains the same)
+              const getInitials = (name) => {
+                if (!name) return '??';
+                const parts = name.trim().split(/\s+/).filter(Boolean);
+                if (parts.length === 0) return '??';
+                if (parts.length === 1) return parts[0][0].toUpperCase();
+                return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+              };
+              const palette = ['#fee2e2', '#bfdbfe', '#d1fae5', '#fef3c7', '#e0e7ff'];
+              const textPalette = ['#991b1b', '#1e40af', '#065f46', '#92400e', '#3730a3'];
+              users.slice(0, 3).forEach((user, idx) => {
+                const name = user?.name || user?.first_name || 'Unknown';
+                const initials = getInitials(name);
+                const charCodeSum = (user?._id || name).split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+                const colorIdx = (charCodeSum + idx) % palette.length;
+                const badge = document.createElement('span');
+                badge.textContent = initials;
+                badge.title = name;
+                Object.assign(badge.style, {
+                  backgroundColor: palette[colorIdx], color: textPalette[colorIdx],
+                  width: '25px', height: '25px', borderRadius: '50%',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '10px', fontWeight: '600', marginRight: '-5px',
+                  border: '1px solid white', boxSizing: 'border-box',
+                });
+                badgeContainer.appendChild(badge);
+              });
+
+              // 6. Assemble the final structure inside our wrapper.
+              masterWrapper.appendChild(contentWrapper);
+              masterWrapper.appendChild(badgeContainer);
+
+              // 7. Clear the original event element and append our single, safe master wrapper.
+              eventEl.innerHTML = '';
+              eventEl.appendChild(masterWrapper);
+
+            } catch (error) {
+              console.error('Failed to mount user badges on event:', info.event.title, error);
+            }
+          },
           eventDrop: (info) => {
             handleEventDrop(info).catch(console.error);
           },
@@ -534,7 +616,7 @@ openForm(updatedEvent);
       setSelectedEvents(new Set());
     }, []);
   
-    // Add this effect to sync ref with state changes
+   
     useEffect(() => {
       selectedEventsRef.current = new Set(selectedEvents);
     }, [selectedEvents]);

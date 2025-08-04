@@ -1,10 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire';
 import resourceService from '../Services/resourceService';
-const fetchCache = {};
-const CACHE_DURATION_MS = 5000; // Prevent re-fetching the same data for 5 seconds
+import { logout } from './authSlice'; // Adjust the path if necessary
 
-// Async Thunks using the service layer
+const fetchCache = {};
+const CACHE_DURATION_MS = 5000;
 export const createResource = createAsyncThunk(
   'resources/createResource',
   async (resourceData, { getState, dispatch, rejectWithValue }) => {
@@ -414,6 +414,9 @@ const resourceSlice = createSlice({
         state.status = 'failed';
         state.loading = false;
         state.error = action.payload;
+      })
+      .addCase(logout, (state, action) => {
+        return initialState;
       });
   }
 });
