@@ -1,12 +1,10 @@
-const {  getIoInstance: getSocket, connectedUsers } = require("./index");
+const {  getIoInstance: getSocket} = require("./index");
 
 function notifyUser(userId, event, data) {
-  const socketId = connectedUsers[userId];
-  console.log(`📤 Emittinger to ${userId} at socket ${socketId}, event: ${event}`);
- 
-  if (socketId) {
-    getSocket().to(socketId).emit(event, data);
-  }
+  const userRoom = userId.toString(); 
+  
+  console.log(`📤 Emitting to room "${userRoom}", event: ${event}`);
+  getSocket().to(userRoom).emit(event, data);
 }
 
 function notifyOrg(orgId, event, data) {

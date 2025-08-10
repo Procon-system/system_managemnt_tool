@@ -2,17 +2,24 @@
 
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+const { createAdapter } = require("@socket.io/redis-adapter");
 const { handleAdminRegistration, handleUserLogin } = require("../Services/adminRegistration");
 const { redisClient } = require("../redisClient"); 
-const connectedUsers = {};
 const config = require('../config/config'); 
 
-let io; // Will be initialized once
+let io; 
 
 function initSocket(httpServer) {
   io = new Server(httpServer, {
     cors: { origin: "*", methods: ["GET", "POST"] }
   });
+
+   const pubClient = redisClient.duplicate();
+   const subClient = pubClient.duplicate();
+   io.redisAdapterClients = { pubClient, subClient };
+
+   io.adapter(createAdapter(pubClient, subClient));
+
   const internalNamespace = io.of("/internal");
 
   // Authentication middleware for the internal namespace
@@ -41,8 +48,7 @@ function initSocket(httpServer) {
         const flaskId = data.data.flask_subscriber_id;
         const redisKey = `handoff:${flaskId}`;
         const payload = jwt.decode(token);
-console.log("payload",payload)
-        // 3. Construct the full handoff object
+
         const handoffData = {
           token: token,
           user: {
@@ -52,10 +58,9 @@ console.log("payload",payload)
             last_name: payload.last_name,
             access_level: payload.access_level
           },
-          access_level: payload.access_level // Assuming 'role' in the JWT maps to 'access_level'
+          access_level: payload.access_level 
         };
-        // **FIX**: Store the generated JWT in Redis with a 60-second expiration.
-        // await redisClient.setEx(redisKey, 60, token);
+        
         await redisClient.setEx(redisKey, 60, JSON.stringify(handoffData));
 
         console.log(`[Internal] ✅ Token for user ${flaskId} cached in Redis.`);
@@ -84,12 +89,8 @@ console.log("payload",payload)
     });
   });
 
-  //==================================================================
-  // 2. USER NAMESPACE (PUBLIC) - For communication with React App
-  //==================================================================
   const userNamespace = io.of("/"); 
 
-  // Authentication middleware for the public namespace
   userNamespace.use(async (socket, next) => {
     const isHandoff = socket.handshake.query.handoff === 'true';
     if (isHandoff) {
@@ -143,23 +144,21 @@ console.log("payload",payload)
         console.error(`[Handoff] ❌ Redis error checking for key ${redisKey}:`, err);
       }
     });
-    // Handle regular, authenticated user connections
+    
     if (socket.user) {
-      console.log(`[User] ✅ User socket connected: ${socket.id} (User: ${socket.user._id})`);
-      
-      socket.join(`org:${socket.orgId}`);
-      socket.join(`org:${socket.orgId}:role:${socket.user.role}`);
-      connectedUsers[socket.user._id.toString()] = socket.id;
+      const userIdStr = socket.user._id.toString();
+      console.log(`[User] ✅ User ${userIdStr} connected with socket ${socket.id}`);
 
+      socket.join(userIdStr); 
+      socket.join(`org:${socket.orgId}`); 
+      if (socket.user.role) {
+          socket.join(`org:${socket.orgId}:role:${socket.user.role}`); 
+      }
       socket.on("disconnect", () => {
-        const userId = socket.user?._id?.toString();
-        if (userId) {
-            delete connectedUsers[userId];
-        }
-        console.warn(`[User] 🔌 User socket disconnected: ${socket.id}`);
+       
+      console.warn(`[User] 🔌 User socket disconnected: ${socket.id}`);
       });
     } else {
-      // This is the initial state of a handoff socket before it joins a room.
       console.log(`[Handoff] ❔ Pre-auth socket connected, awaiting room join: ${socket.id}`);
     }
   });
@@ -177,5 +176,5 @@ function getIoInstance() {
 module.exports = { 
     initSocket, 
     getIoInstance,
-    connectedUsers 
+    // connectedUsers 
 };

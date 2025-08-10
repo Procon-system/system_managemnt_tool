@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
@@ -22,6 +23,7 @@
     "express": "^4.21.1",
     "fs": "^0.0.1-security",
     "gridfs-stream": "^1.1.1",
+    "http-graceful-shutdown": "^3.1.14",
     "ical": "^0.8.0",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
