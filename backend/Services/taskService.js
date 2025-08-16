@@ -261,7 +261,7 @@ exports.createTask = async (taskData, TaskModel, ResourceModel, ResourceBookingM
         },
         {
           path: 'assignments.user',
-          select: 'first_name last_name email avatar'
+          select: 'first_name last_name email avatar color'
         },
         {
           path: 'assignments.team',
@@ -487,11 +487,10 @@ exports.getTasksByOrganization = async (TaskModel) => {
     })
     .populate({
       path: 'assignments.user',
-      select: 'first_name last_name email avatar'
+      select: 'first_name last_name email avatar color'
     })
     .lean(); // .lean() is great for fast, read-only queries
-    
-  
+   
     return tasks;
 };
 exports.filterTasksByOrganization = async (organizationId,TaskModel, options = {}) => {

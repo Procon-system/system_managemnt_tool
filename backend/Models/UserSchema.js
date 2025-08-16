@@ -7,6 +7,19 @@ module.exports = (connection) => {
   if (connection.models['User']) {
     return connection.models['User'];
   }
+  const defaultColorPairs = [
+    { background: '#e0f2fe', text: '#0c4a6e' }, // light-blue
+    { background: '#dcfce7', text: '#166534' }, // light-green
+    { background: '#fef3c7', text: '#92400e' }, // light-amber
+    { background: '#fee2e2', text: '#991b1b' }, // light-red
+    { background: '#ede9fe', text: '#5b21b6' }, // light-violet
+    { background: '#fce7f3', text: '#9d266b' }, // light-pink
+  ];
+  const getRandomDefaultColor = () => {
+    const randomIndex = Math.floor(Math.random() * defaultColorPairs.length);
+    return defaultColorPairs[randomIndex].background;
+  };
+
   const userSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -58,7 +71,11 @@ module.exports = (connection) => {
     enum: [1, 2, 3, 4, 5],
     default: 2 
   },
- 
+  color: {
+    type: String,
+    trim: true,
+    default: getRandomDefaultColor
+  },
   max_permitted_user_amount: { type: Number},
   max_permitted_resource_amount: { type: Number},
   subscription_type: { type: String, default: 'free' },

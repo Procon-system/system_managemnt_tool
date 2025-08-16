@@ -9,17 +9,35 @@ const config = require('../config/config');
 
 let io; 
 
-function initSocket(httpServer) {
+async function initSocket(httpServer) {
   io = new Server(httpServer, {
     cors: { origin: "*", methods: ["GET", "POST"] }
   });
 
-   const pubClient = redisClient.duplicate();
-   const subClient = pubClient.duplicate();
-   io.redisAdapterClients = { pubClient, subClient };
+  try {
+    const pubClient = redisClient.duplicate();
+    const subClient = pubClient.duplicate();
 
-   io.adapter(createAdapter(pubClient, subClient));
+    // Add error listeners for ongoing monitoring
+    pubClient.on('error', (err) => console.error('[Socket.IO Redis Pub] Error:', err));
+    subClient.on('error', (err) => console.error('[Socket.IO Redis Sub] Error:', err));
+    
+    // ✅ AWAIT THE CONNECTION
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    
+    io.adapter(createAdapter(pubClient, subClient));
+    io.redisAdapterClients = { pubClient, subClient };
+    console.log("✅ Successfully attached Redis adapter for multi-node scaling.");
 
+  } catch (err) {
+    // ✅ THIS WILL NOW EXECUTE IN PRODUCTION AND SHOW YOU THE REAL ERROR
+    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.error("CRITICAL: Could not connect to Redis for Socket.IO adapter.");
+    console.error("This is why you are seeing '400 Bad Request' errors.");
+    console.error("Check your REDIS_URL environment variable and firewall rules.");
+    console.error("Error Details:", err);
+    console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  }
   const internalNamespace = io.of("/internal");
 
   // Authentication middleware for the internal namespace
@@ -176,5 +194,5 @@ function getIoInstance() {
 module.exports = { 
     initSocket, 
     getIoInstance,
-    // connectedUsers 
+    
 };

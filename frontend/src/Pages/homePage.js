@@ -240,7 +240,8 @@ const calendarEvents = useMemo(() => {
                 id: assignment.user._id,
                 name: assignment.user.full_name || 
                       `${assignment.user.first_name} ${assignment.user.last_name}`,
-                email: assignment.user.email
+                email: assignment.user.email,
+                color: assignment.user.color
               } : null,
               team: assignment.team,
               role: assignment.role

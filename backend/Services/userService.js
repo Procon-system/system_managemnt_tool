@@ -44,16 +44,18 @@ class UserService {
   // Update user (regular update for own profile)
   async updateUser(userId, updateData, requester,UserModel) {
     try {
-      // Users can only update their own profile
+      
       if (userId !== requester.id) {
         throw new AuthorizationError('Not authorized to update this user');
       }
 
-      // Prevent regular users from updating sensitive fields
       if (requester.access_level < 3) {
         delete updateData.email;
         delete updateData.personal_number;
         delete updateData.access_level;
+        delete updateData.role; 
+        delete updateData.payroll; 
+
       }
 
       return await this._updateUser(userId, updateData, UserModel);

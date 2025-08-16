@@ -66,7 +66,7 @@ export const getAllDoneTasks = createAsyncThunk(
     }
   }
 );
-// Fetch Tasks
+
 export const fetchOrganizationTasks = createAsyncThunk(
   'tasks/fetchOrganizationTasks',
   async (_, { rejectWithValue, dispatch, getState }) => {
@@ -103,7 +103,6 @@ export const updateTask = createAsyncThunk(
   }
 );
 
-// Fetch image metadata
 export const fetchImageMetadata = createAsyncThunk(
   'tasks/fetchImageMetadata',
   async ({ fileIds }, { getState, dispatch, rejectWithValue }) => {
@@ -137,7 +136,7 @@ return response;
   }
 );
 
-// Delete Task
+
 export const deleteTask = createAsyncThunk(
   'tasks/deleteTask',
   async (taskId, { getState, dispatch, rejectWithValue }) => {
@@ -207,11 +206,11 @@ const taskSlice = createSlice({
     imageMetadata: [],
     imageFiles: {},
     error: null,
-    currentView: 'allTasks', // Default to showing all tasks
+    currentView: 'allTasks', 
   },
   reducers: {
     setTaskView: (state, action) => {
-      state.currentView = action.payload; // Update the view (e.g., 'allTasks' or 'userTasks')
+      state.currentView = action.payload;
     },
     
     addMultipleTasksFromSocket: (state, action) => {

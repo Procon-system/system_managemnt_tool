@@ -32,6 +32,15 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   const dragStartPositionsRef = useRef(new Map());
   const [calendarDate, setCalendarDate] = useState(new Date()); 
   const isDateChangeAllowed = useRef(true); 
+  
+  const getContrastingTextColor = (hexColor) => {
+    if (!hexColor) return '#000000';
+    const r = parseInt(hexColor.substr(1, 2), 16);
+    const g = parseInt(hexColor.substr(3, 2), 16);
+    const b = parseInt(hexColor.substr(5, 2), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 128) ? '#000000' : '#FFFFFF';
+  };
   useEffect(() => {
    
     if ((navView && navView !== changedView) || (navDate && navDate !== calendarDate)) {
@@ -101,7 +110,8 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
           team: assignment.team,
           id: assignment.user?.id, // Use _id instead of id
           name: assignment.user?.name,
-          email: assignment.user?.email
+          email: assignment.user?.email,
+          color: assignment.user?.color || '#cccccc', // Default color if not set
         })) || [],
         resources: event.assigned_resources?.resources
       ?.filter(resource => resource?.resource) // Filter null resources
@@ -514,88 +524,205 @@ openForm(updatedEvent);
           },
           eventDidMount: function(info) {
             try {
-              const users = info.event.extendedProps.assigned_resources?.assigned_to;
-              if (!Array.isArray(users) || users.length === 0) {
-                return;
-              }
-
-              const eventEl = info.el;
-              const originalChildren = Array.from(eventEl.childNodes);
-
-              // 2. Create a "master wrapper" that will fill the event element
-              //    without altering the event element itself. THIS is the key.
-              const masterWrapper = document.createElement('div');
-              Object.assign(masterWrapper.style, {
-                position: 'relative', // Our positioning context is on this wrapper.
-                width: '100%',
-                height: '100%',
-                display: 'flex',       // Use flexbox for robust content layout.
-                flexDirection: 'column'
-              });
-
-              // 3. Create a sub-wrapper for the original content. This helps
-              //    prevent text from overflowing into our badge area.
-              const contentWrapper = document.createElement('div');
-              Object.assign(contentWrapper.style, {
-                flexGrow: '1', // Allow content to take up available space.
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              });
-              
-              // 4. Move the original children into our content wrapper.
-              originalChildren.forEach(child => contentWrapper.appendChild(child));
-
-              // 5. Create the badge container as before.
-              const badgeContainer = document.createElement('div');
-              Object.assign(badgeContainer.style, {
-                position: 'absolute', // Positioned relative to masterWrapper.
-                bottom: '1px', 
-                right: '1px',
-                display: 'flex',
-                alignItems: 'center',
-                zIndex: '5'
-              });
-
-              // (The code for creating individual badges remains the same)
-              const getInitials = (name) => {
-                if (!name) return '??';
-                const parts = name.trim().split(/\s+/).filter(Boolean);
-                if (parts.length === 0) return '??';
-                if (parts.length === 1) return parts[0][0].toUpperCase();
-                return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-              };
-              const palette = ['#fee2e2', '#bfdbfe', '#d1fae5', '#fef3c7', '#e0e7ff'];
-              const textPalette = ['#991b1b', '#1e40af', '#065f46', '#92400e', '#3730a3'];
-              users.slice(0, 3).forEach((user, idx) => {
-                const name = user?.name || user?.first_name || 'Unknown';
-                const initials = getInitials(name);
-                const charCodeSum = (user?._id || name).split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-                const colorIdx = (charCodeSum + idx) % palette.length;
-                const badge = document.createElement('span');
-                badge.textContent = initials;
-                badge.title = name;
-                Object.assign(badge.style, {
-                  backgroundColor: palette[colorIdx], color: textPalette[colorIdx],
-                  width: '25px', height: '25px', borderRadius: '50%',
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '10px', fontWeight: '600', marginRight: '-5px',
-                  border: '1px solid white', boxSizing: 'border-box',
+                const users = info.event.extendedProps.assigned_resources?.assigned_to;
+                if (!Array.isArray(users) || users.length === 0) {
+                    return;
+                }
+        
+                // --- Helper Functions (moved here for clarity) ---
+                const getInitials = (name) => {
+                    if (!name) return '??';
+                    const parts = name.trim().split(/\s+/).filter(Boolean);
+                    if (parts.length === 0) return '??';
+                    if (parts.length === 1) return parts[0][0].toUpperCase();
+                    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                };
+        
+                // You'll need this function to calculate text color for the badges
+                const getContrastingTextColor = (hexColor) => {
+                    if (!hexColor) return '#000000';
+                    const r = parseInt(hexColor.substr(1, 2), 16);
+                    const g = parseInt(hexColor.substr(3, 2), 16);
+                    const b = parseInt(hexColor.substr(5, 2), 16);
+                    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+                    return (yiq >= 128) ? '#000000' : '#FFFFFF';
+                };
+                // --- End Helper Functions ---
+        
+        
+                const eventEl = info.el;
+                const originalChildren = Array.from(eventEl.childNodes);
+        
+                // This master wrapper will hold everything.
+                const masterWrapper = document.createElement('div');
+                Object.assign(masterWrapper.style, {
+                    position: 'relative',
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column', // This is key: it stacks children vertically
+                    overflow: 'hidden' // Hide anything that spills out
                 });
-                badgeContainer.appendChild(badge);
-              });
-
-              // 6. Assemble the final structure inside our wrapper.
-              masterWrapper.appendChild(contentWrapper);
-              masterWrapper.appendChild(badgeContainer);
-
-              // 7. Clear the original event element and append our single, safe master wrapper.
-              eventEl.innerHTML = '';
-              eventEl.appendChild(masterWrapper);
-
+        
+                // NEW: Create the top color bar using the first user's color
+                const topBarColor = users[0]?.color || '#dddddd'; // Fallback color
+                const topColorBar = document.createElement('div');
+                Object.assign(topColorBar.style, {
+                    backgroundColor: topBarColor,
+                    height: '10px', // A thin bar is often cleaner. For a literal half, use '50%'.
+                    // height: '50%', 
+                    width: '100%',
+                    flexShrink: '0' // Prevents the bar from shrinking if content is large
+                });
+        
+                // This wrapper holds the original event content (title, time, etc.)
+                const contentWrapper = document.createElement('div');
+                Object.assign(contentWrapper.style, {
+                    flexGrow: '1',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    padding: '2px 4px' // Add some padding so text isn't flush with edges
+                });
+        
+                originalChildren.forEach(child => contentWrapper.appendChild(child));
+        
+                // This container holds the user avatar badges
+                const badgeContainer = document.createElement('div');
+                Object.assign(badgeContainer.style, {
+                    position: 'absolute',
+                    bottom: '2px',
+                    right: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    zIndex: '5'
+                });
+        
+                // Create the individual user badges (no changes here)
+                users.slice(0, 3).forEach((user) => {
+                    const name = user?.name || user?.first_name || 'Unknown';
+                    const initials = getInitials(name);
+                    const userBackgroundColor = user?.color || '#cccccc';
+                    const userTextColor = getContrastingTextColor(userBackgroundColor);
+        
+                    const badge = document.createElement('span');
+                    badge.textContent = initials;
+                    badge.title = name;
+        
+                    Object.assign(badge.style, {
+                        backgroundColor: userBackgroundColor,
+                        color: userTextColor,
+                        width: '20px', // Slightly smaller for better fit
+                        height: '20px',
+                        borderRadius: '50%',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '9px',
+                        fontWeight: '600',
+                        marginRight: '-5px',
+                        border: '1px solid white',
+                        boxSizing: 'border-box',
+                    });
+                    badgeContainer.appendChild(badge);
+                });
+        
+                // Assemble the final structure
+                masterWrapper.appendChild(topColorBar); // 1. Add the color bar at the top
+                masterWrapper.appendChild(contentWrapper); // 2. Add the content below it
+                masterWrapper.appendChild(badgeContainer); // 3. Add the badges (absolutely positioned)
+        
+                eventEl.innerHTML = ''; // Clear the original event element
+                eventEl.appendChild(masterWrapper); // Add our new, structured content
+        
             } catch (error) {
-              console.error('Failed to mount user badges on event:', info.event.title, error);
+                console.error('Failed to mount user badges/color bar on event:', info.event.title, error);
             }
-          },
+        },
+          // eventDidMount: function(info) {
+          //   try {
+          //     const users = info.event.extendedProps.assigned_resources?.assigned_to;
+          //     if (!Array.isArray(users) || users.length === 0) {
+          //       return;
+          //     }
+
+          //     const eventEl = info.el;
+          //     const originalChildren = Array.from(eventEl.childNodes);
+          //     const masterWrapper = document.createElement('div');
+          //     Object.assign(masterWrapper.style, {
+          //       position: 'relative',
+          //       width: '100%',
+          //       height: '100%',
+          //       display: 'flex',      
+          //       flexDirection: 'column'
+          //     });
+
+          //     const contentWrapper = document.createElement('div');
+          //     Object.assign(contentWrapper.style, {
+          //       flexGrow: '1', 
+          //       overflow: 'hidden',
+          //       textOverflow: 'ellipsis'
+          //     });
+              
+          //     originalChildren.forEach(child => contentWrapper.appendChild(child));
+
+          //     const badgeContainer = document.createElement('div');
+          //     Object.assign(badgeContainer.style, {
+          //       position: 'absolute', 
+          //       bottom: '1px', 
+          //       right: '1px',
+          //       display: 'flex',
+          //       alignItems: 'center',
+          //       zIndex: '5'
+          //     });
+
+          //     // (The code for creating individual badges remains the same)
+          //     const getInitials = (name) => {
+          //       if (!name) return '??';
+          //       const parts = name.trim().split(/\s+/).filter(Boolean);
+          //       if (parts.length === 0) return '??';
+          //       if (parts.length === 1) return parts[0][0].toUpperCase();
+          //       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+          //     };
+          //       users.slice(0, 3).forEach((user) => {
+          //       const name = user?.name || user?.first_name || 'Unknown';
+          //       const initials = getInitials(name);
+                
+          //       // Use the user's specific color, with a fallback for safety
+          //       const userBackgroundColor = user?.color || '#cccccc'; // fallback to grey
+          //       const userTextColor = getContrastingTextColor(userBackgroundColor);
+        
+          //       const badge = document.createElement('span');
+          //       badge.textContent = initials;
+          //       badge.title = name; // Tooltip with full name
+        
+          //       Object.assign(badge.style, {
+          //         backgroundColor: userBackgroundColor,
+          //         color: userTextColor,
+          //         width: '25px',
+          //         height: '25px',
+          //         borderRadius: '50%',
+          //         display: 'inline-flex',
+          //         alignItems: 'center',
+          //         justifyContent: 'center',
+          //         fontSize: '10px',
+          //         fontWeight: '600',
+          //         marginRight: '-5px',
+          //         border: '1px solid white',
+          //         boxSizing: 'border-box',
+          //       });
+          //       badgeContainer.appendChild(badge);
+          //     });
+        
+          //     // Assemble the final structure
+          //     masterWrapper.appendChild(contentWrapper);
+          //     masterWrapper.appendChild(badgeContainer);
+          //     eventEl.innerHTML = '';
+          //     eventEl.appendChild(masterWrapper);
+        
+          //   } catch (error) {
+          //     console.error('Failed to mount user badges on event:', info.event.title, error);
+          //   }
+          // },
           eventDrop: (info) => {
             handleEventDrop(info).catch(console.error);
           },

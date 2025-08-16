@@ -126,9 +126,14 @@ exports.createTask = async (req, res) => {
       // 1. Send Notifications for this specific task instance
       if (task.assignments && task.assignments.length > 0) {
         await Promise.all(
-          task.assignments.map((assignment) => {
+          task.assignments.map(async (assignment) => { 
             if (!assignment.user) return null; // Safety check
             const userId = assignment.user._id.toString();
+           
+            const orgId = req.user.org_id.toString();
+            const cacheKeyToInvalidate = `tasks:assigned:user:${userId}:org:${orgId}`;
+            await cache.del(cacheKeyToInvalidate);
+            console.log(`[Cache] Invalidated key: ${cacheKeyToInvalidate}`);
             
             notifyUser(userId, 'task:assigned', {
               taskId: task._id,
@@ -540,11 +545,11 @@ exports.getTasksByOrganization = async (req, res) => {
     // CHANGED: The cache key is simplified as it no longer depends on pagination.
     const cacheKey = `tasks:org:${orgId}:all-active`;
     
-    const cached = await cache.get(cacheKey);
-    if (cached) {
-      // Assuming sendResponse is your helper to format JSON responses
-      return sendResponse(res, 200, 'Tasks retrieved from cache', JSON.parse(cached));
-    }
+    // const cached = await cache.get(cacheKey);
+    // if (cached) {
+    //   // Assuming sendResponse is your helper to format JSON responses
+    //   return sendResponse(res, 200, 'Tasks retrieved from cache', JSON.parse(cached));
+    // }
 
     // CHANGED: The service call is now simpler. It just needs the Model and orgId.
     const tasks = await taskService.getTasksByOrganization(Task);
