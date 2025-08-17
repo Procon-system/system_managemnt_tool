@@ -448,7 +448,7 @@ exports.updateTask = async (taskId, updateData, TaskModel,ResourceModel, Resourc
       },
       {
         path: 'assignments.user',
-        select: 'first_name last_name email avatar'
+        select: 'first_name last_name email avatar color'
       }
     ])
     .lean(); 
