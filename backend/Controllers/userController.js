@@ -8,13 +8,6 @@ const {
   generateCacheKey
 } = require('../redisUtils');
 
-// Cache TTL configuration
-const CACHE_TTL = {
-  USER: 3600,        // 1 hour for individual users
-  USER_LIST: 1800,   // 30 minutes for user lists
-  DEFAULT: 1200      // 20 minutes default
-};
-
 class UserController {
   // Get all users
   async getAllUsers(req, res, next) {
@@ -53,13 +46,14 @@ class UserController {
   async updateUser(req, res, next) {
     try {
       const {  User } = req.tenantModels;
+      const cache = req.tenantCache;
       const user = await userService.updateUser(
         req.params.id, 
         req.body, 
         req.user,
         User
       );
-      
+      await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
       res.status(200).json({
         success: true,
         data: user,
@@ -74,6 +68,7 @@ class UserController {
   async adminUpdateUser(req, res, next) {
     try {
       const {  User } = req.tenantModels;
+      const cache = req.tenantCache;
       const user = await userService.adminUpdateUser(
         req.params.id, 
         req.body, 
@@ -81,7 +76,8 @@ class UserController {
         User
       );
       
-      
+      await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+
       res.status(200).json({
         success: true,
         data: user,
