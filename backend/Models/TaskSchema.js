@@ -5,7 +5,6 @@ module.exports = (connection) => {
     return connection.models['Task'];
   }
   
-  // +++ NEW: Sub-schema for logging user work time +++
   const timeLogSchema = new mongoose.Schema({
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -149,7 +148,7 @@ module.exports = (connection) => {
   // Task Tracking
   status: {
     type: String,
-    enum: ['pending', 'in_progress', 'done', 'impossible', 'archived'],
+    enum: ['pending', 'in_progress', 'done', 'impossible', 'overdue'],
     default: 'pending'
   },
   notes: {

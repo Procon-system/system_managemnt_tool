@@ -10,6 +10,7 @@ import ImageSlider from './imageSlider';
 import { useResources } from '../../hooks/useResources';
 import { useUsers } from '../../hooks/useUsers';
 import {getTimezoneOffsetHours} from '../../Helper/getTimezones';
+import {getBgColorForStatus, formatStatusLabel } from "../../utils/statusColor";
 const formatDateForInput = (dateString) => {
   if (!dateString) return '';
   try {
@@ -57,12 +58,13 @@ const adjustTimeForBackend = (time, timezoneInput) => {
   }
 };
 const statusStyles = {
-  pending: 'bg-gray-200 text-gray-800 ring-gray-300',
-  in_progress: 'bg-blue-200 text-blue-800 ring-blue-300',
-  done: 'bg-green-200 text-green-800 ring-green-300',
-  impossible: 'bg-red-200 text-red-800 ring-red-300',
-  overdue: 'bg-yellow-200 text-yellow-800 ring-yellow-300',
+  pending: "bg-yellow-600 text-white ring-yellow-600", 
+  in_progress: "bg-green-700 text-white ring-green-600",
+  done: "bg-blue-800 text-white ring-blue-600",
+  overdue: "bg-red-600 text-white ring-red-600",
+  impossible: "bg-gray-600 text-white ring-gray-600",
 };
+
 const EventDetailsModal = ({
   isVisible,
   closeModal,
@@ -72,7 +74,7 @@ const EventDetailsModal = ({
   handleFormSubmit,
 }) => {
    
-const [newImages, setNewImages] = useState([]); // Store new images for preview
+const [newImages, setNewImages] = useState([]); 
 const [images, setImages] = useState([]);
 const token = useSelector(state => state.auth.token);
 const { resourceTypes } = useSelector((state) => state.resourceTypes);
@@ -186,7 +188,6 @@ const handleChange = (e) => {
             })
           );
         
-          console.log("Final image blobs:", imageBlobs);
           setImages(imageBlobs.filter(Boolean));
         }
       } catch (err) {
@@ -241,10 +242,9 @@ const handleChange = (e) => {
     // Prepare the complete payload
     const payload = {
       ...editableEvent,
-      images: images, // Current images
-      newImages: newImages, // Newly uploaded images
-      // Ensure dates are properly formatted if needed
-      start: adjustedStartTime, // Use the adjusted time
+      images: images, 
+      newImages: newImages,
+      start: adjustedStartTime,
     end: adjustedEndTime, 
             assigned_resources: editableEvent.assigned_resources,
       notes: editableEvent.notes,
@@ -603,41 +603,44 @@ const handleChange = (e) => {
             <div className="space-y-4">            
              <div className="flex justify-between items-center border-b pb-4">
                
-                <div className="flex items-center gap-x-4">
-                 
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
-                      className={`px-3 py-1 text-xs font-semibold rounded-full ring-1 ring-opacity-50 flex items-center gap-x-1.5 transition-transform hover:scale-105 focus:outline-none ${
-                        statusStyles[editableEvent?.status] || statusStyles.pending
-                      }`}
-                    >
-                      {/* Optional: Add a small dot for visual flair */}
-                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                      {editableEvent?.status.replace('_', ' ') || 'Pending'}
-                    </button>
-          
-                    {/* Dropdown Menu */}
-                    {isStatusMenuOpen && (
-                      <div className="absolute top-full mt-2 w-40 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20">
-                        <div className="py-1" role="menu" aria-orientation="vertical">
-                          {['in_progress', 'done', 'impossible', 'overdue'].map((status) => (
-                            <button
-                              key={status}
-                              type="button"
-                              onClick={() => handleStatusChange(status)}
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              role="menuitem"
-                            >
-                              {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+             <div className="flex items-center gap-x-4">
+  <div className="relative">
+    {/* Pill showing CURRENT status */}
+    <button
+      type="button"
+      onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
+      className={`px-3 py-1 text-xs font-semibold rounded-full ring-1 ring-opacity-50 
+                  flex items-center gap-x-1.5 transition-transform hover:scale-105 focus:outline-none
+                  ${statusStyles[editableEvent?.status] || statusStyles.pending}`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+      {formatStatusLabel(editableEvent?.status || "pending")}
+    </button>
+
+    {/* Dropdown Menu */}
+    {isStatusMenuOpen && (
+      <div className="absolute top-full mt-2 w-40 bg-white rounded-md shadow-lg ring-1 ring-black/5 z-20">
+        <div className="py-1" role="menu" aria-orientation="vertical">
+          {["pending", "in_progress", "done", "impossible", "overdue"].map(
+            (status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => handleStatusChange(status)}
+                className={`block w-full text-left px-3 py-2 text-sm rounded 
+                  hover:opacity-90 transition ${getBgColorForStatus(status)}`}
+                role="menuitem"
+              >
+                {formatStatusLabel(status)}
+              </button>
+            )
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+</div>
+
                 
                
               </div>
