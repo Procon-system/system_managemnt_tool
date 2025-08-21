@@ -1,119 +1,184 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
-import { BiCheckCircle } from "react-icons/bi";
-import MainImg from "../../assets/main-img.png"; 
+import { BiCheckCircle, BiRocket, BiGroup, BiTrendingUp } from "react-icons/bi";
+import MainImg from "../../assets/home.png";
 
 const features = [
   {
     title: "Smart Scheduling",
-    desc: "Quickly organize tasks, deadlines, and reminders.",
+    desc: "Quickly organize tasks, deadlines, and reminders with intelligent automation.",
+    icon: BiRocket,
   },
   {
     title: "Real-Time Collaboration",
-    desc: "Work with your team live—comments, mentions, and more.",
+    desc: "Work with your team live—comments, mentions, and seamless updates.",
+    icon: BiGroup,
   },
   {
     title: "Productivity Insights",
-    desc: "Get actionable analytics that help you work smarter.",
+    desc: "Get actionable analytics that help you work smarter, not harder.",
+    icon: BiTrendingUp,
   },
 ];
 
-const FeatureCard = ({ title, desc }) => (
-  <div className="h-full rounded-xl border border-gray-100 shadow-sm bg-white text-center transition hover:shadow-md">
-    <div className="px-6 py-10">
-      <div className="text-5xl mb-3 text-blue-600 mx-auto flex items-center justify-center">
-        <BiCheckCircle aria-hidden />
+const FeatureCard = ({ title, desc, icon: Icon }) => (
+  <div className="group h-full rounded-2xl border border-tasknitter-blue-100 bg-gradient-card shadow-soft transition-all duration-300 hover:shadow-blue hover:-translate-y-2 hover:border-tasknitter-blue-600/20">
+    <div className="px-8 py-12 text-center">
+      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-tasknitter-blue-50 text-4xl text-tasknitter-blue-600 transition-all duration-300 group-hover:scale-110 group-hover:bg-tasknitter-blue-600 group-hover:text-white">
+        <Icon aria-hidden />
       </div>
-      <h5 className="text-lg font-semibold mb-2">{title}</h5>
-      <p className="text-gray-600">{desc}</p>
+      <h3 className="mb-4 text-xl font-bold text-foreground">{title}</h3>
+      <p className="text-muted-foreground leading-relaxed">{desc}</p>
     </div>
   </div>
 );
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
-      {/* ───────── Hero ───────── */}
-      <section className="w-full px-4 md:px-6 lg:px-10 pt-10 md:pt-16 mb-12">
-        <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-          {/* Text */}
-          <div className="md:col-start-2 md:col-span-5 text-center md:text-left">
-            <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight">
-              Welcome to
-              <br />
-              <span className="text-blue-600 drop-shadow-sm">Tasknitter</span>
-            </h1>
+    <div className="min-h-screen bg-gradient-subtle overflow-x-hidden">
+      {/* Hero Section */}
+      <section className="relative w-full px-4 md:px-8 lg:px-12 pt-16 md:pt-24 pb-16">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            {/* Hero Text */}
+            <div className="lg:col-span-5 text-center lg:text-left space-y-8">
+              <div className="space-y-6">
+                <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black leading-tight tracking-tight">
+                  Welcome to
+                  <br />
+                  <span className="bg-gradient-hero bg-clip-text text-transparent drop-shadow-sm">
+                    TaskNitter
+                  </span>
+                </h1>
+                
+                <div className="space-y-2">
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">
+                    The one tool to rule them all!
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl">
+                    Manage your tasks seamlessly—ideal for personal projects and team collaboration. 
+                    Experience the future of productivity management.
+                  </p>
+                </div>
+              </div>
 
-            <p className="text-lg font-semibold mt-3">
-              The one tool to rule them all!
-            </p>
-            <p className="text-lg text-gray-700">
-              Manage your tasks seamlessly—ideal for personal projects
-              <span className="hidden lg:inline">
-                {" "}
-                or team collaboration.
-              </span>
-            </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <Link
+                  to="/sub"
+                  className="group inline-flex items-center justify-center rounded-2xl bg-gradient-hero px-8 py-4 text-lg font-bold text-white shadow-blue transition-all duration-300 hover:shadow-large hover:-translate-y-1 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-tasknitter-blue-600/20"
+                >
+                  Get Started
+                  <BiRocket className="ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
+                
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center rounded-2xl border-2 border-tasknitter-blue-600 px-8 py-4 text-lg font-bold text-tasknitter-blue-600 transition-all duration-300 hover:bg-tasknitter-blue-600 hover:text-white hover:shadow-medium focus:outline-none focus:ring-4 focus:ring-tasknitter-blue-600/20"
+                >
+                  Login
+                </Link>
+              </div>
 
-            <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-              <Link
-                to="/sub"
-                className="inline-flex items-center justify-center rounded-lg bg-blue-600 text-white px-6 py-3 font-semibold shadow hover:bg-blue-700 active:bg-blue-800"
-              >
-                Get Started
-              </Link>
-              <Link
-                to="/login"
-                className="inline-flex items-center justify-center px-6 py-3 font-semibold text-blue-700 hover:text-blue-800"
-              >
-                Login
-              </Link>
+              {/* Trust Indicators */}
+              <div className="flex items-center justify-center lg:justify-start gap-8 pt-8">
+                <div className="flex items-center gap-2">
+                  <BiCheckCircle className="text-2xl text-tasknitter-blue-600" />
+                  <span className="text-sm font-semibold text-muted-foreground">Free to start</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <BiCheckCircle className="text-2xl text-tasknitter-blue-600" />
+                  <span className="text-sm font-semibold text-muted-foreground">No setup required</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Hero Image */}
+            <div className="lg:col-span-7 flex justify-center lg:justify-end">
+              <div className="relative">
+                <div className="absolute inset-0 bg-tasknitter-blue-600/10 rounded-3xl blur-3xl transform -rotate-6"></div>
+                <img
+                  src={MainImg}
+                  alt="TaskNitter dashboard showcasing modern task management interface with blue theme"
+                  className="relative max-w-4xl w-full drop-shadow-2xl transform hover:scale-105 transition-transform duration-500 rounded-2xl"
+                  loading="eager"
+                />
+              </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          {/* Image */}
-          <div className="md:col-span-6 flex justify-center">
-            <img
-              src={MainImg} 
-              alt="Illustration of task management dashboard"
-              className="max-w-xl w-full drop-shadow-sm"
-              loading="eager"
-            />
+      {/* Features Section */}
+      <section className="w-full px-4 md:px-8 lg:px-12 py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl sm:text-5xl font-black mb-6 text-foreground">
+              Why You'll Love <span className="text-tasknitter-blue-600">TaskNitter</span>
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              Discover the powerful features that make TaskNitter the ultimate productivity companion
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+            {features.map((feature, index) => (
+              <div
+                key={feature.title}
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 0.2}s` }}
+              >
+                <FeatureCard {...feature} />
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ───────── Features ───────── */}
-      <section className="w-full px-4 md:px-6 lg:px-10 mb-14">
-        <h2 className="text-center text-2xl sm:text-3xl font-bold mb-6">
-          Why You’ll Love Tasknitter
-        </h2>
+      {/* CTA Section */}
+      <section className="w-full px-4 md:px-8 lg:px-12 py-20">
+        <div className="mx-auto max-w-5xl">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-hero p-12 md:p-16 text-center shadow-large">
+            {/* Decorative elements */}
+            <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-16 -translate-y-16"></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-white/10 rounded-full translate-x-20 translate-y-20"></div>
+            
+            <div className="relative z-10 space-y-8">
+              <div className="space-y-4">
+                <h2 className="text-4xl sm:text-5xl font-black text-white leading-tight">
+                  Ready to Boost Your Productivity?
+                </h2>
+                <p className="text-xl text-blue-100 max-w-2xl mx-auto leading-relaxed">
+                  Join thousands of users who rely on TaskNitter to stay organized and achieve more every day.
+                </p>
+              </div>
 
-        <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-6">
-          {features.map((f) => (
-            <FeatureCard key={f.title} title={f.title} desc={f.desc} />
-          ))}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <Link
+                  to="/register"
+                  className="group inline-flex items-center justify-center rounded-2xl bg-white px-8 py-4 text-lg font-bold text-tasknitter-blue-600 shadow-medium transition-all duration-300 hover:shadow-large hover:-translate-y-1 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-white/20"
+                >
+                  Sign Up Now
+                  <BiRocket className="ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
+                
+                <p className="text-blue-100 text-sm font-medium">
+                  ✨ Start your free trial today
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ───────── CTA Banner ───────── */}
-      <section className="text-center px-4 md:px-6 lg:px-10 pb-16">
-        <div className="mx-auto max-w-3xl rounded-2xl bg-blue-50 border border-blue-100 px-6 py-10">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-3">
-            Ready to Boost Your Productivity?
-          </h2>
-          <p className="text-gray-700 mb-5">
-            Join thousands of users who rely on Tasknitter to stay organized.
+      {/* Footer */}
+      <footer className="w-full px-4 md:px-8 lg:px-12 py-12 border-t border-tasknitter-blue-100">
+        <div className="mx-auto max-w-7xl text-center">
+          <p className="text-muted-foreground">
+            © 2025 Tasknitter. Built with ❤️ for productivity enthusiasts.
           </p>
-          <Link
-            to="/register"
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 text-white px-6 py-3 font-semibold shadow hover:bg-blue-700 active:bg-blue-800"
-          >
-            Sign Up Now
-          </Link>
         </div>
-      </section>
+      </footer>
     </div>
   );
 }
