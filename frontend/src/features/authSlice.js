@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { resetToastFlag } from '../Helper/checkTokenExpire';
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire';
-import {registerUser,CustomError} from '../Services/authService';
+import {registerUser,CustomError,adminRegister} from '../Services/authService';
 // Get user from localStorage if it exists
 const token = localStorage.getItem('authToken');
 
@@ -16,6 +16,28 @@ const initialState = {
   isLoggedIn: token ? true : false,
   access_level: null, // Add accessLevel to track user permissions
 };
+export const adminRegistration = createAsyncThunk(
+  'auth/admincRegister',
+  async (fullUserData, { rejectWithValue }) => {
+    try {
+      // This calls our new service function
+      const response = await adminRegister(fullUserData);
+      return response; // This will be the action.payload in the fulfilled case
+    } catch (error) {
+      if (error instanceof CustomError) {
+        return rejectWithValue({
+          message: error.message,
+          code: error.code,
+          ...error
+        });
+      }
+      return rejectWithValue({
+        message: error.message || 'Registration failed',
+        code: 'UNKNOWN_ERROR'
+      });
+    }
+  }
+);
 export const registerUsers = createAsyncThunk(
   'auth/register',
   async (userData, { getState, dispatch, rejectWithValue }) => {
@@ -100,6 +122,27 @@ const authSlice = createSlice({
       .addCase(registerUsers.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      // **NEW: Cases for PUBLIC registration**
+      .addCase(adminRegistration.pending, (state) => {
+        state.status = 'loading';
+        state.error = null; // Clear previous errors
+      })
+      .addCase(adminRegistration.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        const { user, token } = action.payload.data;
+        state.user = user;
+        state.token = token;
+        state.access_level = user.access_level;
+        state.isLoggedIn = true;
+        
+        localStorage.setItem('authToken', token);
+        toast.success("Welcome! Registration successful.");
+      })
+      .addCase(adminRegistration.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload; // Store the error object
+        toast.error(action.payload.message || "Registration failed.");
       });
   }
 });

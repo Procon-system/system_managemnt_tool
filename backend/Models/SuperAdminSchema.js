@@ -47,6 +47,28 @@ module.exports = (connection = mongoose) => {
       enum: ['admin'],
       default: 'admin'
     },
+    first_name: {
+      type: String,
+      // required: true,
+      trim: true,
+    },
+    last_name: {
+      type: String,
+      // required: true,
+      trim: true,
+    },
+    telephone: {
+      type: String,
+      trim: true,
+    },
+    address: {
+      type: String,
+      trim: true,
+    },
+    subscription_type: { 
+      type: String, 
+      default: 'free' 
+    },
     lastLogin: Date,
     resetPasswordToken: String,
     resetPasswordExpire: Date,

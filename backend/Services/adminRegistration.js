@@ -30,72 +30,150 @@ async function handleUserLogin(extUser) {
     throw err;
   }
 }
-async function handleAdminRegistration(extUser) {
-  try {
+// async function handleAdminRegistration(extUser) {
+//   try {
     
-    const Organization = mongoose.model("Organization");
-    let organization = await Organization.findOne({ name: extUser.organization_name });
+//     const Organization = mongoose.model("Organization");
+//     let organization = await Organization.findOne({ name: extUser.organization_name });
 
-    if (!organization) {
-      organization = await Organization.create({
-        name: extUser.organization_name,
-        subdomain: extUser.organization_name.toLowerCase().replace(/\s+/g, '-'),
-        contactEmail: extUser.email,
-        config: {
-          databaseName: `tenant_${new mongoose.Types.ObjectId()}`,
-          features: { tasks: true, resources: true, teams: true }
-        },
-        subscription: {
-          plan: extUser.subscription_type || 'free',
-          startsAt: new Date(),
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        }
-      });
-    }
+//     if (!organization) {
+//       organization = await Organization.create({
+//         name: extUser.organization_name,
+//         subdomain: extUser.organization_name.toLowerCase().replace(/\s+/g, '-'),
+//         contactEmail: extUser.email,
+//         config: {
+//           databaseName: `tenant_${new mongoose.Types.ObjectId()}`,
+//           features: { tasks: true, resources: true, teams: true }
+//         },
+//         subscription: {
+//           plan: extUser.subscription_type || 'free',
+//           startsAt: new Date(),
+//           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+//         }
+//       });
+//     }
 
-    const Superadmin = mongoose.model('Superadmin');
-    const existingSuperadmin = await Superadmin.findOne({
-      $or: [
-        { email: extUser.email },
-        { personal_number: extUser.id.toString() }
-      ]
-    });
+//     const Superadmin = mongoose.model('Superadmin');
+//     const existingSuperadmin = await Superadmin.findOne({
+//       $or: [
+//         { email: extUser.email },
+//         { personal_number: extUser.id.toString() }
+//       ]
+//     });
 
+//     if (existingSuperadmin) {
+//       return {
+//         user: existingSuperadmin,
+//         organization
+//       };
+//     }
+
+//     const newSuperadmin = await Superadmin.create({
+//       email: extUser.email,
+//       password: extUser.password || 'tempPassword123!',
+//       first_name: extUser.first_name || 'Admin',
+//       last_name: extUser.last_name || 'User',
+//       personal_number: extUser.id.toString(),
+//       org_id: organization._id,
+//       max_permitted_user_amount: extUser.max_permitted_user_amount || 5,
+//       max_permitted_resource_amount: extUser.max_permitted_resource_amount || 5,
+//       subscription_type: extUser.subscription_type || 'free',
+//       role: 'admin',
+//       isConfirmed: true,
+//       isActive: true
+//     });
+
+//     const tenantConn = await getOrganizationDB(organization._id);
+//     if (!tenantConn.models.has("User")) {
+//       throw new Error(`User model not found for org ${organization._id}`);
+//     }
+
+//     return {
+//       user: newSuperadmin.toObject(),
+//       organization
+//     };
+//   } catch (err) {
+//     console.error("Admin registration error:", err);
+//     throw err;
+//   }
+// }
+async function handleAdminRegistration(formData) {
+  const Organization = mongoose.model("Organization");
+  const Superadmin = mongoose.model('Superadmin');
+
+ 
+  try {
+    // 1. Check if user or organization already exists
+    const existingSuperadmin = await Superadmin.findOne({ email: formData.email });
     if (existingSuperadmin) {
-      return {
-        user: existingSuperadmin,
-        organization
-      };
+      throw new Error('A user with this email already exists.');
     }
 
-    const newSuperadmin = await Superadmin.create({
-      email: extUser.email,
-      password: extUser.password || 'tempPassword123!',
-      first_name: extUser.first_name || 'Admin',
-      last_name: extUser.last_name || 'User',
-      personal_number: extUser.id.toString(),
+    let organization;
+    if (formData.account_type === 'organization') {
+        const existingOrg = await Organization.findOne({ name: formData.organization_name });
+        if(existingOrg) {
+            throw new Error('An organization with this name already exists.');
+        }
+    }
+    
+    const orgName = formData.organization_name || `${formData.first_name}'s Workspace`;
+
+    organization = new Organization({
+      name: orgName,
+      subdomain: orgName.toLowerCase().replace(/\s+/g, '-'),
+      contactEmail: formData.email,
+      config: {
+        databaseName: `tenant_${new mongoose.Types.ObjectId()}`,
+        features: { tasks: true, resources: true, teams: true }
+      },
+      subscription: {
+        plan: formData.subscription_plan || 'free',
+        startsAt: new Date(),
+        // Set a longer expiry for paid plans
+        expiresAt: formData.subscription_plan === 'free'
+          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for free
+          : new Date(new Date().setFullYear(new Date().getFullYear() + 1)) // 1 year for paid
+      }
+    });
+    await organization.save();
+
+    // 3. Create the Superadmin (the first user)
+    const newSuperadmin = new Superadmin({
+      // Map all fields from the frontend form
+      email: formData.email,
+      password: formData.password,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      // These are in your schema, let's add them
+      address: formData.address,
+      telephone: formData.telephone,
+      
       org_id: organization._id,
-      max_permitted_user_amount: extUser.max_permitted_user_amount || 5,
-      max_permitted_resource_amount: extUser.max_permitted_resource_amount || 5,
-      subscription_type: extUser.subscription_type || 'free',
+      subscription_type: formData.subscription_plan || 'free',
       role: 'admin',
-      isConfirmed: true,
+      access_level: 5, // Highest access level for the creator
+      isConfirmed: true, // Auto-confirm the first admin
       isActive: true
     });
-
+    await newSuperadmin.save();
+    const token = newSuperadmin.generateAuthToken();
     const tenantConn = await getOrganizationDB(organization._id);
     if (!tenantConn.models.has("User")) {
       throw new Error(`User model not found for org ${organization._id}`);
     }
-
+    
+  
     return {
       user: newSuperadmin.toObject(),
-      organization
+      organization: organization.toObject(),
+      token
     };
   } catch (err) {
-    console.error("Admin registration error:", err);
+   
+    console.error("Admin registration transaction error:", err);
+    // Re-throw the error so the controller can catch it
     throw err;
-  }
+  } 
 }
-
 module.exports = { handleAdminRegistration , handleUserLogin };

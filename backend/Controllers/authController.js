@@ -7,6 +7,83 @@ const {
   forgotPassword,
   resetPassword
 } = require('../Services/authService');
+const { handleAdminRegistration } = require('../Services/adminRegistration');
+const PLAN_PRICES = {
+  free: 0,
+  basic: 10,
+  pro: 25,
+  enterprise: 100,
+};
+
+const adminRegistrationController = async (req, res) => {
+  const formData = req.body;
+
+  try {
+    // 1. Basic Server-Side Validation
+    if (!formData.email || !formData.password || !formData.first_name || !formData.last_name) {
+      return res.status(400).json({ success: false, message: 'Missing required registration fields.' });
+    }
+    if (formData.account_type === 'organization' && !formData.organization_name) {
+      return res.status(400).json({ success: false, message: 'Organization name is required for organization accounts.' });
+    }
+    if (!formData.subscription_plan) {
+      return res.status(400).json({ success: false, message: 'A subscription plan must be selected.' });
+    }
+
+    // 2. PAYMENT LOGIC BYPASSED
+    // ========================================================================
+    // In the future, you will uncomment this section and integrate a payment provider.
+    /*
+    const plan = formData.subscription_plan;
+    const price = PLAN_PRICES[plan];
+
+    if (price === undefined) {
+      return res.status(400).json({ success: false, message: 'Invalid subscription plan selected.' });
+    }
+
+    if (price > 0) {
+      // For paid plans, payment details are required
+      if (!formData.card_number || !formData.expiry || !formData.cvv) {
+        return res.status(400).json({ success: false, message: 'Payment details are required for this plan.' });
+      }
+      // Process payment BEFORE creating the user in the database
+      await processPayment({
+          card_number: formData.card_number,
+          expiry: formData.expiry,
+          cvv: formData.cvv,
+      }, price);
+    }
+    */
+    // ========================================================================
+    
+    // 3. Directly proceed with registration
+    console.log('Payment bypassed. Proceeding with user and organization creation...');
+    const { user, organization ,token} = await handleAdminRegistration(formData);
+
+    // 4. Send success response
+    // Optionally, generate a JWT here to log the user in automatically
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful! Your account has been created.',
+      data: { user, organization ,token}
+    });
+
+  } catch (err) {
+    console.error("Public Registration Error:", err);
+    
+    // Check for specific, common errors like duplicates
+    const isConflict = err.message.includes('already exists');
+    if (isConflict) {
+        return res.status(409).json({ success: false, message: err.message }); // 409 Conflict is more appropriate
+    }
+
+    // Generic error for everything else
+    res.status(500).json({ 
+      success: false,
+      message: 'An internal server error occurred. Please try again later.'
+    });
+  }
+};
 
 const registerController = async (req, res) => {
   try {
@@ -54,10 +131,7 @@ const registerController = async (req, res) => {
     console.error("Registration Error:", err);
     
     const statusCode = err.message.includes('already exists') ? 400 : 500;
-    // res.status(statusCode).json({ 
-    //   success: false,
-    //   error: err.message 
-    // });
+    
     res.status(statusCode).json({ 
       success: false,
       message: err.message // Use 'message' instead of 'error'
@@ -70,7 +144,7 @@ const loginController = async (req, res) => {
     const { email, password, rememberMe } = req.body;
 
     const result = await loginUser(email, password, rememberMe);
-console.log("result",result)
+
     res.cookie('jwt', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -104,67 +178,67 @@ console.log("result",result)
   }
 };
 
-const registerAdminController = async (req, res) => {
-  try {
-    const { 
-      email, 
-      password, 
-      last_name, 
-      first_name, 
-      organizationName,
-      personal_number,
-      access_level,
-      max_permitted_user_amount,
-      max_permitted_resource_amount,
-      subscription_type
-    } = req.body;
+// const registerAdminController = async (req, res) => {
+//   try {
+//     const { 
+//       email, 
+//       password, 
+//       last_name, 
+//       first_name, 
+//       organizationName,
+//       personal_number,
+//       access_level,
+//       max_permitted_user_amount,
+//       max_permitted_resource_amount,
+//       subscription_type
+//     } = req.body;
 
-    const user = await registerAdminUser({
-      email,
-      password,
-      last_name,
-      first_name,
-      organizationName,
-      personal_number,
-      access_level,
-      max_permitted_user_amount,
-      max_permitted_resource_amount,
-      subscription_type
-    });
+//     const user = await registerAdminUser({
+//       email,
+//       password,
+//       last_name,
+//       first_name,
+//       organizationName,
+//       personal_number,
+//       access_level,
+//       max_permitted_user_amount,
+//       max_permitted_resource_amount,
+//       subscription_type
+//     });
 
-    // Generate token with tenant context
-    const token = jwt.sign(
-      {
-        _id: user._id,
-        email: user.email,
-        tenantId: user.tenantId,
-        access_level: user.access_level
-      },
-      process.env.JWT_TOKEN_KEY,
-      { expiresIn: process.env.JWT_EXPIRE || '7d' }
-    );
+//     // Generate token with tenant context
+//     const token = jwt.sign(
+//       {
+//         _id: user._id,
+//         email: user.email,
+//         tenantId: user.tenantId,
+//         access_level: user.access_level
+//       },
+//       process.env.JWT_TOKEN_KEY,
+//       { expiresIn: process.env.JWT_EXPIRE || '7d' }
+//     );
 
-    res.status(201).json({
-      success: true,
-      token,
-      user: {
-        _id: user._id,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        access_level: user.access_level
-      },
-      message: "Admin registered successfully"
-    });
-  } catch (err) {
-    console.error("Admin Registration Error:", err);
-    const statusCode = err.message.includes('already exists') ? 400 : 500;
-    res.status(statusCode).json({ 
-      success: false,
-      error: err.message 
-    });
-  }
-};
+//     res.status(201).json({
+//       success: true,
+//       token,
+//       user: {
+//         _id: user._id,
+//         email: user.email,
+//         first_name: user.first_name,
+//         last_name: user.last_name,
+//         access_level: user.access_level
+//       },
+//       message: "Admin registered successfully"
+//     });
+//   } catch (err) {
+//     console.error("Admin Registration Error:", err);
+//     const statusCode = err.message.includes('already exists') ? 400 : 500;
+//     res.status(statusCode).json({ 
+//       success: false,
+//       error: err.message 
+//     });
+//   }
+// };
 const confirmEmailController = async (req, res) => {
   try {
     const result = await confirmEmail(req.params.confirmationCode);
@@ -248,7 +322,7 @@ const logoutController = async (req, res) => {
 
 module.exports = {
   registerController,
-  registerAdminController,
+  adminRegistrationController,
   loginController,
   logoutController,
   confirmEmailController,

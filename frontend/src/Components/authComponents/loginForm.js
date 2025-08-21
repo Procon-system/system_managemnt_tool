@@ -8,6 +8,8 @@ import { useNavigate,Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {jwtDecode} from "jwt-decode";
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+const getPostLoginPath = (access_level) =>
+  Number(access_level) === 5 ? "/dashboard" : "/home";
 const LoginForm = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -60,8 +62,7 @@ const LoginForm = () => {
       // Show success toast notification
       toast.success("Login successful!");
   
-      // Navigate to the home page
-      navigate("/home");
+      navigate(getPostLoginPath(access_level), { replace: true });
     } catch (error) {
       console.error("Login error:", error.message || error);
   

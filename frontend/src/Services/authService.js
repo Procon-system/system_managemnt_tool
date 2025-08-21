@@ -11,7 +11,28 @@ export class CustomError extends Error {
     Object.assign(this, extra);
   }
 }
+export const adminRegister = async (fullUserData) => {
+  const request = { 
+    method: 'post',
+    url: `${API_URL}/admin-registration`, 
+    data: fullUserData,
+  };
 
+  try {
+    const response = await axios(request);
+    return response.data; 
+  } catch (error) {
+    const errorResponse = error.response?.data;
+    const errorMessage = errorResponse?.message || error.message || 'Error during registration';
+    const errorCode = error.response?.status === 409 ? 'CONFLICT_ERROR' : 'REGISTRATION_ERROR';
+
+    throw new CustomError(
+      errorMessage,
+      errorCode,
+      { ...errorResponse }
+    );
+  }
+};
 // **Register User**
 export const registerUser = async (userData, token) => {
   const request = { 

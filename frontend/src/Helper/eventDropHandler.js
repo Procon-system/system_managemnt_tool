@@ -185,14 +185,13 @@ console.log("event single",event)
     // Check if the view is 'month'
     const currentViewType = calendarRef.current.view.type;
     if (currentViewType === 'dayGridMonth') {
-      console.log("dayGridMonth view detected",event);
-
+     
       const originalStart = event.start;
       const originalEnd = event.end;
 
       // Prompt user for new start and end times
       const selectedTimes = await promptForStartAndEndTime(originalStart, originalEnd);
-      console.log("sleecetd",selectedTimes)
+      
       if (selectedTimes) {
         const { start: selectedStartTime, end: selectedEndTime } = selectedTimes;
 
@@ -207,7 +206,7 @@ console.log("event single",event)
         if (eventTimezone === null) {
           throw new Error('Unable to determine event timezone.');
         }
-         console.log("selectedStartTime",selectedStartTime);
+         
         const updatedEvent = {
           _id: event.extendedProps._id,
           start_time: adjustTimeForBackend(selectedStartTime, eventTimezone),
@@ -215,8 +214,7 @@ console.log("event single",event)
           color: event.backgroundColor,
           title: event.title,
         };
-         console.log("updatedEvent",updatedEvent)
-        // Perform the backend update
+        
         await onEventUpdate(updatedEvent);
       } else {
         info.revert();

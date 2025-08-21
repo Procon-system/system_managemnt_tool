@@ -7,6 +7,7 @@ import LoginPage from './Pages/Auth/loginPage';
 import LogoutPage from './Pages/Auth/logoutPage';
 import TaskPage from './Pages/Task/createTaskPage';
 import HomePage from './Pages/homePage';
+import AdminRolesPage from './Pages/User/adminRolesPage';
 import ForgotPasswordPage from './Pages/Auth/forgotPasswordPage';
 import ResetPasswordPage from './Pages/Auth/resetPasswordPage';
 import ConfirmEmail from './Components/authComponents/confirmEmail';
@@ -26,6 +27,12 @@ import ResourceTypesPage from './Pages/ResourceType/showResourceTypePage';
 import TeamsPage from './Pages/Team/TeamsPage';
 import TaskAnalytics  from './Pages/Analytics/TaskAnalytics';
 import CalendarImport from './Components/calendarImport';
+import LandingPage from './Pages/Subscription/landingPage';
+import RegisterSubPage from './Pages/Subscription/registerSubPage';
+import SubscriptionPage from './Pages/Subscription/subscriptionPage';
+import PurchasePage from './Pages/Subscription/purchasePage';
+import DashboardPage from './Pages/Subscription/dashboardPage';
+import RegistrationFlow from './Pages/Subscription/registrationFlow';
 import AuthHandoff from './Components/authComponents/authHandoff';
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
@@ -34,7 +41,7 @@ const ConditionalNavBar = () => {
   const location = useLocation();
 
   // Paths where Navbar and Sidebar are not displayed
-  const authPaths = [ "/login", "/logout", "/forgot-password", "/reset-password", "/confirm-email"];
+  const authPaths = [ "/sub","/dashboard", "/purchase","/subscription", "/register-sub", "/landing","/login", "/logout", "/forgot-password", "/reset-password", "/confirm-email"];
 
   const hideNavBar = authPaths.some(path => location.pathname.startsWith(path));
 
@@ -71,19 +78,33 @@ const App = () => {
       <ConditionalNavBar />
       <div className="pt-16"> {/* Pushes content below navbar */}
         <Routes>
-          <Route path="/" element={isLoggedIn ? <Navigate to="/home" /> : <Navigate to="/login" />} />
-
-          {/* Public Routes */}
+          <Route path="/" element={isLoggedIn ? <Navigate to="/landing" /> : <Navigate to="/login" />} />
+          <Route path="/landing" element={<LandingPage />} />
+          <Route path="/register-sub" element={<RegisterSubPage/>}/>
+          <Route path="/subscription" element={< SubscriptionPage/>}/>
+          <Route path="/purchase" element={< PurchasePage/>}/>
+          <Route path="/dashboard" element={< DashboardPage/>}/>
+          <Route path="/sub" element={< RegistrationFlow/>}/>
+          
           <Route path="/home" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/handoff" element={<MainLayout><AuthHandoff /></MainLayout>} />
+          {/* <Route path="/auth/handoff" element={<MainLayout><AuthHandoff /></MainLayout>} /> */}
           <Route path="/logout" element={<LogoutPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/confirm-email/:confirmationCode" element={<ConfirmEmail />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="/import-calendar" element={<MainLayout><CalendarImport /></MainLayout>} />
-          {/* Protected Routes */}
+          <Route 
+    path="/admin/roles"
+    element={
+     
+        <MainLayout>
+          <AdminRolesPage />
+        </MainLayout>
+     
+    }
+  />
           <Route
             path="/profile"
             element={

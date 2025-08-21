@@ -206,7 +206,7 @@ export const handleEventDrag = (info, selectedEventsRef, dragStartPositionsRef, 
 
 // Event resize handler
 export const handleEventResize = async (info, user, onEventUpdate, adjustTimeForBackend) => {
-  if (user.access_level < 3) {
+  if (user.access_level < 2) {
     toast.error('You do not have permission to update events.');
     return;
   }

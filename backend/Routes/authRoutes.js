@@ -6,7 +6,8 @@ const {
     registerController,loginController,logoutController,
     confirmEmailController,
   forgotPasswordController,
-  resetPasswordController
+  resetPasswordController,
+  adminRegistrationController
 } = require('../Controllers/authController');
 
 const { authenticateUser, authorize } = require('../Middleware/authMiddleware');
@@ -20,6 +21,7 @@ router.post(
   checkUserLimit,
   registerController
 );
+router.post('/admin-registration', adminRegistrationController);
 router.post('/login', loginController);
 router.post('/logout', logoutController);
 router.post('/confirm-email/:confirmationCode',confirmEmailController);

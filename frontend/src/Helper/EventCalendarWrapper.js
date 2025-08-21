@@ -32,15 +32,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   const dragStartPositionsRef = useRef(new Map());
   const [calendarDate, setCalendarDate] = useState(new Date()); 
   const isDateChangeAllowed = useRef(true); 
-  
-  const getContrastingTextColor = (hexColor) => {
-    if (!hexColor) return '#000000';
-    const r = parseInt(hexColor.substr(1, 2), 16);
-    const g = parseInt(hexColor.substr(3, 2), 16);
-    const b = parseInt(hexColor.substr(5, 2), 16);
-    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    return (yiq >= 128) ? '#000000' : '#FFFFFF';
-  };
+ 
   useEffect(() => {
    
     if ((navView && navView !== changedView) || (navDate && navDate !== calendarDate)) {
@@ -253,7 +245,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
   }, [calendarRef]); 
 
   const handleEventDrop = async (info) => {
-    if (user.access_level < 3) {
+    if (user.access_level < 2) {
       toast.error('You do not have permission to modify events.');
       info.revert();
       return;
@@ -483,7 +475,6 @@ const processResourceArray = (resources) => {
   });
 };
 
-// Construct the updatedEvent object with proper resource handling
 const updatedEvent = {
   _id: event._id || eventId,
   title: event.title || 'Untitled Event',
@@ -596,7 +587,7 @@ openForm(updatedEvent);
                     alignItems: 'center',
                     zIndex: '5'
                 });
-        
+        console.log("userssss",users)
                 // Create the individual user badges (no changes here)
                 users.slice(0, 3).forEach((user) => {
                     const name = user?.name || user?.first_name || 'Unknown';
@@ -626,10 +617,9 @@ openForm(updatedEvent);
                     badgeContainer.appendChild(badge);
                 });
         
-                // Assemble the final structure
-                masterWrapper.appendChild(topColorBar); // 1. Add the color bar at the top
-                masterWrapper.appendChild(contentWrapper); // 2. Add the content below it
-                masterWrapper.appendChild(badgeContainer); // 3. Add the badges (absolutely positioned)
+                masterWrapper.appendChild(topColorBar); 
+                masterWrapper.appendChild(contentWrapper); 
+                masterWrapper.appendChild(badgeContainer); 
         
                 eventEl.innerHTML = ''; // Clear the original event element
                 eventEl.appendChild(masterWrapper); // Add our new, structured content
@@ -638,92 +628,7 @@ openForm(updatedEvent);
                 console.error('Failed to mount user badges/color bar on event:', info.event.title, error);
             }
         },
-          // eventDidMount: function(info) {
-          //   try {
-          //     const users = info.event.extendedProps.assigned_resources?.assigned_to;
-          //     if (!Array.isArray(users) || users.length === 0) {
-          //       return;
-          //     }
-
-          //     const eventEl = info.el;
-          //     const originalChildren = Array.from(eventEl.childNodes);
-          //     const masterWrapper = document.createElement('div');
-          //     Object.assign(masterWrapper.style, {
-          //       position: 'relative',
-          //       width: '100%',
-          //       height: '100%',
-          //       display: 'flex',      
-          //       flexDirection: 'column'
-          //     });
-
-          //     const contentWrapper = document.createElement('div');
-          //     Object.assign(contentWrapper.style, {
-          //       flexGrow: '1', 
-          //       overflow: 'hidden',
-          //       textOverflow: 'ellipsis'
-          //     });
-              
-          //     originalChildren.forEach(child => contentWrapper.appendChild(child));
-
-          //     const badgeContainer = document.createElement('div');
-          //     Object.assign(badgeContainer.style, {
-          //       position: 'absolute', 
-          //       bottom: '1px', 
-          //       right: '1px',
-          //       display: 'flex',
-          //       alignItems: 'center',
-          //       zIndex: '5'
-          //     });
-
-          //     // (The code for creating individual badges remains the same)
-          //     const getInitials = (name) => {
-          //       if (!name) return '??';
-          //       const parts = name.trim().split(/\s+/).filter(Boolean);
-          //       if (parts.length === 0) return '??';
-          //       if (parts.length === 1) return parts[0][0].toUpperCase();
-          //       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-          //     };
-          //       users.slice(0, 3).forEach((user) => {
-          //       const name = user?.name || user?.first_name || 'Unknown';
-          //       const initials = getInitials(name);
-                
-          //       // Use the user's specific color, with a fallback for safety
-          //       const userBackgroundColor = user?.color || '#cccccc'; // fallback to grey
-          //       const userTextColor = getContrastingTextColor(userBackgroundColor);
-        
-          //       const badge = document.createElement('span');
-          //       badge.textContent = initials;
-          //       badge.title = name; // Tooltip with full name
-        
-          //       Object.assign(badge.style, {
-          //         backgroundColor: userBackgroundColor,
-          //         color: userTextColor,
-          //         width: '25px',
-          //         height: '25px',
-          //         borderRadius: '50%',
-          //         display: 'inline-flex',
-          //         alignItems: 'center',
-          //         justifyContent: 'center',
-          //         fontSize: '10px',
-          //         fontWeight: '600',
-          //         marginRight: '-5px',
-          //         border: '1px solid white',
-          //         boxSizing: 'border-box',
-          //       });
-          //       badgeContainer.appendChild(badge);
-          //     });
-        
-          //     // Assemble the final structure
-          //     masterWrapper.appendChild(contentWrapper);
-          //     masterWrapper.appendChild(badgeContainer);
-          //     eventEl.innerHTML = '';
-          //     eventEl.appendChild(masterWrapper);
-        
-          //   } catch (error) {
-          //     console.error('Failed to mount user badges on event:', info.event.title, error);
-          //   }
-          // },
-          eventDrop: (info) => {
+                  eventDrop: (info) => {
             handleEventDrop(info).catch(console.error);
           },
           eventResize: (info) => { 

@@ -3,7 +3,7 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const { createAdapter } = require("@socket.io/redis-adapter");
-const { handleAdminRegistration, handleUserLogin } = require("../Services/adminRegistration");
+// const { handleAdminRegistration, handleUserLogin } = require("../Services/adminRegistration");
 const { redisClient } = require("../redisClient"); 
 const config = require('../config/config'); 
 
@@ -38,74 +38,74 @@ async function initSocket(httpServer) {
     console.error("Error Details:", err);
     console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   }
-  const internalNamespace = io.of("/internal");
+  // const internalNamespace = io.of("/internal");
 
-  // Authentication middleware for the internal namespace
-  internalNamespace.use((socket, next) => {
-    const internalSecret = process.env.INTERNAL_SOCKET_SECRET;
-    const clientSecret = socket.handshake.auth.secret;
+  // // Authentication middleware for the internal namespace
+  // internalNamespace.use((socket, next) => {
+  //   const internalSecret = process.env.INTERNAL_SOCKET_SECRET;
+  //   const clientSecret = socket.handshake.auth.secret;
 
-    if (config.internalSocketSecret && clientSecret === config.internalSocketSecret) {
-      console.log(`[Internal] ✅ Auth successful for service: ${socket.id}`);
-      return next();
-    }
+  //   if (config.internalSocketSecret && clientSecret === config.internalSocketSecret) {
+  //     console.log(`[Internal] ✅ Auth successful for service: ${socket.id}`);
+  //     return next();
+  //   }
     
-    const remoteIp = socket.handshake.headers['x-forwarded-for'] || socket.conn.remoteAddress || '';
-    console.error(`[Internal] ❌ FORBIDDEN: Connection attempt from ${remoteIp} with invalid secret.`);
-    next(new Error("Forbidden: Invalid credentials for internal namespace"));
-  });
+  //   const remoteIp = socket.handshake.headers['x-forwarded-for'] || socket.conn.remoteAddress || '';
+  //   console.error(`[Internal] ❌ FORBIDDEN: Connection attempt from ${remoteIp} with invalid secret.`);
+  //   next(new Error("Forbidden: Invalid credentials for internal namespace"));
+  // });
   
-  // Connection handler for the internal namespace
-  internalNamespace.on("connection", (socket) => {
-    console.log("🔌 Flask/Internal service connected to /internal namespace:", socket.id);
+  // // Connection handler for the internal namespace
+  // internalNamespace.on("connection", (socket) => {
+  //   console.log("🔌 Flask/Internal service connected to /internal namespace:", socket.id);
 
-    // Listener for when a user logs in via Flask
-    socket.on("subscriber_login", async (data) => {
-      try {
-        const { token } = await handleUserLogin(data.data);
-        const flaskId = data.data.flask_subscriber_id;
-        const redisKey = `handoff:${flaskId}`;
-        const payload = jwt.decode(token);
+  //   // Listener for when a user logs in via Flask
+  //   socket.on("subscriber_login", async (data) => {
+  //     try {
+  //       const { token } = await handleUserLogin(data.data);
+  //       const flaskId = data.data.flask_subscriber_id;
+  //       const redisKey = `handoff:${flaskId}`;
+  //       const payload = jwt.decode(token);
 
-        const handoffData = {
-          token: token,
-          user: {
-            _id: payload._id,
-            email: payload.email,
-            first_name: payload.first_name,
-            last_name: payload.last_name,
-            access_level: payload.access_level
-          },
-          access_level: payload.access_level 
-        };
+  //       const handoffData = {
+  //         token: token,
+  //         user: {
+  //           _id: payload._id,
+  //           email: payload.email,
+  //           first_name: payload.first_name,
+  //           last_name: payload.last_name,
+  //           access_level: payload.access_level
+  //         },
+  //         access_level: payload.access_level 
+  //       };
         
-        await redisClient.setEx(redisKey, 60, JSON.stringify(handoffData));
+  //       await redisClient.setEx(redisKey, 60, JSON.stringify(handoffData));
 
-        console.log(`[Internal] ✅ Token for user ${flaskId} cached in Redis.`);
-        socket.emit("ack", { status: "success", message: "Token cached" });
+  //       console.log(`[Internal] ✅ Token for user ${flaskId} cached in Redis.`);
+  //       socket.emit("ack", { status: "success", message: "Token cached" });
 
-      } catch (err) {
-        console.error("[Internal] ❌ Error processing 'subscriber_login':", err.message);
-        socket.emit("ack", { status: "error", message: err.message });
-      }
-    });
+  //     } catch (err) {
+  //       console.error("[Internal] ❌ Error processing 'subscriber_login':", err.message);
+  //       socket.emit("ack", { status: "error", message: err.message });
+  //     }
+  //   });
 
-    // Listener for when a new user is created
-    socket.on("subscriber_created", async (data) => {
-      try {
-        const result = await handleAdminRegistration(data);
-        console.log(`[Internal] ✅ Processed 'subscriber_created' for ${data.email}`);
-        socket.emit("ack", { status: "success", data: result });
-      } catch (err) {
-        console.error("[Internal] ❌ Error processing 'subscriber_created':", err.message);
-        socket.emit("ack", { status: "error", message: err.message });
-      }
-    });
+  //   // Listener for when a new user is created
+  //   socket.on("subscriber_created", async (data) => {
+  //     try {
+  //       const result = await handleAdminRegistration(data);
+  //       console.log(`[Internal] ✅ Processed 'subscriber_created' for ${data.email}`);
+  //       socket.emit("ack", { status: "success", data: result });
+  //     } catch (err) {
+  //       console.error("[Internal] ❌ Error processing 'subscriber_created':", err.message);
+  //       socket.emit("ack", { status: "error", message: err.message });
+  //     }
+  //   });
 
-    socket.on("disconnect", (reason) => {
-      console.warn(`🔌 Internal service disconnected: ${socket.id}, Reason: ${reason}`);
-    });
-  });
+  //   socket.on("disconnect", (reason) => {
+  //     console.warn(`🔌 Internal service disconnected: ${socket.id}, Reason: ${reason}`);
+  //   });
+  // });
 
   const userNamespace = io.of("/"); 
 
