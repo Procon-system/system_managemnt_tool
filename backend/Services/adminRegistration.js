@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const jwt = require('jsonwebtoken');
 const { getOrganizationDB } = require("../config/dbManager");
 const config = require('../config/config'); // <-- IMPORT THE CONFIG
+const { getPlanLimits, normalizePlan } = require('../utils/planLimits');
 
 async function handleUserLogin(extUser) {
   try {
@@ -117,6 +118,9 @@ async function handleAdminRegistration(formData) {
         }
     }
     
+    const plan = normalizePlan(formData.subscription_plan || 'free');
+    const { max_users, max_resources } = getPlanLimits(plan);
+  
     const orgName = formData.organization_name || `${formData.first_name}'s Workspace`;
 
     organization = new Organization({
@@ -130,7 +134,7 @@ async function handleAdminRegistration(formData) {
       subscription: {
         plan: formData.subscription_plan || 'free',
         startsAt: new Date(),
-        // Set a longer expiry for paid plans
+        
         expiresAt: formData.subscription_plan === 'free'
           ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for free
           : new Date(new Date().setFullYear(new Date().getFullYear() + 1)) // 1 year for paid
@@ -140,20 +144,19 @@ async function handleAdminRegistration(formData) {
 
     // 3. Create the Superadmin (the first user)
     const newSuperadmin = new Superadmin({
-      // Map all fields from the frontend form
       email: formData.email,
       password: formData.password,
       first_name: formData.first_name,
       last_name: formData.last_name,
-      // These are in your schema, let's add them
       address: formData.address,
       telephone: formData.telephone,
-      
+      max_permitted_user_amount: max_users,
+      max_permitted_resource_amount: max_resources,
       org_id: organization._id,
       subscription_type: formData.subscription_plan || 'free',
       role: 'admin',
-      access_level: 5, // Highest access level for the creator
-      isConfirmed: true, // Auto-confirm the first admin
+      access_level: 5, 
+      isConfirmed: true, 
       isActive: true
     });
     await newSuperadmin.save();

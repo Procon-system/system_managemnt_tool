@@ -6,7 +6,7 @@ import RegisterSubPage from "./registerSubPage";
 import SubscriptionPage from "./subscriptionPage";
 import PurchasePage from "./purchasePage";
 import { adminRegistration } from '../../features/authSlice';
-// Define plan prices (you can fetch this from an API too)
+
 const PLAN_PRICES = {
   free: 0,
   basic: 10,
@@ -17,7 +17,7 @@ const PLAN_PRICES = {
 export default function RegistrationFlow() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    // Step 1: Registration data
+    
     account_type: "personal",
     first_name: "",
     last_name: "",
@@ -26,9 +26,7 @@ export default function RegistrationFlow() {
     address: "",
     organization_name: "",
     password: "",
-    // Step 2: Subscription data
     subscription_plan: "",
-    // Step 3: Payment data (for processing only, not stored long-term)
     card_number: "",
     expiry: "",
     cvv: "",
@@ -57,16 +55,17 @@ export default function RegistrationFlow() {
     dispatch(adminRegistration(finalData))
       .unwrap()
       .then(() => {
-        // This runs only on FULFILLED
-        navigate('/dashboard'); // or wherever you want to redirect on success
+        navigate('/dashboard');
       })
       .catch((err) => {
-        // This runs only on REJECTED
-        // The toast message is already handled in the slice, so you might not need anything here.
         console.error("Registration failed:", err);
       });
   };
   const selectedPrice = PLAN_PRICES[formData.subscription_plan] || 0;
+  
+  const availablePlans = formData.account_type === "organization"
+  ? ["free", "pro", "enterprise", "basic"]
+  : ["free", "pro", "basic"];
 
   switch (step) {
     case 1:
@@ -80,11 +79,11 @@ export default function RegistrationFlow() {
     case 2:
       return (
         <SubscriptionPage
+          plans={availablePlans} 
           onSelect={(plan) => {
             updateFormData({ subscription_plan: plan });
           
             if (PLAN_PRICES[plan] === 0) {
-
               handleFinalSubmit({ subscription_plan: plan });
             } else {
               handleNextStep();
@@ -97,7 +96,7 @@ export default function RegistrationFlow() {
         <PurchasePage
           plan={formData.subscription_plan}
           price={selectedPrice}
-          onPay={handleFinalSubmit} // onPay now triggers the final submission
+          onPay={handleFinalSubmit} 
         />
       );
     default:

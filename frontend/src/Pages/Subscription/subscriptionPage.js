@@ -17,23 +17,17 @@ export default function SubscriptionPage({
   subscriber = null,
   onSelect,
 }) {
-  // org if enterprise is among available plans
+  
   const isOrg = useMemo(() => plans.includes("enterprise"), [plans]);
-
-  // Order: personal => free, pro, basic; org => free, pro, enterprise, basic
   const ordered = useMemo(() => {
     const order = isOrg ? ["free", "pro", "enterprise", "basic"] : ["free", "pro", "basic"];
     return order.filter((p) => plans.includes(p));
   }, [plans, isOrg]);
 
-  // Primary (blue) cards
   const isPrimary = (plan) => ["pro", "industrial", "enterprise"].includes(plan);
-
-  // Featured: Pro for personal; Pro + Enterprise for org
   const isFeatured = (plan) =>
     (!isOrg && plan === "pro") || (isOrg && ["pro", "enterprise"].includes(plan));
 
-  // Descriptions mirroring your template
   const planDesc = (plan) => {
     if (plan === "free") return "Start free with essential tools.";
     if (["pro", "industrial"].includes(plan)) return "Get the best with top features and support.";
