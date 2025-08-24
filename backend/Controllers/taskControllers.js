@@ -8,6 +8,9 @@ const { notifyUser, notifyOrg } = require('../socket/emitUtils');
 const mongoose = require('mongoose');
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 const ical = require('ical');
+
+const { buildMessages, sendPushBatch, fetchAndHandleReceipts } = require('../Services/pushNotification');
+
 exports.importICal = async (req, res) => {
   const { url } = req.body;
   const { Task, Resource } = req.tenantModels;
@@ -60,7 +63,7 @@ exports.importICal = async (req, res) => {
 };
 exports.createTask = async (req, res) => {
   try {
-    const { Task, Resource, Notification, ResourceBooking } = req.tenantModels;
+    const { Task, Resource, Notification, ResourceBooking,PushToken} = req.tenantModels;
     const cache = req.tenantCache;
    
     
@@ -157,6 +160,67 @@ exports.createTask = async (req, res) => {
             );
           })
         );
+      }
+      try {
+        const assignedUserIds = (task.assignments || [])
+          .map((a) => a?.user?._id?.toString())
+          .filter(Boolean);
+        if (assignedUserIds.length) {
+          const tokenDocs = await PushToken.find({
+            user: { $in: assignedUserIds },
+            organization: req.user.org_id,
+          })
+            .select("token")
+            .lean();
+
+          const tokens = tokenDocs.map((d) => d.token);
+          
+          if (tokens.length) {
+            const title = "New Task Assigned";
+            const body = `“${task.title}” starting ${new Date(task.schedule.start).toLocaleString()}`;
+            const data = {
+              type: "task:assigned",
+              taskId: task._id.toString(),
+              orgId: req.user.org_id.toString(),
+              // add any deep link params you handle client-side
+            };
+
+            const messages = buildMessages(tokens, { title, body, data });
+            
+            if (messages.length) {
+              const tickets = await sendPushBatch(messages);
+
+              // (Optional) prune bad tokens
+              const receiptsChunks = await fetchAndHandleReceipts(tickets);
+              const badTokens = new Set();
+              // Map ticket id -> token (preserve order mapping)
+              const idToToken = new Map();
+              tickets.forEach((t, i) => {
+                if (t?.id) idToToken.set(t.id, tokens[i]);
+              });
+
+              for (const chunk of receiptsChunks) {
+                for (const [ticketId, r] of Object.entries(chunk)) {
+                  if (r.status === "error") {
+                    const err = r.details?.error;
+                    if (err === "DeviceNotRegistered" || err === "InvalidCredentials") {
+                      const tok = idToToken.get(ticketId);
+                      if (tok) badTokens.add(tok);
+                    }
+                    console.warn("[ExpoPush] error receipt:", r);
+                  }
+                }
+              }
+              if (badTokens.size) {
+                await PushToken.deleteMany({ token: { $in: Array.from(badTokens) } });
+                console.log(`[ExpoPush] Pruned ${badTokens.size} invalid push tokens`);
+              }
+            }
+          }
+        }
+      } catch (pushErr) {
+        console.error("Expo push send error:", pushErr);
+        // Do not throw; push failure shouldn't fail task creation
       }
       const { mqttClient, opts} = require('../utils/mqttClient'); // ✅ Import the shared MQTT client instance
 

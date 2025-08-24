@@ -42,7 +42,8 @@ module.exports = async (req, res, next) => {
       Task: tenantConn.models.get('Task'),
       Team: tenantConn.models.get('Team'),
       Notification: tenantConn.models.get('Notification'),
-      ResourceBooking: tenantConn.models.get('ResourceBooking')
+      ResourceBooking: tenantConn.models.get('ResourceBooking'),
+      PushToken: tenantConn.models.get('PushToken')
     };
      
     // ✅ Inject tenant-scoped Redis helper

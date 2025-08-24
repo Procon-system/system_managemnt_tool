@@ -27,6 +27,7 @@ class TenantConnection {
         ResourceType: require('../Models/ResourceTypeSchema'),
         Notification: require('../Models/NotificationSchema'),
         ResourceBooking: require('../Models/ResourceBookingSchema'),
+        PushToken: require('../Models/PushTokenSchema')
       };
 
       for (const [modelName, initFn] of Object.entries(modelInitializers)) {

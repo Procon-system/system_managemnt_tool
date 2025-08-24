@@ -15,6 +15,7 @@ const {
   closeAllConnections,
   getActiveTenantCount,
 } = require("./config/dbManager");
+// const gracefulShutdown = require('http-graceful-shutdown');
 
 dotenv.config();
 
@@ -56,6 +57,7 @@ app.use(async (req, res, next) => {
         ResourceType: tenantConn.models.get('ResourceType'),
         Notification: tenantConn.models.get('Notification'),
         ResourceBooking: tenantConn.models.get('ResourceBooking'),
+        PushToken: tenantConn.models.get('PushToken')
       };
     }
 
@@ -152,4 +154,5 @@ process.on('uncaughtException', err => {
   console.error('Uncaught exception:', err);
   shutdown();
 });
+
 initializeApplication();
