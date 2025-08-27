@@ -24,7 +24,7 @@ router.post(
 router.post('/admin-registration', adminRegistrationController);
 router.post('/login', loginController);
 router.post('/logout', logoutController);
-router.post('/confirm-email/:confirmationCode',confirmEmailController);
+router.post('/confirm-email/:tenantId/:confirmationCode',confirmEmailController);
 router.post('/forgot-password',forgotPasswordController);
 router.post('/reset-password/:token', resetPasswordController);
 

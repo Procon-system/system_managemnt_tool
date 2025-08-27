@@ -8,6 +8,12 @@ const {
   resetPassword
 } = require('../Services/authService');
 const { handleAdminRegistration } = require('../Services/adminRegistration');
+const {
+  sendConfirmationEmail,
+
+} = require("../Helper/sendEmail");
+const { getOrganizationDB } = require('../config/dbManager');
+
 const PLAN_PRICES = {
   free: 0,
   basic: 10,
@@ -116,12 +122,20 @@ const registerController = async (req, res) => {
       personal_number,
       access_level,
       role, 
-      isConfirmed: isConfirmed || false, // Default false for normal users
-      isActive: isActive || true, // Default true
+      isConfirmed: isConfirmed || false, 
+      isActive: isActive || true, 
       payroll: payroll 
 
     },tenantId,User);
 
+ if (!user.isConfirmed) {
+  await sendConfirmationEmail(
+  user.email,
+  user.confirmationCode,
+  user.first_name || user.email,
+  req.user.org_id?.toHexString?.() || req.user.org_id?.toString?.() || String(req.user.org_id)
+  );
+}
     res.status(201).json({
       success: true,
       data: user,
@@ -178,76 +192,32 @@ const loginController = async (req, res) => {
   }
 };
 
-// const registerAdminController = async (req, res) => {
-//   try {
-//     const { 
-//       email, 
-//       password, 
-//       last_name, 
-//       first_name, 
-//       organizationName,
-//       personal_number,
-//       access_level,
-//       max_permitted_user_amount,
-//       max_permitted_resource_amount,
-//       subscription_type
-//     } = req.body;
-
-//     const user = await registerAdminUser({
-//       email,
-//       password,
-//       last_name,
-//       first_name,
-//       organizationName,
-//       personal_number,
-//       access_level,
-//       max_permitted_user_amount,
-//       max_permitted_resource_amount,
-//       subscription_type
-//     });
-
-//     // Generate token with tenant context
-//     const token = jwt.sign(
-//       {
-//         _id: user._id,
-//         email: user.email,
-//         tenantId: user.tenantId,
-//         access_level: user.access_level
-//       },
-//       process.env.JWT_TOKEN_KEY,
-//       { expiresIn: process.env.JWT_EXPIRE || '7d' }
-//     );
-
-//     res.status(201).json({
-//       success: true,
-//       token,
-//       user: {
-//         _id: user._id,
-//         email: user.email,
-//         first_name: user.first_name,
-//         last_name: user.last_name,
-//         access_level: user.access_level
-//       },
-//       message: "Admin registered successfully"
-//     });
-//   } catch (err) {
-//     console.error("Admin Registration Error:", err);
-//     const statusCode = err.message.includes('already exists') ? 400 : 500;
-//     res.status(statusCode).json({ 
-//       success: false,
-//       error: err.message 
-//     });
-//   }
-// };
 const confirmEmailController = async (req, res) => {
   try {
-    const result = await confirmEmail(req.params.confirmationCode);
+    const { tenantId, confirmationCode } = req.params;
+
+    if (!tenantId) {
+      return res.status(400).json({ success: false, error: 'Missing tenantId' });
+    }
+    if (!confirmationCode) {
+      return res.status(400).json({ success: false, error: 'Missing confirmation code' });
+    }
+
+    const tenantDB = await getOrganizationDB(tenantId);
+    if (!tenantDB) {
+      return res.status(400).json({ success: false, error: 'Tenant not found' });
+    }
+
+    const User = tenantDB.models.get('User');
+    if (!User) {
+      return res.status(500).json({ success: false, error: 'User model not initialized for tenant' });
+    }
+
+    const result = await confirmEmail(confirmationCode, User);
+    console.log("result", result)
     res.status(200).json(result);
   } catch (error) {
-    res.status(400).json({ 
-      success: false,
-      error: error.message 
-    });
+    res.status(400).json({ success: false, error: error.message });
   }
 };
 

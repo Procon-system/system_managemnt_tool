@@ -33,31 +33,42 @@ const transporter = nodemailer.createTransport({
 // Create this once and reuse it everywhere for consistency.
 const defaultFrom = `"${emailConfig.fromName}" <${emailConfig.fromAddress}>`;
 
-exports.sendConfirmationEmail = async (email, confirmationCode, username) => {
-  // Use the FRONTEND_URL from the environment configuration
-  const confirmationLink = `${emailConfig.frontendUrl}/confirm-email/${confirmationCode}`;
+exports.sendConfirmationEmail = async (email, confirmationCode, username, tenantId) => {
+  console.log("confirmationCode" ,  confirmationCode)
+  // coerce to a clean string safely
+  const tenantIdStr =
+    typeof tenantId === 'string'
+      ? tenantId.trim()
+      : tenantId?.toHexString?.()       // Mongo ObjectId
+        ?? tenantId?.toString?.()        // fallback
+        ?? String(tenantId);
+
+
+  const confirmationLink =
+    `${emailConfig.frontendUrl.replace(/\/+$/,'')}` +
+    `/confirm-email/${encodeURIComponent(tenantIdStr)}/${encodeURIComponent(confirmationCode)}`;
+
+  console.log('[sendConfirmationEmail] tenantId:', tenantId);
+  console.log('[sendConfirmationEmail] tenantIdStr:', tenantIdStr);
+  console.log('[sendConfirmationEmail] link:', confirmationLink);
 
   const mailOptions = {
-    from: defaultFrom, // Use the standardized "from" field
+    from: defaultFrom,
     to: email,
     subject: "Confirm Your Account",
-    text: `Hey ${username},\n\nPlease click the link below to confirm your email address and finish setting up your account.\n\nConfirmation link: ${confirmationLink}\n\nThanks,\nThe ${emailConfig.fromName} Team`,
+    text: `Hey ${username || 'there'},\n\nConfirm: ${confirmationLink}\n\nThanks,\n${emailConfig.fromName}`,
     html: `
-      <p>Hey ${username},</p>
-      <p>Please click the link below to confirm your email address and finish setting up your account.</p>
-      <p><a href="${confirmationLink}" style="font-size: 16px; color: #ffffff; background-color: #007bff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirm Your Email</a></p>
-      <p>Thanks,<br>The ${emailConfig.fromName} Team</p>
+      <p>Hey ${username || 'there'},</p>
+      <p>Please click the button below to confirm your email.</p>
+      <p><a href="${confirmationLink}" style="font-size:16px;color:#fff;background:#007bff;padding:10px 20px;text-decoration:none;border-radius:5px;">Confirm Your Email</a></p>
+      <p>If the button doesn’t work, copy and paste this link:<br><code>${confirmationLink}</code></p>
+      <p>Thanks,<br>${emailConfig.fromName}</p>
     `,
   };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Confirmation email sent to ${email}`);
-  } catch (error) {
-    console.error("Error sending confirmation email:", error);
-    throw new Error("Failed to send confirmation email");
-  }
+  await transporter.sendMail(mailOptions);
 };
+
 
 /**
  * Sends a welcome email after an account is confirmed or created.

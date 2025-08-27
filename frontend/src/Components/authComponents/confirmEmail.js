@@ -4,7 +4,7 @@ import { confirmEmail } from '../../Services/authService';
 import { FaCheckCircle, FaExclamationCircle } from 'react-icons/fa'; // Success and error icons
 
 const ConfirmEmail = () => {
-  const { confirmationCode } = useParams();
+  const { tenantId, confirmationCode } = useParams();
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
@@ -12,7 +12,7 @@ const ConfirmEmail = () => {
   useEffect(() => {
     const confirmEmailAddress = async () => {
       try {
-        const response = await confirmEmail(confirmationCode);
+        const response = await confirmEmail(tenantId, confirmationCode);
         setMessage(response.message || 'Email confirmed successfully! Redirecting to login...');
         setIsError(false);  // Reset error state on success
         setTimeout(() => navigate('/login'), 2000);
@@ -25,7 +25,7 @@ const ConfirmEmail = () => {
     if (confirmationCode) {
       confirmEmailAddress();
     }
-  }, [confirmationCode, navigate]);
+  }, [tenantId, confirmationCode, navigate]);
 
   return (
     <div className={`flex items-center justify-center max-w-2xl mx-auto p-6 rounded-lg shadow-lg transition-all duration-300 

@@ -7,7 +7,7 @@ import LoginPage from './Pages/Auth/loginPage';
 import LogoutPage from './Pages/Auth/logoutPage';
 import TaskPage from './Pages/Task/createTaskPage';
 import HomePage from './Pages/homePage';
-import AdminRolesPage from './Pages/User/adminRolesPage';
+// import AdminRolesPage from './Pages/User/adminRolesPage';
 import ForgotPasswordPage from './Pages/Auth/forgotPasswordPage';
 import ResetPasswordPage from './Pages/Auth/resetPasswordPage';
 import ConfirmEmail from './Components/authComponents/confirmEmail';
@@ -33,7 +33,7 @@ import SubscriptionPage from './Pages/Subscription/subscriptionPage';
 import PurchasePage from './Pages/Subscription/purchasePage';
 import DashboardPage from './Pages/Subscription/dashboardPage';
 import RegistrationFlow from './Pages/Subscription/registrationFlow';
-import AuthHandoff from './Components/authComponents/authHandoff';
+// import AuthHandoff from './Components/authComponents/authHandoff';
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { connectSocket } from "./socket";
@@ -92,10 +92,10 @@ const App = () => {
           <Route path="/logout" element={<LogoutPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-          <Route path="/confirm-email/:confirmationCode" element={<ConfirmEmail />} />
+          <Route path="/confirm-email/:tenantId/:confirmationCode" element={<ConfirmEmail />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="/import-calendar" element={<MainLayout><CalendarImport /></MainLayout>} />
-          <Route 
+          {/* <Route 
     path="/admin/roles"
     element={
      
@@ -104,7 +104,7 @@ const App = () => {
         </MainLayout>
      
     }
-  />
+  /> */}
           <Route
             path="/profile"
             element={
