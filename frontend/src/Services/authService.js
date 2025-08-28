@@ -129,8 +129,8 @@ export const resetPassword = async (token, passwordData) => {
 };
 
 // **Confirm Email**
-export const confirmEmail = async (confirmationCode) => {
-  const request = { method: 'post', url: `${API_URL}/confirm-email/${confirmationCode}` };
+export const confirmEmail = async (tenantId,confirmationCode) => {
+  const request = { method: 'post', url: `${API_URL}/confirm-email/${encodeURIComponent(tenantId)}/${confirmationCode}` };
 
   try {
     const response = await axios(request);
@@ -139,4 +139,3 @@ export const confirmEmail = async (confirmationCode) => {
     throw new Error(error.response?.data?.error || 'Error confirming email');
   }
 };
-
