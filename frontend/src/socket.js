@@ -5,7 +5,7 @@ import { addNotification } from "./features/notificationSlice";
 let socket;
 
 export const connectSocket = (token) => {
-  socket = io(process.env.REACT_APP_SOCKET_URL || "http://localhost:5000", {
+  socket = io(process.env.REACT_APP_SOCKET_URL || "https://app.tasknitter.com", {
     auth: {
       token,
     },
