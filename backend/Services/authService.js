@@ -141,12 +141,13 @@ const registerUser = async (userData, tenantId, User) => {
     userIdInTenantDB: newUser._id,
     access_level: newUser.access_level
   });
-
+ 
   return {
     _id: newUser._id,
     email: newUser.email,
     first_name: newUser.first_name,
     last_name: newUser.last_name,
+    confirmationCode: newUser.confirmationCode,
     payroll: newUser.payroll ,
     org_id
   };
@@ -260,8 +261,9 @@ const loginUser = async (email, password, rememberMe) => {
   }
 };
 
-async function confirmEmail(confirmationCode) {
+async function confirmEmail(confirmationCode, User) {
   const user = await User.findOne({ confirmationCode });
+  console.log("user",user)
   if (!user) throw new Error("Invalid confirmation code");
 
   user.isConfirmed = true;
