@@ -78,7 +78,7 @@ const App = () => {
       <ConditionalNavBar />
       <div className="pt-16"> {/* Pushes content below navbar */}
         <Routes>
-          <Route path="/" element={isLoggedIn ? <Navigate to="/landing" /> : <Navigate to="/login" />} />
+          <Route path="/" element={isLoggedIn ? <Navigate to="/home" /> : <Navigate to="/landing" /> } />
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/register-sub" element={<RegisterSubPage/>}/>
           <Route path="/subscription" element={< SubscriptionPage/>}/>
