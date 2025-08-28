@@ -1,0 +1,17 @@
+{
+  # internal Caddy (no TLS here; edge TLS is the main Caddy)
+  # auto_https off
+}
+
+:80 {
+  root * /srv
+  encode gzip
+  try_files {path} /index.html
+  file_server
+
+  # Long cache for static assets; SPAs benefit a lot
+  @assets {
+    path *.js *.css *.png *.jpg *.jpeg *.gif *.svg *.ico *.woff *.woff2
+  }
+  header @assets Cache-Control "public, max-age=31536000, immutable"
+}
