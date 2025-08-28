@@ -7,7 +7,7 @@ import LoginPage from './Pages/Auth/loginPage';
 import LogoutPage from './Pages/Auth/logoutPage';
 import TaskPage from './Pages/Task/createTaskPage';
 import HomePage from './Pages/homePage';
-import AdminRolesPage from './Pages/User/adminRolesPage';
+//import AdminRolesPage from './Pages/User/adminRolesPage';
 import ForgotPasswordPage from './Pages/Auth/forgotPasswordPage';
 import ResetPasswordPage from './Pages/Auth/resetPasswordPage';
 import ConfirmEmail from './Components/authComponents/confirmEmail';
@@ -95,7 +95,7 @@ const App = () => {
           <Route path="/confirm-email/:confirmationCode" element={<ConfirmEmail />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="/import-calendar" element={<MainLayout><CalendarImport /></MainLayout>} />
-          <Route 
+          {/* <Route 
     path="/admin/roles"
     element={
      
@@ -104,7 +104,7 @@ const App = () => {
         </MainLayout>
      
     }
-  />
+  /> */}
           <Route
             path="/profile"
             element={
