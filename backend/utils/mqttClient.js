@@ -19,7 +19,7 @@ mqttClient.on('connect', () => {
   console.log(`✅ Connected to ${url}`);
   // subscribe to tasks/update/<any-org-id>
   mqttClient.subscribe('tasks/update_monitor/+', { qos: 1 });
-  mqttClient.subscribe('tasks/new_monitor/+', { qos: 1 })
+  mqttClient.subscribe('tasks/newMonitor/+', { qos: 1 })
   console.log(' Mqtt Subscribed to tasks/update/+ and tasks/new/+');
 });
 
@@ -35,8 +35,6 @@ mqttClient.on('message', async (topic, msgBuf) => {
     const [topicPrefix, action, orgId] = topic.split('/');
     const msg = JSON.parse(msgBuf.toString());
     
-    // Ignore messages that don't come from a monitor or another designated source
-    // This prevents API servers from processing their own published messages.
     if (msg.origin !== 'monitor') return;
 
     console.log(`📨 MQTT msg [${action}] for org ${orgId}:`, msg);
@@ -80,7 +78,7 @@ mqttClient.on('message', async (topic, msgBuf) => {
         await taskController.updateTask(req, res);
         break;
 
-      case 'new_monitor':
+      case 'newMonitor':
       
         req = {
           params: {}, 
@@ -91,7 +89,7 @@ mqttClient.on('message', async (topic, msgBuf) => {
           tenantCache,
           user: {
             org_id: orgId,
-            _id: msg.createdBy ,
+            _id: msg.createdBy || msg.created_by ,
             first_name: msg.createdByName || 'Monitor'
           },
         };
