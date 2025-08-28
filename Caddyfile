@@ -1,0 +1,35 @@
+{
+  email you@yourdomain.com
+  acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+# Redirect HTTP → HTTPS globally
+http://tasknitter.com, http://www.tasknitter.com, http://app.tasknitter.com {
+  redir https://{host}{uri} permanent
+}
+
+# Redirect root & www → app subdomain (so we only need one CORS origin)
+tasknitter.com, www.tasknitter.com {
+  redir https://app.tasknitter.com{uri} permanent
+}
+
+# Shared matcher for API + real-time
+@api_ws {
+  path /api/* /socket.io* /ws* /socket.io/*
+}
+
+# Main SaaS: API/WS → backend; everything else → frontend SPA
+app.tasknitter.com {
+  reverse_proxy @api_ws app:5000
+  reverse_proxy /* frontend:80
+
+  encode gzip
+  header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+}
+
+# MQTT over secure WebSockets (browser clients)
+mqtt.tasknitter.com {
+  reverse_proxy mosquitto:9001
+  header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+  encode gzip
+}

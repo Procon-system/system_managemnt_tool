@@ -1,120 +1,114 @@
+version: "3.8"
 
 services:
+  # (Optional fallback Flask; not exposed publicly)
   user-reg:
     build:
       context: ./flask-user-reg
       dockerfile: Dockerfile
-    ports:
-      - "8500:8500"                       
-    volumes:
-      - ./flask-user-reg:/app            
-      - userreg-data:/app/subscribers.db  
     environment:
       - SOCKETIO_URL=http://app:5000
-      - INTERNAL_SOCKET_SECRET=${INTERNAL_SOCKET_SECRET} 
-      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}             
-      - FLASK_ENV=development
+      - INTERNAL_SOCKET_SECRET=${INTERNAL_SOCKET_SECRET}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - FLASK_ENV=production
       - FLASK_APP=app.py
     depends_on:
       app:
-        condition: service_started   
-
-    networks:
-      - app-network
+        condition: service_started
+    networks: [app-network]
     restart: unless-stopped
+
+  # Frontend: built and served by Nginx (see Dockerfile.prod)
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev   # Use a separate Dockerfile for development
-    volumes:
-      - ./frontend:/app            # Mount code for live reloading
-      - /app/node_modules 
-      # - ./frontend/build:/usr/share/nginx/html  # Serve static files 
-    environment:
-      - CHOKIDAR_USEPOLLING=true  # Enable polling for file changes
-      - WATCHPACK_POLLING=true    # Extra polling for webpack
-      # - CONTAINER_ID=${HOSTNAME}
-         # Avoid node_modules conflicts
-    ports:
-      - "3000:3000"                # Map directly to 3000 for development server
-    command: ["npm", "start"]      # Use npm for hot reload
-    depends_on:
-      - app
-    networks:
-      - app-network
+    # Ensure your ./frontend/Dockerfile.prod exists (see note below)
+      dockerfile: Dockerfile.prod
+    networks: [app-network]
     restart: unless-stopped
-  # Node.js/Express service
+
+  # Backend: Node/Express API + Socket.IO
   app:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    volumes:
-      - ./backend:/app 
-      - /app/node_modules
     env_file:
-      - ./backend/.env  # Load environment variables from .env file in backend directory
+      - ./backend/.env
     environment:
-      - MQTT_URL=mqtt://mosquitto:1883 
+      - MQTT_URL=${MQTT_URL}                    # mqtt://mosquitto:1883
       - INTERNAL_SOCKET_SECRET=${INTERNAL_SOCKET_SECRET}
-    ports:
-      - '5000:5000' 
     expose:
-      - '5000'
+      - "5000"                                  # internal only; Caddy reverse-proxies
     depends_on:
       mosquitto:
         condition: service_started
       mongo:
         condition: service_healthy
-     
-    networks:
-      - app-network
+      redis:
+        condition: service_started
+    networks: [app-network]
     restart: unless-stopped
-    
-   # The Mosquitto MQTT Broker
+
+  # Mosquitto broker
   mosquitto:
     image: eclipse-mosquitto:2.0
-    container_name: mosquitto-1
+    # PUBLIC RAW MQTT as requested:
     ports:
       - "1883:1883"
-      - "9002:9001"
+    # WebSockets (9001) kept internal; Caddy fronts it with TLS
     volumes:
       - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
-    networks:
-      - app-network
+    networks: [app-network]
     restart: unless-stopped
 
-    # MongoDB service
+  # MongoDB
   mongo:
     image: mongo:8.0
-    ports:
-      - '27017:27017' 
     volumes:
       - mongo-data:/data/db
     command: ["--bind_ip_all"]
-    networks:
-      - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks: [app-network]
     restart: unless-stopped
-    healthcheck:  # Ensure MongoDB is ready before the app starts
-     test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-     interval: 10s
-     timeout: 10s  # Increased timeout
-     retries: 10   # More retries
-     start_period: 30s  # Give MongoDB time to start
+
+  # Redis
   redis:
     image: redis:latest
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
+    networks: [app-network]
     restart: unless-stopped
-    networks:
-      - app-network
+
+  # Caddy: the only public entry point (HTTP/HTTPS + WSS frontage for MQTT)
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+      - frontend
+      - mosquitto
+    networks: [app-network]
+    restart: unless-stopped
 
 volumes:
-  userreg-data:
-  redis_data:
   mongo-data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
 networks:
   app-network:
+    driver: bridge
