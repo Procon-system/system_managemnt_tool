@@ -24,6 +24,9 @@ services:
       context: ./frontend
     # Ensure your ./frontend/Dockerfile.prod exists (see note below)
       dockerfile: Dockerfile.prod
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
     networks: [app-network]
     restart: unless-stopped
 
@@ -37,6 +40,8 @@ services:
     environment:
       - MQTT_URL=${MQTT_URL}                    # mqtt://mosquitto:1883
       - INTERNAL_SOCKET_SECRET=${INTERNAL_SOCKET_SECRET}
+    ports:
+      - "5000:5000"
     expose:
       - "5000"                                  # internal only; Caddy reverse-proxies
     depends_on:
