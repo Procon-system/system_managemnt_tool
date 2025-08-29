@@ -307,7 +307,6 @@ useEffect(() => {
 // First useEffect for fetching tasks
 useEffect(() => {
   if (!user) return;
-console.log("user",user)
   if (access_level >= 3) {
     // Admin or manager: see org-wide tasks
     if (currentView === 'allTasks') {
@@ -466,11 +465,11 @@ const handleCalendarDateChange = (startDate, endDate) => {
     const mergedEvent = {
       ...currentEvent,  // Existing data
       ...updatedEvent,  // New updates
-      // Handle special nested objects
+     
       schedule: {
         ...currentEvent.schedule,
         ...(updatedEvent.schedule || {}),
-        // Handle legacy time fields
+        
         start: updatedEvent.start_time || updatedEvent.start || currentEvent.schedule?.start,
         end: updatedEvent.end_time || updatedEvent.end || currentEvent.schedule?.end,
         timezone: updatedEvent.timezone || currentEvent.schedule?.timezone || 'UTC'

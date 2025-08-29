@@ -1,17 +1,13 @@
 
 const mongoose = require('mongoose');
 const config = require('./config');
-
-// Track all active connections and initialized tenants
 const tenantConnections = new Map();
-const initializedTenants = new Map(); // Now tracks model initialization per connection
-// Track all active connections
-
+const initializedTenants = new Map(); 
 class TenantConnection {
   constructor(connection, orgId) {
     this.connection = connection;
     this.orgId = orgId;
-    this.models = new Map(); // Track initialized models per connection
+    this.models = new Map(); 
   }
 
   async initializeModels() {

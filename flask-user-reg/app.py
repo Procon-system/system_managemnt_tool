@@ -361,7 +361,6 @@ def go_tasknitter():
         daemon=True
     ).start()
 
-      # --- FIX HERE: Add the flaskId as a query parameter ---
     handoff_url = f"{app.config['MERN_LOGIN_URL']}?flaskId={sub.id}"
     return redirect(handoff_url)
 @app.route("/dashboard")

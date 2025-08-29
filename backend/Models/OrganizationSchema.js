@@ -1,5 +1,4 @@
-// In your main database (not tenant databases)
-// This model tracks tenant metadata but doesn't contain operational data
+
 const mongoose = require('mongoose');
 
 module.exports = (connection) => {
@@ -78,8 +77,6 @@ module.exports = (connection) => {
     }
   });
 
-  // ✅ Removed redundant field-level index definitions (already declared with `unique`)
-  // ✅ Retain only schema-level indexes
   organizationSchema.index({ name: 1 });
   organizationSchema.index({ subdomain: 1 }, { unique: true });
   organizationSchema.index({ status: 1 });

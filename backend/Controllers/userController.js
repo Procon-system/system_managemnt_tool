@@ -45,7 +45,7 @@ class UserController {
   // Update user
   async updateUser(req, res, next) {
     try {
-      const {  User } = req.tenantModels;
+      const { User } = req.tenantModels;
       const cache = req.tenantCache;
       const user = await userService.updateUser(
         req.params.id, 
