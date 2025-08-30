@@ -37,7 +37,7 @@ import RegistrationFlow from './Pages/Subscription/registrationFlow';
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { connectSocket } from "./socket";
-const ConditionalNavBar = () => {
+const ConditionalNavBar = ({ children }) => {
   const location = useLocation();
 
   // Paths where Navbar and Sidebar are not displayed
@@ -47,8 +47,16 @@ const ConditionalNavBar = () => {
 
   return hideNavBar ? null : (
     <>
-      <Navbar />
-      <Sidebar />
+      {hideNavBar ? null : (
+        <>
+          <Navbar />
+          <Sidebar />
+          <div className="pt-16"> 
+            {children}
+          </div>
+        </>
+      )}
+      {hideNavBar && children} 
     </>
   );
 };
@@ -76,7 +84,7 @@ const App = () => {
         draggable
         pauseOnHover />
       <ConditionalNavBar />
-      <div className="pt-16"> {/* Pushes content below navbar */}
+      
         <Routes>
           <Route path="/" element={isLoggedIn ? <Navigate to="/home" /> : <Navigate to="/landing" /> } />
           <Route path="/landing" element={<LandingPage />} />
@@ -198,7 +206,7 @@ const App = () => {
           />
           
         </Routes>
-      </div>
+     
     </Router>
   );
 };

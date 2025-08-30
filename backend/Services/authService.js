@@ -197,6 +197,8 @@ const loginUser = async (email, password, rememberMe) => {
           first_name: superadmin.first_name,
           last_name: superadmin.last_name,
           access_level: superadmin.access_level,
+          max_permitted_user_amount: superadmin.max_permitted_user_amount,
+          max_permitted_resource_amount: superadmin.max_permitted_resource_amount,
           role: 'admin',
           isGlobalAdmin: true,
           organization,

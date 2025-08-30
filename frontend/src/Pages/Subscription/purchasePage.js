@@ -90,98 +90,77 @@ export default function PurchasePage({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 px-4 py-10">
-      <div className="mx-auto max-w-2xl">
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-          {/* Header */}
-          <div className="bg-blue-500 text-white px-6 py-4">
-            <h4 className="text-xl font-semibold m-0">Checkout</h4>
-          </div>
+    <div className="min-h-screen bg-gradient-subtle px-4 py-10 overflow-x-hidden">
+      {/* Brand glows */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-tasknitter-blue-600/10 blur-3xl" />
+        <div className="absolute -bottom-28 -left-20 w-[28rem] h-[28rem] rounded-full bg-tasknitter-blue-400/10 blur-3xl" />
+      </div>
 
-          {/* Body */}
-          <div className="px-6 py-6">
-            {/* Plan & price summary */}
-            <h5 className="text-lg font-semibold mb-1">
-              {titleCase(plan)} Plan
-            </h5>
-            <p className="text-gray-600 mb-6">
+      <div className="relative mx-auto max-w-2xl">
+        <div className="rounded-3xl border border-tasknitter-blue-100 bg-white/70 backdrop-blur-sm shadow-soft overflow-hidden">
+          {/* Decorative top bar */}
+          <div className="h-1 w-full bg-gradient-hero" />
+
+          {/* Header */}
+          <div className="px-8 pt-8 text-center">
+            <h4 className="text-3xl font-black tracking-tight">
+              <span className="bg-gradient-hero bg-clip-text text-transparent drop-shadow-sm">
+                Checkout
+              </span>
+            </h4>
+            <p className="text-muted-foreground mt-2">
               You’re purchasing the <strong>{titleCase(plan)}</strong> plan for{" "}
               <strong>${price}</strong>.
             </p>
+          </div>
 
-            {/* Payment form */}
+          {/* Body */}
+          <div className="px-8 py-8">
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
               {/* Card number */}
-              <div>
-                <label htmlFor="card_number" className="block font-medium mb-1">
-                  Card Number
-                </label>
-                <div className="flex items-center border rounded-lg overflow-hidden">
-                  <span className="pl-3 pr-2 text-gray-500">
-                    <BiCreditCardFront aria-hidden />
-                  </span>
-                  <input
-                    id="card_number"
-                    name="card_number"
-                    inputMode="numeric"
-                    autoComplete="cc-number"
-                    placeholder="1234 5678 9012 3456"
-                    className="flex-1 px-3 py-2 outline-none"
-                    value={cardNumber}
-                    onChange={handleCardNumber}
-                    required
-                    aria-invalid={!isValid && cardNumber.length > 0 ? "true" : "false"}
-                  />
-                </div>
-              </div>
+              <Field label="Card Number">
+                <Input
+                  id="card_number"
+                  name="card_number"
+                  inputMode="numeric"
+                  autoComplete="cc-number"
+                  placeholder="1234 5678 9012 3456"
+                  value={cardNumber}
+                  onChange={handleCardNumber}
+                  icon={<BiCreditCardFront />}
+                  aria-invalid={!isValid && cardNumber.length > 0 ? "true" : "false"}
+                />
+              </Field>
 
               {/* Expiry & CVV */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="expiry" className="block font-medium mb-1">
-                    Expiry Date
-                  </label>
-                  <div className="flex items-center border rounded-lg overflow-hidden">
-                    <span className="pl-3 pr-2 text-gray-500">
-                      <BiCalendar aria-hidden />
-                    </span>
-                    <input
-                      id="expiry"
-                      name="expiry"
-                      inputMode="numeric"
-                      autoComplete="cc-exp"
-                      placeholder="MM/YY"
-                      className="flex-1 px-3 py-2 outline-none"
-                      value={expiry}
-                      onChange={handleExpiry}
-                      required
-                    />
-                  </div>
-                </div>
+                <Field label="Expiry Date">
+                  <Input
+                    id="expiry"
+                    name="expiry"
+                    inputMode="numeric"
+                    autoComplete="cc-exp"
+                    placeholder="MM/YY"
+                    value={expiry}
+                    onChange={handleExpiry}
+                    icon={<BiCalendar />}
+                  />
+                </Field>
 
-                <div>
-                  <label htmlFor="cvv" className="block font-medium mb-1">
-                    CVV
-                  </label>
-                  <div className="flex items-center border rounded-lg overflow-hidden">
-                    <span className="pl-3 pr-2 text-gray-500">
-                      <BiLockAlt aria-hidden />
-                    </span>
-                    <input
-                      id="cvv"
-                      name="cvv"
-                      inputMode="numeric"
-                      autoComplete="cc-csc"
-                      placeholder="123"
-                      className="flex-1 px-3 py-2 outline-none"
-                      value={cvv}
-                      onChange={handleCvv}
-                      required
-                      type="password"
-                    />
-                  </div>
-                </div>
+                <Field label="CVV" hint="3 digits on the back of your card">
+                  <Input
+                    id="cvv"
+                    name="cvv"
+                    inputMode="numeric"
+                    autoComplete="cc-csc"
+                    placeholder="123"
+                    value={cvv}
+                    onChange={handleCvv}
+                    type="password"
+                    icon={<BiLockAlt />}
+                  />
+                </Field>
               </div>
 
               {error && (
@@ -191,21 +170,44 @@ export default function PurchasePage({
               {/* Pay button */}
               <button
                 type="submit"
-                // disabled={submitting || !isValid}
-                className="w-full bg-green-600 text-white text-lg font-semibold py-3 rounded-xl shadow hover:bg-green-700 disabled:opacity-50"
+                disabled={submitting }
+                className="w-full group inline-flex items-center justify-center rounded-2xl bg-gradient-hero px-6 py-3 text-lg font-bold text-white shadow-blue transition-all duration-300 hover:shadow-large hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Pay ${price}
+                {submitting ? "Processing..." : `Pay $${price}`}
               </button>
             </form>
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t text-gray-600 text-sm flex items-center gap-2">
+          <div className="px-8 py-4 border-t border-tasknitter-blue-100 text-muted-foreground text-sm flex items-center gap-2">
             <BiCheckboxSquare aria-hidden />
             <span>Your payment information is encrypted and secure.</span>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+function Field({ label, hint, children }) {
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-foreground mb-1.5">
+        {label}
+      </label>
+      {children}
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function Input({ icon, className = "", ...props }) {
+  return (
+    <div className="flex items-center rounded-2xl border border-tasknitter-blue-100 bg-white shadow-sm focus-within:ring-2 focus-within:ring-tasknitter-blue-600/30 focus-within:border-tasknitter-blue-300 transition">
+      {icon && <span className="pl-3 text-tasknitter-blue-600">{icon}</span>}
+      <input
+        {...props}
+        className={`w-full rounded-2xl px-3 py-2.5 outline-none bg-transparent text-foreground placeholder:text-slate-400 ${className}`}
+      />
     </div>
   );
 }

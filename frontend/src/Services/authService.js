@@ -80,8 +80,7 @@ export const loginUser = async (credentials) => {
 
   try {
     const response = await axios(request);
-   
-     return response.data;
+    return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Login failed');
   }
