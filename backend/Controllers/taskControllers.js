@@ -138,7 +138,8 @@ exports.createTask = async (req, res) => {
             await cache.del(cacheKeyToInvalidate);
             console.log(`[Cache] Invalidated key: ${cacheKeyToInvalidate}`);
             
-            notifyUser(userId, 'task:assigned', {
+            notifyUser(userId, 'task:created', {
+              createdTask,
               taskId: task._id,
               title: task.title,
               message: `You've been assigned a new task: "${task.title}" for ${task.schedule.start.toLocaleDateString()}`,
@@ -222,7 +223,7 @@ exports.createTask = async (req, res) => {
         console.error("Expo push send error:", pushErr);
         // Do not throw; push failure shouldn't fail task creation
       }
-      const { mqttClient, opts} = require('../utils/mqttClient'); // ✅ Import the shared MQTT client instance
+      const { mqttClient, opts} = require('../utils/mqttClient'); 
 
      // 2. Publish MQTT message
     const topic   = `tasks/new/${req.user.org_id}`;

@@ -243,7 +243,16 @@ const taskSlice = createSlice({
       state.filteredTasks = [];
       state.currentView = 'allTasks'; // Reset to all tasks view
     },
-    
+    addTask: (state, action) => {
+      const newTask = action.payload;
+      console.log("action.payload: ",action.payload);
+      if (!state.tasks.some(task => task._id === newTask._id)) {
+        state.tasks.unshift(newTask); 
+        if (state.currentView === 'allTasks' || state.currentView === newTask.status) { 
+             state.filteredTasks.unshift(newTask);
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -459,6 +468,6 @@ const taskSlice = createSlice({
      
   },
 });
-export const { setTaskView,addMultipleTasksFromSocket ,resetFilteredTasks} = taskSlice.actions;
+export const { setTaskView,addMultipleTasksFromSocket, addTask ,resetFilteredTasks} = taskSlice.actions;
 
 export default taskSlice.reducer;

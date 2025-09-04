@@ -191,20 +191,15 @@ exports.createTask = async (taskData, TaskModel, ResourceModel, ResourceBookingM
       };
     }
 
-    // --- REVISED: INTELLIGENT RESOURCE AVAILABILITY CHECK ---
     if (taskData.resources?.length > 0) {
       const allResourceIds = taskData.resources.map(r => r.resource);
-
-      // 1. Fetch resources and populate their type to get both the override and the default value.
-      // This single query validates existence and fetches the necessary data.
       const resourcesToCheck = await ResourceModel.find({
         _id: { $in: allResourceIds },
         organization: taskData.organization
       })
-      .populate('type', 'isBlockable') // Efficiently populate only the 'isBlockable' default.
+      .populate('type', 'isBlockable') 
       .lean();
 
-      // 2. Validate that all requested resources were found
       if (resourcesToCheck.length !== allResourceIds.length) {
         throw { statusCode: 404, message: 'Some resources were not found or do not belong to the organization.' };
       }
