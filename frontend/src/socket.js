@@ -64,7 +64,26 @@ export const connectSocket = (token) => {
     }
   });
 
-  
+  socket.on("task:created:admin", (payload) => {
+    console.log("👑 Admin task created:", payload);
+    if (payload) {
+      store.dispatch(addTask(payload));
+      
+      store.dispatch(
+        addNotification({
+          _id: `admin-task-created-${payload.taskId}-${Date.now()}`,
+          type: "task:created:admin",
+          title: "Task Created in Org",
+          message: `Task "${payload.title}" was created by ${payload.createdBy?.name || "Service monitor"}.`,
+          referenceId: payload.taskId,
+          organization: payload.organization,
+          createdBy: payload.createdBy,
+          createdAt: new Date().toISOString(),
+          isRead: false,
+        })
+      );
+    }
+  });
 };
 
 export const getSocket = () => socket;

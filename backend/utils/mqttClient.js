@@ -63,8 +63,8 @@ mqttClient.on('message', async (topic, msgBuf) => {
       case 'update_monitor':
         req = {
           params: { id: msg._id },
-          // For updates, we typically only pass the fields that changed
-          body: { status: msg.status /* add other fields from msg if needed */ },
+         
+          body: { status: msg.status},
           files: [],
           tenantDB,
           tenantModels,

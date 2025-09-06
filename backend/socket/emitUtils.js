@@ -18,6 +18,22 @@ function notifyUser(userId, event, data) {
     console.error(error);
   }
 }
+function notifyAccessRange(orgId, minLevel, maxLevel, event, data) {
+     try {
+       if (!orgId) return console.error(`[Notify Error] Null org for event "${event}"`);
+       if (minLevel > maxLevel) [minLevel, maxLevel] = [maxLevel, minLevel];
+       const io = getSocket();
+       const rooms = [];
+       for (let lvl = minLevel; lvl <= maxLevel; lvl++) {
+        rooms.push(`org:${String(orgId)}:access:${lvl}`);
+       }
+       // One emit to multiple rooms works across nodes with the Redis adapter
+       io.to(rooms).emit(event, data);
+       console.log(`🔔 Emitted admin "${event}" to rooms: ${rooms.join(", ")}`);
+     } catch (err) {
+       console.error(`[Notify Error] access-range emit failed (${event}):`, err);
+     }
+   }
 function notifyOrg(orgId, event, data) {
   try {
     if (!orgId) return console.error(`[Notify Error] Null org for event "${event}"`);
@@ -44,4 +60,4 @@ function notifyRole(orgId, role, event, data) {
   }
 }
 
-module.exports = { notifyUser, notifyOrg, notifyRole };
+module.exports = { notifyUser, notifyOrg, notifyRole,notifyAccessRange };

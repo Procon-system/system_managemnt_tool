@@ -4,7 +4,7 @@ const { sendResponse } = require('../utils/responseHandler');
 const calculateTaskPeriod = require('../Helper/taskPeriodCalc');
 const getColorForStatus =require('../utils/getColorForStatus');
 const uploadFileToGridFS = require('../utils/uploadImage'); 
-const { notifyUser, notifyOrg } = require('../socket/emitUtils');
+const { notifyUser, notifyOrg, notifyAccessRange } = require('../socket/emitUtils');
 const mongoose = require('mongoose');
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 const ical = require('ical');
@@ -128,6 +128,7 @@ exports.createTask = async (req, res) => {
     for (const task of tasksToProcess) {
       // 1. Send Notifications for this specific task instance
       if (task.assignments && task.assignments.length > 0) {
+        console.log("task.assignments",task.assignments)
         await Promise.all(
           task.assignments.map(async (assignment) => { 
             if (!assignment.user) return null; // Safety check
@@ -161,7 +162,11 @@ exports.createTask = async (req, res) => {
             );
           })
         );
+      } else { 
+        console.log("admin realtime notify")
+        notifyAccessRange(req.user.org_id, 3, 5, 'task:created:admin', createdTask);
       }
+     
       try {
         const assignedUserIds = (task.assignments || [])
           .map((a) => a?.user?._id?.toString())
@@ -233,7 +238,8 @@ exports.createTask = async (req, res) => {
       status:         task.status,
       assigned_to:    (task.assignments || []).map(a => ({
                          id:   a.user?._id.toString(),
-                         name: `${a.user?.first_name} ${a.user?.last_name}`
+                         name: `${a.user?.first_name} ${a.user?.last_name}`,
+                         email:   a.user.email,
                        })),
       resources:      (task.resources || []).map(r => ({
                          resource: r.resource?._id.toString(),
