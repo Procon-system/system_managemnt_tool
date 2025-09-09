@@ -244,14 +244,26 @@ const taskSlice = createSlice({
       state.currentView = 'allTasks'; // Reset to all tasks view
     },
     addTask: (state, action) => {
-      const newTask = action.payload;
-      console.log("action.payload: ",action.payload);
-      if (!state.tasks.some(task => task._id === newTask._id)) {
-        state.tasks.unshift(newTask); 
-        if (state.currentView === 'allTasks' || state.currentView === newTask.status) { 
-             state.filteredTasks.unshift(newTask);
+      // const newTask = action.payload;
+      // console.log("action.payload: ",action.payload);
+      // if (!state.tasks.some(task => task._id === newTask._id)) {
+      //   state.tasks.unshift(newTask); 
+      //   if (state.currentView === 'allTasks' || state.currentView === newTask.status) { 
+      //        state.filteredTasks.unshift(newTask);
+      //   }
+      // }
+      const incoming = Array.isArray(action.payload)
+          ? action.payload
+          : [action.payload];
+        for (const newTask of incoming) {
+          if (!newTask || !newTask._id) continue;
+          if (!state.tasks.some(t => t._id === newTask._id)) {
+           state.tasks.unshift(newTask);
+            if (state.currentView === 'allTasks' || state.currentView === newTask.status) {
+              state.filteredTasks.unshift(newTask);
+            }
+          }
         }
-      }
     },
   },
   extraReducers: (builder) => {

@@ -45,24 +45,48 @@ export const connectSocket = (token) => {
     store.dispatch(addNotification({ ...data, isRead: false }));
   });
 
-  socket.on("task:created", (payload) => {
-    console.log("🆕 Real-time task created:", payload);
-    if (payload) {
-      store.dispatch(addTask(payload.createdTask));
-      
-      store.dispatch(addNotification({
-        _id: payload.notificationId || `temp-task-created-${payload._id}-${Date.now()}`,
-        type: 'task:created',
-        title: 'New Task Created', 
-        message: payload.message || `New task "${payload.title}" created.`,
-        referenceId: payload._id,
-        organization: payload.organization, 
-        createdBy: payload.createdBy,    
+const seenTaskCreated = new Set(); 
+const SEEN_TTL_MS = 15000;
+
+socket.on("task:created", (payload) => {
+  if (!payload) return;
+
+  const items = Array.isArray(payload.createdTask)
+    ? payload.createdTask
+    : [payload.createdTask].filter(Boolean);
+
+  items.forEach((t) => t && store.dispatch(addTask(t)));
+
+  let targets = [];
+  if (Array.isArray(payload.createdTask) && payload.taskId) {
+    const match = items.find((t) => t && t._id === payload.taskId);
+    if (match) targets = [match];
+  } else {
+    if (items.length) targets = [items[0]];
+  }
+
+  targets.forEach((t) => {
+    const key = t._id;
+    if (seenTaskCreated.has(key)) return;
+    seenTaskCreated.add(key);
+    setTimeout(() => seenTaskCreated.delete(key), SEEN_TTL_MS);
+
+    store.dispatch(
+      addNotification({
+        _id: key,
+        type: "task:created",
+        title: "New Task Created",
+        message: payload.message || `New task "${t.title}" created.`,
+        referenceId: t._id,
+        organization: payload.organization || t.organization,
+        createdBy: payload.createdBy,
         createdAt: new Date().toISOString(),
-        isRead: false 
-      }));
-    }
+        isRead: false,
+      })
+    );
   });
+});
+
 
   socket.on("task:created:admin", (payload) => {
     console.log("👑 Admin task created:", payload);
@@ -71,7 +95,7 @@ export const connectSocket = (token) => {
       
       store.dispatch(
         addNotification({
-          _id: `admin-task-created-${payload.taskId}-${Date.now()}`,
+          _id: payload._id,
           type: "task:created:admin",
           title: "Task Created in Org",
           message: `Task "${payload.title}" was created by ${payload.createdBy?.name || "Service monitor"}.`,

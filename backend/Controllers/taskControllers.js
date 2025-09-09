@@ -128,7 +128,7 @@ exports.createTask = async (req, res) => {
     for (const task of tasksToProcess) {
       // 1. Send Notifications for this specific task instance
       if (task.assignments && task.assignments.length > 0) {
-        console.log("task.assignments",task.assignments)
+        
         await Promise.all(
           task.assignments.map(async (assignment) => { 
             if (!assignment.user) return null; // Safety check
@@ -138,7 +138,7 @@ exports.createTask = async (req, res) => {
             const cacheKeyToInvalidate = `tasks:assigned:user:${userId}:org:${orgId}`;
             await cache.del(cacheKeyToInvalidate);
             console.log(`[Cache] Invalidated key: ${cacheKeyToInvalidate}`);
-            
+            console.log("createdtask",createdTask)
             notifyUser(userId, 'task:created', {
               createdTask,
               taskId: task._id,
@@ -163,8 +163,15 @@ exports.createTask = async (req, res) => {
           })
         );
       } else { 
-        console.log("admin realtime notify")
-        notifyAccessRange(req.user.org_id, 3, 5, 'task:created:admin', createdTask);
+        const { broadcastAdminNotifications } = require('../Helper/broadcastAdminNotifications');
+        await broadcastAdminNotifications({
+          orgId: req.user.org_id,
+          createdTask,
+          NotificationModel: Notification,
+          tenantDB: req.tenantDB,          
+          notifyAccessRange
+        });
+        
       }
      
       try {
@@ -226,11 +233,27 @@ exports.createTask = async (req, res) => {
         }
       } catch (pushErr) {
         console.error("Expo push send error:", pushErr);
-        // Do not throw; push failure shouldn't fail task creation
       }
       const { mqttClient, opts} = require('../utils/mqttClient'); 
-
-     // 2. Publish MQTT message
+      const isFromMonitor = req._fromMqttMonitor === true || req.body?.origin === 'monitor';
+      const orgIdStr = req.user.org_id.toString();
+    
+      if (isFromMonitor) {
+        
+        const ackTopic = `tasks/new/${orgIdStr}`;
+        const ackPayload = {
+          type: 'task:create:confirmed',
+          taskId: task._id.toString(),
+          title: task.title,
+          status: task.status,
+          ackAt: new Date().toISOString(),
+          clientMsgId: req.body?.clientMsgId || null,
+        };
+        mqttClient.publish(ackTopic, JSON.stringify(ackPayload), { qos: 1 }, err => {
+          if (err) console.error(`❌ Publish error to ${ackTopic}:`, err);
+          else     console.log(`▲ ACK published to ${ackTopic}`);
+        });
+      } else {
     const topic   = `tasks/new/${req.user.org_id}`;
     const payload = {
       _id:            task._id.toString(),
@@ -261,6 +284,7 @@ exports.createTask = async (req, res) => {
       else     console.log(`▲ Published to ${topic}`);
     });
   }
+}
 
     return res.status(201).json({
       success: true,
@@ -392,7 +416,30 @@ exports.updateTask = async (req, res) => {
   } else {
       // 2. Lazily require the MQTT client
       const { mqttClient } = require('../utils/mqttClient');
-
+      const isFromMonitor = req._fromMqttMonitor === true || req.body?.origin === 'monitor';
+      const orgIdStr = req.user.org_id.toString();
+    
+      if (isFromMonitor) {
+        // ---- ACK path: notify monitor with a lightweight confirmation only ----
+        const ackTopic = `tasks/update/${orgIdStr}`;
+        const ackPayload = {
+          type: 'task:update:confirmed',
+          taskId: taskForPayload._id.toString(),
+          status: taskForPayload.status,
+          updatedByName: `${req.user.first_name || 'System'}`,
+          ackAt: new Date().toISOString(),
+          clientMsgId: req.body?.clientMsgId || null, // optional passthrough for client correlation
+        };
+    
+        mqttClient.publish(ackTopic, JSON.stringify(ackPayload), { qos: 1 }, (err) => {
+          if (err) {
+            console.error(`❌ MQTT Publish error to ${ackTopic}:`, err);
+          } else {
+            console.log(`▲ ACK published to ${ackTopic}`);
+          }
+        });
+    
+      } else {
       // 3. Construct the topic and the rich payload
       const topic = `tasks/update/${req.user.org_id}`;
       const payload = {
@@ -441,6 +488,7 @@ exports.updateTask = async (req, res) => {
           }
       });
   }
+}
     // Invalidate cache
     const cache = req.tenantCache;
 

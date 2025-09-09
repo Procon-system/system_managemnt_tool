@@ -97,7 +97,7 @@ async function initSocket(httpServer) {
     if (socket.user) {
       const userIdStr = socket.user._id.toString();
       console.log(`[User] ✅ User ${userIdStr} connected with socket ${socket.id}`);
-      console.log("socket.user",socket.user)
+    
       socket.join(userIdStr); 
       socket.join(`org:${socket.orgId}`); 
       if (socket.user.role) {

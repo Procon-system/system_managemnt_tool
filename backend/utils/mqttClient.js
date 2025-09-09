@@ -71,9 +71,11 @@ mqttClient.on('message', async (topic, msgBuf) => {
           tenantCache,
           user: {
             org_id: orgId,
-            
             first_name: msg.updatedByName || 'Monitor'
           },
+          _fromMqttMonitor: true,
+          _mqttAction: 'update_monitor',
+          _mqttTopic: topic,
         };
         await taskController.updateTask(req, res);
         break;
@@ -92,6 +94,10 @@ mqttClient.on('message', async (topic, msgBuf) => {
             _id: msg.createdBy || msg.created_by ,
             first_name: msg.createdByName || 'Monitor'
           },
+          // mark source
+      _fromMqttMonitor: true,
+      _mqttAction: 'newMonitor',
+      _mqttTopic: topic,
         };
         if (!req.user._id) {
           console.error(`❌ Cannot create task via MQTT: Missing 'createdBy' in payload and no fallback SYSTEM_USER_ID is set. Topic: ${topic}`);
