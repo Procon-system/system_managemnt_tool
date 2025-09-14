@@ -7,7 +7,8 @@ const {
   clearPattern,
   generateCacheKey
 } = require('../redisUtils');
-
+const Superadmin = require('../Models/SuperAdminSchema');
+const mongoose = require('mongoose');
 class UserController {
   // Get all users
   async getAllUsers(req, res, next) {
@@ -43,28 +44,27 @@ class UserController {
   }
 
   // Update user
-  async updateUser(req, res, next) {
-    try {
-      const {  User } = req.tenantModels;
-      const cache = req.tenantCache;
-      const user = await userService.updateUser(
-        req.params.id, 
-        req.body, 
-        req.user,
-        User
-      );
-      await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
-      res.status(200).json({
-        success: true,
-        data: user,
-        message: "User updated successfully"
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
+  // async updateUser(req, res, next) {
+  //   try {
+  //     const {  User } = req.tenantModels;
+  //     const cache = req.tenantCache;
+  //     const user = await userService.updateUser(
+  //       req.params.id, 
+  //       req.body, 
+  //       req.user,
+  //       User
+  //     );
+  //     await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+  //     res.status(200).json({
+  //       success: true,
+  //       data: user,
+  //       message: "User updated successfully"
+  //     });
+  //   } catch (err) {
+  //     next(err);
+  //   }
+  // }
 
-  // Admin update user
   async adminUpdateUser(req, res, next) {
     try {
       const {  User } = req.tenantModels;
@@ -88,7 +88,6 @@ class UserController {
     }
   }
 
-  // Delete user
   async deleteUser(req, res, next) {
     try {
       const {  User } = req.tenantModels;
@@ -98,6 +97,54 @@ class UserController {
         success: true,
         data: {},
         message: "User deleted successfully"
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+  async updateMe(req, res, next) {
+    try {
+      // self-profile only; ignore path id if present
+      const { User } = req.tenantModels || {};
+      const Superadmin = mongoose.model('Superadmin');
+      const TenantUser = mongoose.model('TenantUser');
+     
+      const updated = await userService.updateSelf({
+        requester: req.user,            // decoded auth user (must include _id, access_level, scope/type)
+        updateData: req.body,
+        models: { Superadmin, TenantUser, TenantUserInOrg: User }, // pass all
+      });
+
+      // optional: bust tenant caches if we’re inside an org
+      if (req.tenantCache && req.user?.org_id) {
+        await req.tenantCache.delPattern(`tasks:org:${req.user.org_id}:*`);
+      }
+
+      res.status(200).json({
+        success: true,
+        data: updated,
+        message: 'User updated successfully',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async deleteMe(req, res, next) {
+    try {
+      const { User } = req.tenantModels || {};
+      const Superadmin = mongoose.model('Superadmin');
+      const TenantUser = mongoose.model('TenantUser');
+
+      await userService.deleteSelf({
+        requester: req.user,
+        models: { Superadmin, TenantUser, TenantUserInOrg: User },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {},
+        message: 'User deleted successfully',
       });
     } catch (err) {
       next(err);

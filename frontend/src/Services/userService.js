@@ -37,7 +37,16 @@ export const getUser = async (userId, token) => {
     throw new Error(error.response?.data?.message || 'Failed to fetch user');
   }
 };
-
+export const updateSelfProfile = async (updateData, token) => {
+  try {
+    const response = await axios.put(`${API_URL}/me`, updateData, { // <-- Changed to /me
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update own profile');
+  }
+};
 /**
  * Updates a user's own profile. This should be called when a user is editing themselves.
  * @param {string} userId - The ID of the user to update (should match the logged-in user).

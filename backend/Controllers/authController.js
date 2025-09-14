@@ -214,7 +214,7 @@ const confirmEmailController = async (req, res) => {
     }
 
     const result = await confirmEmail(confirmationCode, User);
-    console.log("result", result)
+    
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });

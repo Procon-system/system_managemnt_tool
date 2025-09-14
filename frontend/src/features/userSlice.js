@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { getAllUsers, updateUserProfile, deleteUserAccount, adminUpdateUser } from "../Services/userService";
+import { getAllUsers, updateUserProfile, deleteUserAccount, adminUpdateUser,updateSelfProfile } from "../Services/userService";
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 // Thunks for async operations
 export const getUsers = createAsyncThunk("users/getUserAll", async (_, {getState, rejectWithValue }) => {
@@ -20,6 +20,23 @@ export const getUsersByIds = createAsyncThunk(
   }
     try {
       return await getUsersByIds(userIds, token); // Call the new service function
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+export const updateMe = createAsyncThunk(
+  "users/updateMe",
+  async (updateData, { getState, dispatch, rejectWithValue }) => { // No 'id' needed
+    const token = getState().auth.token;
+    if (checkTokenAndLogout(token, dispatch)) {
+      return null;
+    }
+    try {
+      const updatedUser = await updateSelfProfile(updateData, token);
+      // Optional: Update the user info in the auth slice if it's stored there
+      // dispatch(authActions.setUserInfo(updatedUser));
+      return updatedUser;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -113,6 +130,23 @@ const userSlice = createSlice({
       );
     });
     builder.addCase(updateUserByAdmin.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
+    builder.addCase(updateMe.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(updateMe.fulfilled, (state, action) => {
+      state.loading = false;
+      // Logic to update the user in the state.
+      // If the 'me' user is also in the 'users' array (e.g., if it's the currently logged-in user in a list),
+      // you might want to update it. Otherwise, this might only affect the auth slice.
+      state.users = state.users.map(user =>
+        user._id === action.payload._id ? action.payload : user
+      );
+    });
+    builder.addCase(updateMe.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload;
     });

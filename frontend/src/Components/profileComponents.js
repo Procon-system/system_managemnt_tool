@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../features/authSlice"; 
-import { deleteUser, updateUser } from "../features/userSlice";
+import { deleteUser, updateMe } from "../features/userSlice";
 import ProfileModal from "./profileModal";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css"; 
@@ -30,7 +30,7 @@ const ProfilePage = () => {
     const updateData = { first_name: firstName, last_name: lastName, email, password, access_level };
     const id = user?._id;
 
-    dispatch(updateUser({ id, updateData }))
+    dispatch(updateMe(updateData))
       .then(() => {
         toast.success("Profile updated successfully!");
         setShowUpdateModal(false); // Close modal after updating
