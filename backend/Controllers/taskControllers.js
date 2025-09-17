@@ -615,8 +615,6 @@ exports.deleteTask = async (req, res) => {
     // Invalidate cache
     await cache.del(`task:${taskId}:org:${req.user.org_id}`);
     await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
-    console.log(`[CACHE][DEL] task:${taskId}:org:${req.user.org_id} and related task lists`);
-  // Notify before deletion
   if (taskToDelete.assignments?.length > 0) {
     await Promise.all(
       taskToDelete.assignments.map((assignment) => {

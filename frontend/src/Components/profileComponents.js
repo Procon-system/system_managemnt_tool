@@ -1,57 +1,58 @@
-
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { logout } from "../features/authSlice"; 
-import { deleteUser, updateMe } from "../features/userSlice";
+import { logout } from "../features/authSlice";
+import { deleteMe, updateMe } from "../features/userSlice"; // Assuming deleteUser is also an asyncThunk
 import ProfileModal from "./profileModal";
 import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css"; 
+import "react-toastify/dist/ReactToastify.css";
 
 const ProfilePage = () => {
   const user = useSelector((state) => state.auth.user);
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const dispatch = useDispatch();
- 
+
   const [firstName, setFirstName] = useState(user?.first_name || "");
   const [lastName, setLastName] = useState(user?.last_name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [password, setPassword] = useState("");
-  const [showDeleteModal, setShowDeleteModal] = useState(false); 
-  const [showUpdateModal, setShowUpdateModal] = useState(false); 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const handleLogout = () => {
     dispatch(logout());
     toast.success("Logged out successfully!");
   };
 
-  const handleUpdate = (e) => {
-    const access_level=user?.access_level
+  const handleUpdate = async (e) => { 
     e.preventDefault();
+    const access_level = user?.access_level;
     const updateData = { first_name: firstName, last_name: lastName, email, password, access_level };
-    const id = user?._id;
-
-    dispatch(updateMe(updateData))
-      .then(() => {
-        toast.success("Profile updated successfully!");
-        setShowUpdateModal(false); // Close modal after updating
-      })
-      .catch((error) => {
-        toast.error(error.message || "Failed to update profile.");
-      });
+   
+    try {
+     
+      await dispatch(updateMe(updateData)).unwrap();
+      toast.success("Profile updated successfully!");
+      setShowUpdateModal(false);
+    } catch (error) {
+      setShowUpdateModal(false);
+      toast.error(error || "Failed to update profile."); 
+    }
   };
 
-  const handleDeleteAccount = () => {
-    const id = user?._id;
+  const handleDeleteAccount = async () => { 
+  const id = user?._id;
 
-    dispatch(deleteUser({ id }))
-      .then(() => {
-        toast.success("Account deleted successfully!");
-        setShowDeleteModal(false); // Close modal after deleting
-      })
-      .catch((error) => {
-        toast.error(error.message || "Failed to delete account.");
-      });
+    try {
+      await dispatch(deleteMe({ id })).unwrap();
+      toast.success("Account deleted successfully!");
+      setShowDeleteModal(false);
+      dispatch(logout()); 
+    } catch (error) {
+      setShowDeleteModal(false);
+      toast.error(error || "Failed to delete account.");
+    }
   };
+
 
   if (!isLoggedIn) {
     return (

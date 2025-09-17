@@ -1,4 +1,5 @@
 const {
+  AppError,
   NotFoundError,
   AuthorizationError,
   ValidationError,
@@ -157,26 +158,26 @@ async updateSelf({ requester, updateData, models }) {
     const { Superadmin, TenantUser, TenantUserInOrg } = models;
     let CoreUserModel;
     let UserInOrgModel;
-    let searchField; 
+    let searchField;
 
     if (requester.access_level === 5 && Superadmin) {
       CoreUserModel = Superadmin;
       searchField = '_id';
     } else if (TenantUser) {
       CoreUserModel = TenantUser;
-      searchField = 'email'; 
+      searchField = 'email';
       if (TenantUserInOrg) {
         UserInOrgModel = TenantUserInOrg;
       }
     } else {
-      throw new Error('No appropriate core user model found for updateSelf');
+      throw new DatabaseError('Server configuration error: No appropriate user model found.');
     }
 
-    const userId = requester._id.toString(); 
-    const userEmail = requester.email; 
-    const tenantId = requester.org_id ? requester.org_id.toString() : null; 
+    const userId = requester._id.toString();
+    const userEmail = requester.email;
+    const tenantId = requester.org_id ? requester.org_id.toString() : null;
 
-    const allowedFields = ['first_name', 'last_name', 'email', 'personal_number', 'phone', 'address', 'profilePicture']; 
+    const allowedFields = ['first_name', 'last_name', 'email', 'personal_number', 'phone', 'address', 'profilePicture'];
     const filteredUpdateData = {};
     for (const key in updateData) {
       if (allowedFields.includes(key)) {
@@ -185,7 +186,7 @@ async updateSelf({ requester, updateData, models }) {
     }
 
     if (Object.keys(filteredUpdateData).length === 0 && !updateData.password) {
-      throw new ValidationError('No valid fields or password provided for update');
+      throw new ValidationError('Please provide valid fields to update or a new password.');
     }
 
     let coreUserQuery = {};
@@ -195,90 +196,134 @@ async updateSelf({ requester, updateData, models }) {
       coreUserQuery.email = userEmail;
     }
 
+    // --- Email Uniqueness Check (using ConflictError) ---
+    if (filteredUpdateData.email && filteredUpdateData.email !== requester.email) {
+      const newEmail = filteredUpdateData.email;
 
+      // Check Superadmin model
+      if (Superadmin) {
+        const superadminExists = await Superadmin.findOne({ email: newEmail });
+        if (superadminExists && superadminExists._id.toString() !== userId) {
+          throw new ConflictError(`The email "${newEmail}" is already registered as a Superadmin. Please use a different email.`);
+        }
+      }
+
+      // Check TenantUser model
+      if (TenantUser && CoreUserModel !== TenantUser) {
+        const tenantUserExists = await TenantUser.findOne({ email: newEmail });
+        if (tenantUserExists && tenantUserExists._id.toString() !== userId) {
+          throw new ConflictError(`The email "${newEmail}" is already registered by another Tenant User. Please use a different email.`);
+        }
+      } else if (CoreUserModel === TenantUser) {
+        const existingTenantUser = await TenantUser.findOne({ email: newEmail });
+        if (existingTenantUser && existingTenantUser._id.toString() !== userId) {
+          throw new ConflictError(`The email "${newEmail}" is already in use by another user in the system. Please use a different email.`);
+        }
+      }
+      
+    }
+    
     if (updateData.password) {
       const user = await CoreUserModel.findOne(coreUserQuery);
-      if (!user) throw new NotFoundError('User not found for password update');
-      user.password = updateData.password; 
+      if (!user) throw new NotFoundError('Your user account could not be found for password update.');
+      user.password = updateData.password;
       await user.save();
-      delete filteredUpdateData.password; 
+      delete filteredUpdateData.password;
     }
 
     let updatedCoreUser;
     let updatedUserInOrg;
     if (Object.keys(filteredUpdateData).length > 0) {
-    
-      updatedCoreUser = await CoreUserModel.findOneAndUpdate(
-        coreUserQuery,
-        { $set: filteredUpdateData },
-        { new: true, runValidators: true }
-      ).select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire');
+      try {
+        updatedCoreUser = await CoreUserModel.findOneAndUpdate(
+          coreUserQuery,
+          { $set: filteredUpdateData },
+          { new: true, runValidators: true }
+        ).select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire');
 
-      if (!updatedCoreUser) throw new NotFoundError('Core User not found during self-update');
+        if (!updatedCoreUser) throw new NotFoundError('Your user account could not be found for profile update.');
+
+      } catch (mongooseError) {
+        if (mongooseError.name === 'MongoServerError' && mongooseError.code === 11000) {
+          const field = Object.keys(mongooseError.keyValue)[0];
+          throw new ConflictError(`The ${field} "${mongooseError.keyValue[field]}" is already taken.`);
+        }
+        console.error("Mongoose error during update:", mongooseError);
+        throw new DatabaseError("Failed to update user profile due to a database issue.");
+      }
     } else {
       updatedCoreUser = await CoreUserModel.findOne(coreUserQuery).select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire');
-      if (!updatedCoreUser) throw new NotFoundError('Core User not found after password update');
+      if (!updatedCoreUser) throw new NotFoundError('Your user account could not be found after password update.');
     }
-    if (UserInOrgModel && filteredUpdateData.email && tenantId) {
-        const userInOrg = await UserInOrgModel.findOne({
+
+    if (UserInOrgModel && tenantId && (filteredUpdateData.email || filteredUpdateData.first_name || filteredUpdateData.last_name)) {
+      const userInOrg = await UserInOrgModel.findOne({
         org_id: tenantId,
-        _id: userId 
+        _id: userId
       });
 
       if (userInOrg) {
-        userInOrg.email = filteredUpdateData.email;
+        if (filteredUpdateData.email && filteredUpdateData.email !== requester.email) userInOrg.email = filteredUpdateData.email;
         if (filteredUpdateData.first_name) userInOrg.first_name = filteredUpdateData.first_name;
         if (filteredUpdateData.last_name) userInOrg.last_name = filteredUpdateData.last_name;
         updatedUserInOrg = await userInOrg.save();
       } else {
-        console.warn(`TenantUserInOrg not found for tenantId: ${tenantId}, userIdInTenantDB: ${userId}. Email not synced.`);
+        console.warn(`TenantUserInOrg not found for tenantId: ${tenantId}, userId: ${userId}. Name/Email not synced.`);
       }
     }
 
-    // Return the primary updated user object. You might want to combine data if needed.
     return updatedCoreUser;
 
   } catch (error) {
-    if (error instanceof NotFoundError || error instanceof ValidationError) {
+    if (error instanceof AppError) { // Catch all custom errors that inherit from AppError
       throw error;
     }
-    console.error('Error updating self profile:', error);
-    throw new DatabaseError('Failed to update self profile');
+    console.error('Unexpected error updating self profile:', error);
+    throw new DatabaseError('An unexpected server error occurred while updating your profile.');
   }
 }
 async deleteSelf({ requester, models }) {
   try {
     const { Superadmin, TenantUser, TenantUserInOrg } = models;
     let UserModel;
+    let UserInOrgModel; // Declare UserInOrgModel here
 
-    if (requester.scope === 'superadmin' && Superadmin) {
+    if (requester.access_level === 5 && Superadmin) {
       UserModel = Superadmin;
-    } else if (requester.scope === 'tenant_user' && TenantUserInOrg) {
-      UserModel = TenantUserInOrg;
     } else if (TenantUser) {
       UserModel = TenantUser;
+      
+      if (TenantUserInOrg) {
+        UserInOrgModel = TenantUserInOrg; // Assign if it exists
+      }
     } else {
-      throw new Error('No appropriate user model found for deleteSelf');
+      throw new DatabaseError('Server configuration error: No appropriate user model found.');
     }
 
     const userId = requester._id.toString();
-    const userToDelete = await UserModel.findById(userId);
-
+    const newEmail = requester.email;
+    const userToDelete = await UserModel.findOne({ email: newEmail });
+    console.log("userToDelete",userToDelete);
     if (!userToDelete) {
       throw new NotFoundError('User not found');
     }
 
-    // Prevent super admins from deleting themselves without special processes
-    // Or require a different endpoint for super admin self-deletion
-    if (userToDelete.access_level === 5) { // Assuming 5 is super admin
+    // Check if the user is a super admin and prevent self-deletion
+    if (requester.access_level === 5) {
        throw new AuthorizationError('Super admins cannot delete their own account through this endpoint. Please contact support.');
     }
 
-    await UserModel.deleteOne({ _id: userId });
+    // Delete from the primary user model (Superadmin or TenantUser)
+    await UserModel.deleteOne({ _id: userToDelete._id });
+
+    // If TenantUserInOrg model exists, delete the corresponding entry
+    if (UserInOrgModel) {
+      await UserInOrgModel.deleteOne({ _id: userId }); // Assuming 'user' field links to TenantUser._id
+    }
 
     return { success: true };
   } catch (error) {
-    if (error instanceof NotFoundError || error instanceof AuthorizationError) {
+    if (error instanceof NotFoundError || error instanceof AuthorizationError || error instanceof DatabaseError) {
       throw error;
     }
     console.error("Error deleting self account:", error);

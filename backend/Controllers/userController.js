@@ -7,10 +7,10 @@ const {
   clearPattern,
   generateCacheKey
 } = require('../redisUtils');
-const Superadmin = require('../Models/SuperAdminSchema');
 const mongoose = require('mongoose');
+const { AppError } = require('../utils/errors');
 class UserController {
-  // Get all users
+
   async getAllUsers(req, res, next) {
     try {
       const cacheKey = generateCacheKey('users', req.user.org_id);
@@ -26,8 +26,6 @@ class UserController {
       next(err);
     }
   }
-
-  // Get single user
   async getUser(req, res, next) {
     try {
       const cacheKey = generateCacheKey('user', req.user.org_id, { id: req.params.id });
@@ -42,29 +40,6 @@ class UserController {
       next(err);
     }
   }
-
-  // Update user
-  // async updateUser(req, res, next) {
-  //   try {
-  //     const {  User } = req.tenantModels;
-  //     const cache = req.tenantCache;
-  //     const user = await userService.updateUser(
-  //       req.params.id, 
-  //       req.body, 
-  //       req.user,
-  //       User
-  //     );
-  //     await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
-  //     res.status(200).json({
-  //       success: true,
-  //       data: user,
-  //       message: "User updated successfully"
-  //     });
-  //   } catch (err) {
-  //     next(err);
-  //   }
-  // }
-
   async adminUpdateUser(req, res, next) {
     try {
       const {  User } = req.tenantModels;
@@ -87,7 +62,6 @@ class UserController {
       next(err);
     }
   }
-
   async deleteUser(req, res, next) {
     try {
       const {  User } = req.tenantModels;
@@ -110,7 +84,7 @@ class UserController {
       const TenantUser = mongoose.model('TenantUser');
      
       const updated = await userService.updateSelf({
-        requester: req.user,            // decoded auth user (must include _id, access_level, scope/type)
+        requester: req.user,           
         updateData: req.body,
         models: { Superadmin, TenantUser, TenantUserInOrg: User }, // pass all
       });
@@ -126,10 +100,22 @@ class UserController {
         message: 'User updated successfully',
       });
     } catch (err) {
-      next(err);
+     
+      if (err instanceof AppError) {
+        return res.status(err.statusCode).json({
+          success: false,
+          message: err.message,
+          ...(err.name === 'ValidationError' && err.errors && err.errors.length > 0 && { errors: err.errors })
+        });
+      }
+      console.error('Unhandled error in updateMe controller:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'An unexpected server error occurred.',
+      });
+     
     }
   }
-
   async deleteMe(req, res, next) {
     try {
       const { User } = req.tenantModels || {};
@@ -141,13 +127,26 @@ class UserController {
         models: { Superadmin, TenantUser, TenantUserInOrg: User },
       });
 
+      await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+
       res.status(200).json({
         success: true,
         data: {},
         message: 'User deleted successfully',
       });
     } catch (err) {
-      next(err);
+      if (err instanceof AppError) {
+        return res.status(err.statusCode).json({
+          success: false,
+          message: err.message,
+          ...(err.name === 'ValidationError' && err.errors && err.errors.length > 0 && { errors: err.errors })
+        });
+      }
+      console.error('Unhandled error in deleteMe controller:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'An unexpected server error occurred.',
+      });
     }
   }
 }

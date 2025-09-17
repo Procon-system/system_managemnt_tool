@@ -10,9 +10,10 @@ router.use(protect);
 router.get('/', authorize([2,3, 4, 5]), userController.getAllUsers); 
 router.get('/:id', userController.getUser); // Users can view their own profile
 // router.put('/:id', userController.updateUser); // Users can update their own profile
-router.put('/:id/admin', authorize([4, 5]), userController.adminUpdateUser); // Admins can update any user
-router.delete('/:id', userController.deleteUser); 
+router.put('/:id/admin', authorize([4, 5]), userController.adminUpdateUser); 
 router.route('/me')
   .put(userController.updateMe)    
   .delete(userController.deleteMe);
+router.delete('/:id', userController.deleteUser); 
+
 module.exports = router;

@@ -44,7 +44,18 @@ export const updateSelfProfile = async (updateData, token) => {
     });
     return response.data.data;
   } catch (error) {
+   
     throw new Error(error.response?.data?.message || 'Failed to update own profile');
+  }
+};
+export const deleteMeSelfProfile = async (token) => { 
+  try {
+    const response = await axios.delete(`${API_URL}/me`, { 
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to delete own account');
   }
 };
 /**

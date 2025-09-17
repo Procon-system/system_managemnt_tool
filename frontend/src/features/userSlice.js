@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { getAllUsers, updateUserProfile, deleteUserAccount, adminUpdateUser,updateSelfProfile } from "../Services/userService";
+import { getAllUsers, updateUserProfile, deleteUserAccount, adminUpdateUser,updateSelfProfile ,deleteMeSelfProfile} from "../Services/userService";
 import { checkTokenAndLogout } from '../Helper/checkTokenExpire'; 
 // Thunks for async operations
 export const getUsers = createAsyncThunk("users/getUserAll", async (_, {getState, rejectWithValue }) => {
@@ -37,8 +37,30 @@ export const updateMe = createAsyncThunk(
       // Optional: Update the user info in the auth slice if it's stored there
       // dispatch(authActions.setUserInfo(updatedUser));
       return updatedUser;
+    }  catch (error) {
+      if (error) {
+        const errorMessage = error.message || error || "Failed to update profile.";
+      return rejectWithValue(errorMessage);
+      }
+      // Fallback for network errors or unhandled server errors
+      return rejectWithValue(error || "Failed to update profile.");
+    }
+  }
+);
+export const deleteMe = createAsyncThunk(
+  "users/deleteMe",
+  async (_, { getState, dispatch, rejectWithValue }) => { 
+    const token = getState().auth.token;
+    if (!token || checkTokenAndLogout(token, dispatch)) {
+      return rejectWithValue("Authentication token is missing or invalid. Please log in again.");
+    }
+    try {
+      const deletionResult = await deleteMeSelfProfile(token);
+      return deletionResult; 
     } catch (error) {
-      return rejectWithValue(error.message);
+    
+      const errorMessage = error.message || "Failed to delete profile.";
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -139,11 +161,8 @@ const userSlice = createSlice({
     });
     builder.addCase(updateMe.fulfilled, (state, action) => {
       state.loading = false;
-      // Logic to update the user in the state.
-      // If the 'me' user is also in the 'users' array (e.g., if it's the currently logged-in user in a list),
-      // you might want to update it. Otherwise, this might only affect the auth slice.
       state.users = state.users.map(user =>
-        user._id === action.payload._id ? action.payload : user
+      user._id === action.payload._id ? action.payload : user
       );
     });
     builder.addCase(updateMe.rejected, (state, action) => {
