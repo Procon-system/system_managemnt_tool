@@ -81,17 +81,6 @@ const resourceService = {
     }
   },
 
-  // deleteResource: async (id, token) => {
-  //   try {
-  //       await axios.delete(`${API_URL}/${id}`, {
-  //         headers: { Authorization: `Bearer ${token}` }
-  //       });
-  //       return id;
-     
-  //   } catch (error) {
-  //     throw error.response?.data || error.message;
-  //   }
-  // },
   deleteResource: async (id, token, force = false) => {
     try {
         const config = {

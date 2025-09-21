@@ -148,8 +148,6 @@ const ResourceListPage = () => {
    
       if (deleteResource.fulfilled.match(resultAction)) {
         toast.success("Resource deleted successfully!"); 
-
-     
     } 
     
   };
