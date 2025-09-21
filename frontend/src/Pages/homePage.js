@@ -307,7 +307,6 @@ useEffect(() => {
 // First useEffect for fetching tasks
 useEffect(() => {
   if (!user) return;
-console.log("user",user)
   if (access_level >= 3) {
     // Admin or manager: see org-wide tasks
     if (currentView === 'allTasks') {

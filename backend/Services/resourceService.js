@@ -128,7 +128,6 @@ function checkFieldType(value, expectedType) {
       return { valid: true, message: '' };
   }
 }
-
 exports.getResourceById = async (resourceId, organizationId,ResourceModel) => {
   return await ResourceModel.findOne({
     _id: resourceId,
@@ -137,7 +136,6 @@ exports.getResourceById = async (resourceId, organizationId,ResourceModel) => {
     .populate('type')
     .populate('createdBy', 'first_name last_name');
 };
-
 exports.getAvailableResourcesByType = async (typeId, startTime, endTime, { ResourceModel, ResourceBookingModel }) => {
   // 1. Fetch all resources of the given type. This part doesn't change.
   const allResources = await ResourceModel.find({ type: typeId }).lean();
@@ -186,39 +184,68 @@ exports.getResourcesByType = async (typeId, organizationId, options = {},Resourc
     currentPage: page
   };
 };
-
 exports.updateResource = async (resourceId, updateData, organizationId,ResourceModel) => {
   // Don't allow changing the resource type
   if (updateData.type) {
     throw new Error('Cannot change resource type after creation');
   }
-  console.log("updateData",updateData)
   const resource = await ResourceModel.findOneAndUpdate(
     { _id: resourceId, organization: organizationId },
     updateData,
     { new: true, runValidators: true }
   ).populate('type');
-  console.log("resource",resource)
   if (!resource) {
     throw new Error('Resource not found');
   }
   
   return resource;
 };
-
-
-exports.deleteResource = async (resourceId, organizationId, ResourceModel, TaskModel) => { 
-  // Check if the resource is referenced in any tasks
-  // FIX: Use the passed-in TaskModel
-  const taskCount = await TaskModel.countDocuments({ 
-    'resources.resource': resourceId, // Make sure this path matches your Task schema
-    organization: organizationId
-  });
+// exports.deleteResource = async (resourceId, organizationId, ResourceModel, TaskModel) => { 
+//   // Check if the resource is referenced in any tasks
+//   // FIX: Use the passed-in TaskModel
+//   // const taskCount = await TaskModel.countDocuments({ 
+//   //   'resources.resource': resourceId, // Make sure this path matches your Task schema
+//   //   organization: organizationId
+//   // });
   
-  if (taskCount > 0) {
-    throw new Error(`Cannot delete this resource because it is assigned to ${taskCount} task(s).`);
+//   // if (taskCount > 0) {
+//   //   throw new Error(`Cannot delete this resource because it is assigned to ${taskCount} task(s).`);
+//   // }
+  
+//   const resource = await ResourceModel.findOneAndDelete({
+//     _id: resourceId,
+//     organization: organizationId
+//   });
+  
+//   if (!resource) {
+//     throw new Error('Resource not found');
+//   }
+
+//   // Good practice to return something to confirm deletion
+//   return { deleted: true, id: resourceId };
+// };
+exports.deleteResource = async (resourceId, organizationId, ResourceModel, TaskModel, forceDelete = false) => { 
+  // If not forcing deletion, check if the resource is referenced in any tasks
+  if (!forceDelete) {
+    const taskCount = await TaskModel.countDocuments({ 
+      'resources.resource': resourceId, // Make sure this path matches your Task schema
+      organization: organizationId
+    });
+    
+    if (taskCount > 0) {
+      // If tasks are found and we're not forcing, return a warning
+      return { 
+        canDelete: false, 
+        warning: `This resource is assigned to ${taskCount} task(s). Deleting it will remove it from these tasks.`,
+        taskCount: taskCount
+      };
+    }
   }
-  
+  await TaskModel.updateMany(
+    { 'resources.resource': resourceId, organization: organizationId },
+    { $pull: { resources: { resource: resourceId } } }
+  );
+
   const resource = await ResourceModel.findOneAndDelete({
     _id: resourceId,
     organization: organizationId
@@ -228,6 +255,6 @@ exports.deleteResource = async (resourceId, organizationId, ResourceModel, TaskM
     throw new Error('Resource not found');
   }
 
-  // Good practice to return something to confirm deletion
-  return { deleted: true, id: resourceId };
+  // Return success
+  return { canDelete: true, deleted: true, id: resourceId };
 };

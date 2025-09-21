@@ -46,8 +46,6 @@ exports.createResource = async (req, res) => {
     sendResponse(res, 400, error.message, null);
   }
 };
-
-
 exports.getResourceById = async (req, res) => {
   try {
     const resourceId = req.params.id;
@@ -177,14 +175,12 @@ exports.getResourcesByType = async (req, res) => {
   }
 };
 
-// In controllers/resourceController.js
-
 exports.updateResource = async (req, res) => {
   try {
     const resourceId = req.params.id;
     const orgId = req.user.org_id;
     const { Resource } = req.tenantModels;
-
+    
     // 1. Fetch the resource first to get its type definition
     const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
     if (!resource) {
@@ -236,25 +232,87 @@ exports.updateResource = async (req, res) => {
   }
 };
 
+// exports.deleteResource = async (req, res) => {
+//   try {
+//     const resourceId = req.params.id;
+//     const orgId = req.user.org_id;
+//     const cache = req.tenantCache;
+//     const { Resource, Task } = req.tenantModels; 
+//     const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
+//     if (!resource) return sendResponse(res, 404, 'Resource not found', null);
+
+//     await resourceService.deleteResource(resourceId, orgId, Resource, Task); 
+//     await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+//     await invalidateResourceCaches(req.tenantCache, resource); 
+    
+//     sendResponse(res, 200, 'Resource deleted successfully', null);
+//   } catch (error) {
+//     // Send a 400 Bad Request if the resource is in use
+//     if (error.message.includes('assigned to')) {
+//         return sendResponse(res, 400, error.message, null);
+//     }
+//     sendResponse(res, 500, error.message, null);
+//   }
+// };
+// exports.deleteResource = async (req, res) => {
+//   try {
+//     const resourceId = req.params.id;
+//     const orgId = req.user.org_id;
+//     const cache = req.tenantCache;
+//     const { Resource, Task } = req.tenantModels; 
+    
+//     // Check for a 'force=true' query parameter
+//     const forceDelete = req.query.force === 'true';
+
+//     const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
+//     if (!resource) return sendResponse(res, 404, 'Resource not found', null);
+
+//     const deletionResult = await resourceService.deleteResource(resourceId, orgId, Resource, Task, forceDelete); 
+
+//     if (!deletionResult.canDelete) {
+//         return sendResponse(res, 200, deletionResult.warning, { 
+//           taskCount: deletionResult.taskCount, 
+//           canDelete: false // Indicate that deletion hasn't happened yet
+//       });
+//     }
+//     await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+//     await invalidateResourceCaches(req.tenantCache, resource); 
+    
+//     sendResponse(res, 200, 'Resource deleted successfully', { canDelete: true });
+//   } catch (error) {
+//     sendResponse(res, 500, error.message, null);
+//   }
+// };
 exports.deleteResource = async (req, res) => {
   try {
     const resourceId = req.params.id;
     const orgId = req.user.org_id;
-    
-    const { Resource, Task } = req.tenantModels; 
+    const cache = req.tenantCache;
+    const { Resource, Task } = req.tenantModels;
+
+    // Check for a 'force=true' query parameter
+    const forceDelete = req.query.force === 'true';
+
     const resource = await resourceService.getResourceById(resourceId, orgId, Resource);
     if (!resource) return sendResponse(res, 404, 'Resource not found', null);
 
-    await resourceService.deleteResource(resourceId, orgId, Resource, Task); 
+    const deletionResult = await resourceService.deleteResource(resourceId, orgId, Resource, Task, forceDelete);
 
-    await invalidateResourceCaches(req.tenantCache, resource); 
-    
-    sendResponse(res, 200, 'Resource deleted successfully', null);
-  } catch (error) {
-    // Send a 400 Bad Request if the resource is in use
-    if (error.message.includes('assigned to')) {
-        return sendResponse(res, 400, error.message, null);
+    if (!deletionResult.canDelete) {
+        return sendResponse(res, 200, deletionResult.warning, {
+          taskCount: deletionResult.taskCount,
+          canDelete: false // Indicate that deletion hasn't happened yet
+      });
     }
+    await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+    await invalidateResourceCaches(req.tenantCache, resource);
+
+    // Modify this line to include the resourceId from the deletionResult
+    sendResponse(res, 200, 'Resource deleted successfully', {
+      canDelete: true,
+      id: deletionResult.id // Add the id here
+    });
+  } catch (error) {
     sendResponse(res, 500, error.message, null);
   }
 };

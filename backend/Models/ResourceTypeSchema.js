@@ -17,7 +17,7 @@ module.exports = (connection) => {
     },
     isBlockable: {
       type: Boolean,
-      default: false // The default for any resource of this type
+      default: false 
     },
     icon: String,
     color: String,
@@ -32,17 +32,15 @@ module.exports = (connection) => {
         enum: ['string', 'number'],
         required: true
       },
-      // +++ THE CRITICAL ADDITIONS +++
       isQuantifiable: {
         type: Boolean,
-        default: false // Default to NOT being quantifiable
+        default: false 
       },
-      // Provides context for calculations
+    
       quantifiableUnit: { 
-        type: String, // e.g., 'USD', 'EUR', 'kg', 'hours', 'units'
-        required: function() { return this.isQuantifiable; } // Required only if quantifiable
+        type: String, 
+        required: function() { return this.isQuantifiable; }
       },
-      // Helps the frontend group formula fields (e.g., Cost, Time, Output)
       quantifiableCategory: { 
         type: String,
         enum: ['cost', 'time', 'capacity', 'output', 'measurement', 'other'],

@@ -14,7 +14,7 @@ export const createResource = createAsyncThunk(
     }
     try {
       const response = await resourceService.createResource(resourceData, token);
-      console.log("response.data2",response.data)
+     
       return response.data; 
     } catch (error) {
       return rejectWithValue(error.message || 'Error creating resource');
@@ -82,13 +82,11 @@ export const fetchAvailableResources = createAsyncThunk(
 
       // 1. If this exact request is currently being fetched, abort.
       if (cacheEntry?.status === 'loading') {
-        console.log(`[THUNK ABORT] Request for ${typeId} is already in-flight.`);
-        return false;
+          return false;
       }
       
       // 2. If this exact request was successfully fetched recently, abort.
       if (cacheEntry?.status === 'fetched' && (now - cacheEntry.timestamp < CACHE_DURATION_MS)) {
-        console.log(`[THUNK ABORT] Request for ${typeId} is still cached.`);
         return false;
       }
 
@@ -99,7 +97,6 @@ export const fetchAvailableResources = createAsyncThunk(
     }
   }
 );
-
 export const fetchResourceById = createAsyncThunk(
   'resources/fetchResourceById',
   async (id, { getState, dispatch, rejectWithValue }) => {
@@ -114,7 +111,6 @@ export const fetchResourceById = createAsyncThunk(
     }
   }
 );
-
 export const updateResource = createAsyncThunk(
   'resources/updateResource',
   async ({ id, updatedData }, { getState, dispatch, rejectWithValue }) => {
@@ -129,23 +125,31 @@ export const updateResource = createAsyncThunk(
     }
   }
 );
-
 export const deleteResource = createAsyncThunk(
   'resources/deleteResource',
-  async (id, { getState, dispatch, rejectWithValue }) => {
+  async ({ id, force = false }, { getState, dispatch, rejectWithValue }) => {
     const token = getState().auth.token;
     if (checkTokenAndLogout(token, dispatch)) {
-      return null;
+      return null; 
     }
     try {
-      await resourceService.deleteResource(id, token);
-      return id;
+      const response = await resourceService.deleteResource(id, token, force);
+    
+      if (!response.data.canDelete) {
+        return rejectWithValue({ 
+          message: response.message, 
+          taskCount: response.data.taskCount,
+          canDelete: response.data.canDelete, 
+          id
+        });
+      }
+
+      return response;
     } catch (error) {
       return rejectWithValue(error.message || 'Error deleting resource');
     }
   }
 );
-
 export const syncLocalResourceChanges = createAsyncThunk(
   'resources/syncLocalChanges',
   async (_, { getState, dispatch, rejectWithValue }) => {
@@ -187,13 +191,13 @@ const resourceSlice = createSlice({
       state.data.total += 1;
     },
     resourceUpdated: (state, action) => {
-      const index = state.data.resources.findIndex(r => r._id === action.payload._id);
+      const index = state.data.resources.findIndex(r => r._id === action.payload);
       if (index !== -1) {
         state.data.resources[index] = action.payload;
       }
     },
     resourceDeleted: (state, action) => {
-      state.data.resources = state.data.resources.filter(r => r._id !== action.payload);
+      state.data.resources = state.data.resources.filter(r => r._id !== action.payload.data.id);
       state.data.total -= 1;
     },
     setCurrentResource: (state, action) => {
@@ -217,7 +221,10 @@ const resourceSlice = createSlice({
   },
   clearRecurringConflict: (state) => {
     state.recurringConflict = null;
-   }
+   },
+   clearError: (state) => {
+        state.error = null;
+      }
   },
   extraReducers: (builder) => {
     builder
@@ -306,10 +313,7 @@ const resourceSlice = createSlice({
             if (action.payload.clear) return;
         
            const { typeId } = action.meta.arg;
-          const { available, unavailableResourceIds = [], message } = action.payload;
-      
-          // 1. Grab the full “catalog” for this type from your slice:
-          //    prefer resourcesByType if you populated it; otherwise fall back to filtering the flat list.
+           const { available, unavailableResourceIds = [], message } = action.payload;
            const allForType =
              (state.data.resourcesByType?.[typeId]) ??
              state.data.resources.filter(r =>
@@ -386,15 +390,18 @@ const resourceSlice = createSlice({
         state.error = null;
       })
       .addCase(deleteResource.fulfilled, (state, action) => {
+
         state.status = 'succeeded';
         state.loading = false;
-        state.data.resources = state.data.resources.filter(r => r._id !== action.payload);
+        state.data.resources = state.data.resources.filter(r => r._id !== action.payload.data.id); // Correct immutable update
         state.data.total -= 1;
-        if (state.currentResource?._id === action.payload) {
-          state.currentResource = null;
-        }
-      })
+        
+        // if (state.currentResource?._id === action.payload.data.id) {
+        //     state.currentResource = null;
+        // }
+    })
       .addCase(deleteResource.rejected, (state, action) => {
+      
         state.status = 'failed';
         state.loading = false;
         state.error = action.payload;
@@ -428,7 +435,8 @@ export const {
   setCurrentResource,
   resetResourceState,
   clearAvailableResources,
-  clearRecurringConflict 
+  clearRecurringConflict,
+  clearError
 } = resourceSlice.actions;
 
 export default resourceSlice.reducer;

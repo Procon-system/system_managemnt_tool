@@ -81,13 +81,6 @@ const initialState = {
 };
 const resourceTypeSlice = createSlice({
   name: 'resourceTypes',
-  // initialState: {
-  //   resourceTypes: [],
-  //   status: 'idle',
-  //   loading: false,
-  //   error: null,
-  //   lastSocketUpdate: null
-  // },
   initialState,
   reducers: {
     // Add this new reducer for socket updates

@@ -587,7 +587,6 @@ openForm(updatedEvent);
                     alignItems: 'center',
                     zIndex: '5'
                 });
-        console.log("userssss",users)
                 // Create the individual user badges (no changes here)
                 users.slice(0, 3).forEach((user) => {
                     const name = user?.name || user?.first_name || 'Unknown';

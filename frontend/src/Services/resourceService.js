@@ -81,18 +81,32 @@ const resourceService = {
     }
   },
 
-  deleteResource: async (id, token) => {
+  // deleteResource: async (id, token) => {
+  //   try {
+  //       await axios.delete(`${API_URL}/${id}`, {
+  //         headers: { Authorization: `Bearer ${token}` }
+  //       });
+  //       return id;
+     
+  //   } catch (error) {
+  //     throw error.response?.data || error.message;
+  //   }
+  // },
+  deleteResource: async (id, token, force = false) => {
     try {
-        await axios.delete(`${API_URL}/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        return id;
+        const config = {
+            headers: { Authorization: `Bearer ${token}` }
+        };
+        const url = force ? `${API_URL}/${id}?force=true` : `${API_URL}/${id}`;
+
+        const response = await axios.delete(url, config);
+        return response.data; // Return the full response data
      
     } catch (error) {
-      throw error.response?.data || error.message;
+      console.error("Error in resourceService.deleteResource:", error.response?.data || error.message);
+      throw error.response?.data || error.message; 
     }
   },
-
   
 };
 

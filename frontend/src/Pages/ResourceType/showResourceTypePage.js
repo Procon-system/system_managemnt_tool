@@ -4,15 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import {FiTrash2,FiEdit2} from 'react-icons/fi';
 import {
   deleteResourceType,
-  resetResourceTypeState,
   resourceTypeDeleted,
-  fetchResourceTypes,
   addResourceTypeFromSocket
 } from '../../features/resourceTypeSlice';
 import { io } from 'socket.io-client';
 import RenderDynamicIcon from '../../Components/common/RenderDynamicIcon';
 import EditResourceTypeModal from '../../Components/resourceTypeComponents/editResourceTypeModal';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const ResourceTypesPage = () => {

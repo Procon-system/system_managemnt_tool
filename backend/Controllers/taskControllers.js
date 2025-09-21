@@ -137,8 +137,6 @@ exports.createTask = async (req, res) => {
             const orgId = req.user.org_id.toString();
             const cacheKeyToInvalidate = `tasks:assigned:user:${userId}:org:${orgId}`;
             await cache.del(cacheKeyToInvalidate);
-            console.log(`[Cache] Invalidated key: ${cacheKeyToInvalidate}`);
-            console.log("createdtask",createdTask)
             notifyUser(userId, 'task:created', {
               createdTask,
               taskId: task._id,

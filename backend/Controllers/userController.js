@@ -121,7 +121,7 @@ class UserController {
       const { User } = req.tenantModels || {};
       const Superadmin = mongoose.model('Superadmin');
       const TenantUser = mongoose.model('TenantUser');
-
+      const cache = req.tenantCache;
       await userService.deleteSelf({
         requester: req.user,
         models: { Superadmin, TenantUser, TenantUserInOrg: User },
