@@ -305,7 +305,7 @@ exports.updateTask = async (req, res) => {
     const updateData = {};
     const mongoose = require('mongoose');
     const { Task , Resource,Notification,ResourceBooking } = req.tenantModels;
-   
+   console.log("req.body",req.body);
     // Parse the assigned_resources if it exists
     if (req.body.assigned_resources) {
       const assignedResources = JSON.parse(req.body.assigned_resources);
@@ -379,7 +379,6 @@ exports.updateTask = async (req, res) => {
 
     // Handle status color
     if (req.body.status) {
-      
       updateData.color_code = getColorForStatus(req.body.status);
     }
     const updatedTask = await taskService.updateTask(

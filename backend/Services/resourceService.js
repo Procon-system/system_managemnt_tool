@@ -224,37 +224,75 @@ exports.updateResource = async (resourceId, updateData, organizationId,ResourceM
 //   // Good practice to return something to confirm deletion
 //   return { deleted: true, id: resourceId };
 // };
-exports.deleteResource = async (resourceId, organizationId, ResourceModel, TaskModel, forceDelete = false) => { 
-  // If not forcing deletion, check if the resource is referenced in any tasks
-  if (!forceDelete) {
-    const taskCount = await TaskModel.countDocuments({ 
-      'resources.resource': resourceId, // Make sure this path matches your Task schema
-      organization: organizationId
-    });
+// exports.deleteResource = async (resourceId, organizationId, ResourceModel, TaskModel, forceDelete = false) => { 
+//   // If not forcing deletion, check if the resource is referenced in any tasks
+//   if (!forceDelete) {
+//     const taskCount = await TaskModel.countDocuments({ 
+//       'resources.resource': resourceId, // Make sure this path matches your Task schema
+//       organization: organizationId
+//     });
     
-    if (taskCount > 0) {
-      // If tasks are found and we're not forcing, return a warning
-      return { 
-        canDelete: false, 
-        warning: `This resource is assigned to ${taskCount} task(s). Deleting it will remove it from these tasks.`,
-        taskCount: taskCount
-      };
-    }
+//     if (taskCount > 0) {
+//       // If tasks are found and we're not forcing, return a warning
+//       return { 
+//         canDelete: false, 
+//         warning: `This resource is assigned to ${taskCount} task(s). Deleting it will remove it from these tasks.`,
+//         taskCount: taskCount
+//       };
+//     }
+//   }
+//   await TaskModel.updateMany(
+//     { 'resources.resource': resourceId, organization: organizationId },
+//     { $pull: { resources: { resource: resourceId } } }
+//   );
+
+//   const resource = await ResourceModel.findOneAndDelete({
+//     _id: resourceId,
+//     organization: organizationId
+//   });
+  
+//   if (!resource) {
+//     throw new Error('Resource not found');
+//   }
+
+//   // Return success
+//   return { canDelete: true, deleted: true, id: resourceId };
+// };
+const mongoose = require('mongoose');
+
+exports.deleteResource = async (resourceId, organizationId, ResourceModel, TaskModel, forceDelete = false) => {
+  const rid = new mongoose.Types.ObjectId(resourceId);
+  const oid = new mongoose.Types.ObjectId(organizationId);
+
+  // 1) Count references (respect forceDelete)
+  const taskCount = await TaskModel.countDocuments({
+    'resources.resource': rid,
+    organization: oid,
+  });
+
+  if (!forceDelete && taskCount > 0) {
+    return {
+      canDelete: false,
+      warning: `This resource is assigned to ${taskCount} task(s). Deleting it will remove it from these tasks.`,
+      taskCount,
+    };
   }
-  await TaskModel.updateMany(
-    { 'resources.resource': resourceId, organization: organizationId },
-    { $pull: { resources: { resource: resourceId } } }
+
+  // 2) Detach from tasks BEFORE deleting the resource doc
+  const pullRes = await TaskModel.updateMany(
+    { 'resources.resource': rid, organization: oid },
+    { $pull: { resources: { resource: rid } } }
+  );
+  // Helpful diagnostics
+  console.log(
+    `[RESOURCES] Pulled resource ${rid} from tasks in org ${oid}. matched=${pullRes.matchedCount ?? pullRes.n}, modified=${pullRes.modifiedCount ?? pullRes.nModified}`
   );
 
-  const resource = await ResourceModel.findOneAndDelete({
-    _id: resourceId,
-    organization: organizationId
-  });
-  
+  // 3) Delete the resource itself
+  const resource = await ResourceModel.findOneAndDelete({ _id: rid, organization: oid });
   if (!resource) {
     throw new Error('Resource not found');
   }
 
-  // Return success
-  return { canDelete: true, deleted: true, id: resourceId };
+  return { canDelete: true, deleted: true, id: resourceId, taskCount };
 };
