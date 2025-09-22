@@ -399,7 +399,7 @@ exports.updateTask = async (req, res) => {
     .populate([
       {
         path: 'assignments.user',
-        select: 'first_name last_name color' // Only fetch what's needed
+        select: 'first_name last_name email color' // Only fetch what's needed
       },
       {
         path: 'resources.resource',
@@ -453,9 +453,11 @@ exports.updateTask = async (req, res) => {
           // Map assignments to the desired structure
           assigned_to: (taskForPayload.assignments || []).map(a => {
               if (!a.user) return null; // Handle potential null users
+            
               return {
                   id: a.user._id.toString(),
-                  name: `${a.user.first_name || ''} ${a.user.last_name || ''}`.trim()
+                  name: `${a.user.first_name || ''} ${a.user.last_name || ''}`.trim(),
+                  email: a.user.email
               };
           }).filter(Boolean), // Filter out any nulls
 
@@ -475,7 +477,6 @@ exports.updateTask = async (req, res) => {
               timezone: taskForPayload.schedule.timezone
           }
       };
-
       // 4. Publish the message
       const message = JSON.stringify(payload);
       mqttClient.publish(topic, message, { qos: 1 }, (err) => {
