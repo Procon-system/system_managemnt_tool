@@ -260,7 +260,7 @@ exports.createTask = async (req, res) => {
       assigned_to:    (task.assignments || []).map(a => ({
                          id:   a.user?._id.toString(),
                          name: `${a.user?.first_name} ${a.user?.last_name}`,
-                         email:   a.user.email,
+                         email:   a.user?.email,
                        })),
       resources:      (task.resources || []).map(r => ({
                          resource: r.resource?._id.toString(),
@@ -305,7 +305,6 @@ exports.updateTask = async (req, res) => {
     const updateData = {};
     const mongoose = require('mongoose');
     const { Task , Resource,Notification,ResourceBooking } = req.tenantModels;
-   console.log("req.body",req.body);
     // Parse the assigned_resources if it exists
     if (req.body.assigned_resources) {
       const assignedResources = JSON.parse(req.body.assigned_resources);

@@ -1,9 +1,8 @@
 // helpers/broadcastAdminNotifications.js
 async function broadcastAdminNotifications({ orgId, createdTask, NotificationModel, tenantDB, notifyAccessRange }) {
-    const UserModel =
-      tenantDB.models.get?.('TenantUser') || tenantDB.models.get?.('User') ||
-      tenantDB.model?.('TenantUser')      || tenantDB.model?.('User');
-  
+ 
+  const UserModel =tenantDB.models?.get?.('User') || tenantDB.model?.('User');
+      // tenantDB.models?.get?.('TenantUser') || tenantDB.model?.('TenantUser')      || 
     if (!UserModel) {
       console.warn('[AdminNotif] No User model found; sending socket only.');
       notifyAccessRange(orgId, 3, 5, 'task:created:admin', task);
