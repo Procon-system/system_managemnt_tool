@@ -30,7 +30,6 @@ exports.createResourceType = async (req, res) => {
     sendResponse(res, error.statusCode || 500, error.message, null);
   }
 };
-
 exports.getResourceTypes = async (req, res) => {
   try {
     const orgId = req.user.org_id;
@@ -53,7 +52,6 @@ exports.getResourceTypes = async (req, res) => {
     sendResponse(res, 500, error.message, null);
   }
 };
-
 exports.getResourceTypeById = async (req, res) => {
   try {
     const orgId = req.user.org_id;
@@ -80,7 +78,6 @@ exports.getResourceTypeById = async (req, res) => {
     sendResponse(res, 500, error.message, null);
   }
 };
-
 exports.updateResourceType = async (req, res) => {
   try {
     const orgId = req.user.org_id;
@@ -99,23 +96,67 @@ exports.updateResourceType = async (req, res) => {
     sendResponse(res, 500, error.message, null);
   }
 };
+// exports.deleteResourceType = async (req, res) => {
+//   try {
+//     const orgId = req.user.org_id;
+//     const userId = req.user._id;
+//     const typeId = req.params.id;
+//     const cache = req.tenantCache;
+//     const { ResourceType,Resource,Task} = req.tenantModels;
 
+//     const result = await resourceTypeService.deleteResourceType(
+//       typeId,
+//       ResourceType,
+//       Resource,
+//       Task,
+//       { orgId, userId }
+//     );
+
+//     // Invalidate caches
+//     await cache.del(`resourceType:${typeId}`);
+//     await cache.del(`resourceTypes:${orgId}`);
+//     await cache.delPattern(`tasks:org:${req.user.org_id}:*`);
+//     sendResponse(res, 200, 'Resource type archived', result);
+//   } catch (error) {
+//     sendResponse(res, 400, error.message, null);
+//   }
+// };
+// controller
 exports.deleteResourceType = async (req, res) => {
   try {
     const orgId = req.user.org_id;
+    const userId = req.user._id;
     const typeId = req.params.id;
-    const cache = req.tenantCache;
-    const { ResourceType, Resource } = req.tenantModels;
+    const confirm = String(req.query.confirm || '').toLowerCase() === 'true';
 
-    await resourceTypeService.deleteResourceType(typeId, ResourceType, Resource);
+    const { ResourceType, Resource, Task } = req.tenantModels;
 
-    // Invalidate cache
-    await cache.del(`resourceType:${typeId}`);
-    await cache.del(`resourceTypes:${orgId}`);
-    console.log(`[CACHE][DEL] resourceType:${typeId} and resourceTypes:${orgId} after delete`);
+    // compute impact first
+    const { preview, canDelete } = await resourceTypeService.previewImpact(
+      typeId, ResourceType, Resource, Task, { orgId }
+    );
 
-    sendResponse(res, 200, 'Resource type deleted successfully', null);
-  } catch (error) {
-    sendResponse(res, 500, error.message, null);
+    if (!confirm) {
+      // no change; just return preview
+      return sendResponse(res, 412, 'Confirmation required', preview);
+    }
+
+    if (!canDelete) {
+      return sendResponse(res, 400, 'Cannot archive this type', null);
+    }
+
+    // do the actual delete
+    const result = await resourceTypeService.deleteResourceType(
+      typeId, ResourceType, Resource, Task, { orgId, userId }
+    );
+
+    // clear caches...
+    await req.tenantCache.del(`resourceType:${typeId}`);
+    await req.tenantCache.del(`resourceTypes:${orgId}`);
+    await req.tenantCache.delPattern(`tasks:org:${orgId}:*`);
+
+    sendResponse(res, 200, 'Resource type archived', result);
+  } catch (e) {
+    sendResponse(res, 400, e.message, null);
   }
 };

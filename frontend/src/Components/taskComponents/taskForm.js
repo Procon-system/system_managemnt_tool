@@ -72,10 +72,23 @@ const getInitialFormData = (initialData,currentUser) => {
         task_period: null,
     };
 };
+const parseLocalDateTime = (s) => {
+    if (!s) return null;
+    const [y, m, dTime] = s.split("-");
+    const [d, hm] = [dTime.slice(0,2), dTime.slice(3)];
+    const [hh, mm] = hm.split(":").map(Number);
+    const dt = new Date();
+    dt.setFullYear(Number(y));
+    dt.setMonth(Number(m) - 1);
+    dt.setDate(Number(d));
+    dt.setHours(hh, mm, 0, 0);
+    return isNaN(dt.valueOf()) ? null : dt;
+  };
+  
 const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
     const currentUser = useSelector((state) => state.auth.user);
     const isRegularUser = currentUser?.access_level === 2;
-
+    const [endManuallyEdited, setEndManuallyEdited] = useState(false);
     const [formData, setFormData] = useState(() => getInitialFormData(initialData, currentUser));
 
     useEffect(() => {
@@ -246,18 +259,55 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
         onSubmit(formData);
     };
    
-    const handleChange = useCallback((e) => {
-        const { name, value } = e.target;
-        if (name === "assigned_to" && isRegularUser) {
-            return;
-        }
-        setFormData(prev => ({ ...prev, [name]: value }));
-    }, [isRegularUser]); 
+    // const handleChange = useCallback((e) => {
+    //     const { name, value } = e.target;
+    //     if (name === "assigned_to" && isRegularUser) {
+    //         return;
+    //     }
+        
+    //     setFormData(prev => ({ ...prev, [name]: value }));
+    // }, [isRegularUser]); 
 
     const handleNotesChange = (value) => {
         setFormData({ ...formData, notes: value });
     };
-
+    const handleChange = useCallback((e) => {
+        const { name, value } = e.target;
+      
+        // keep your rule
+        if (name === "assigned_to" && isRegularUser) return;
+      
+        setFormData((prev) => {
+          const next = { ...prev, [name]: value };
+      
+          if (name === "end_time") {
+            // user touched end_time → stop auto-syncing afterwards
+            setEndManuallyEdited(true);
+      
+            // guard: don't allow end before start (snap to start+1h)
+            const start = parseLocalDateTime(next.start_time);
+            const end = parseLocalDateTime(value);
+            if (start && end && end < start) {
+              next.end_time = formatDateTimeLocal(new Date(start.getTime() + 60 * 60 * 1000));
+            }
+            return next;
+          }
+      
+          if (name === "start_time" && !endManuallyEdited) {
+            // auto set end = start + 1h (only while user hasn't edited end_time)
+            const start = parseLocalDateTime(value);
+            if (start) {
+              next.end_time = formatDateTimeLocal(new Date(start.getTime() + 60 * 60 * 1000));
+            } else {
+              // if start was cleared/invalid, clear end too
+              next.end_time = "";
+            }
+          }
+      
+          return next;
+        });
+      }, [isRegularUser, endManuallyEdited]);
+      
     return (
         // The rest of your JSX remains the same
         <form onSubmit={handleSubmit} className="space-y-4 p-4 mt-7 md:px-6 bg-blue-50 shadow-md rounded-md max-w-full lg:max-w-6xl lg:mr-4">
@@ -281,23 +331,7 @@ const TaskForm = ({ onSubmit, initialData = {}, resourceTypes }) => {
                             onChange={handleChange}
                         />
                     </div>
-                    {/* <div>
-                        <DynamicFormField
-                            field={{
-                                fieldName: "assigned_to",
-                                displayName: "Assign To",
-                                fieldType: "select",
-                                multiple: true,
-                                options: users.map(user => ({
-                                    label: user.name || user.email,
-                                    value: user._id
-                                }))
-                            }}
-                            value={formData.assigned_to || []}
-                            onChange={handleChange}
-                            isLoading={usersLoading}
-                        />
-                    </div> */}
+                    
                     <div>
                     {isRegularUser ? (
                         // If user has access_level 2, show a disabled field with their name.

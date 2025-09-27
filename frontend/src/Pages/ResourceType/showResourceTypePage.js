@@ -3,7 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {FiTrash2,FiEdit2} from 'react-icons/fi';
 import {
-  deleteResourceType,
+  previewDeleteResourceType, 
+  confirmDeleteResourceType ,
   resourceTypeDeleted,
   addResourceTypeFromSocket
 } from '../../features/resourceTypeSlice';
@@ -12,12 +13,16 @@ import RenderDynamicIcon from '../../Components/common/RenderDynamicIcon';
 import EditResourceTypeModal from '../../Components/resourceTypeComponents/editResourceTypeModal';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
+import ConfirmArchiveModal from "../../Components/resourceTypeComponents/ConfirmArchiveModal";
 const ResourceTypesPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const API_URL = process.env.REACT_APP_API_URL;
-  
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null); 
+  const [previewData, setPreviewData] = useState(null);
+
   // Get state from Redux store
   const { user, access_level } = useSelector((state) => state.auth);
   const { resourceTypes, loading, error } = useSelector((state) => state.resourceTypes);
@@ -69,18 +74,37 @@ const ResourceTypesPage = () => {
 
  
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this resource type? This cannot be undone.')) {
-      const resultAction = await dispatch(deleteResourceType(id));
-
-      if (deleteResourceType.fulfilled.match(resultAction)) {
-        toast.success('Resource type deleted successfully'); // USE LIBRARY
+    // Step 1: ask server for preview (DELETE ?confirm=false)
+    const action = await dispatch(previewDeleteResourceType(id));
+    if (previewDeleteResourceType.fulfilled.match(action)) {
+      const { needConfirm, preview} = action.payload || {};
+      if (needConfirm) {
+        // Step 2: show modal with counts
+        setConfirmTarget(id);
+        setPreviewData(preview);
+        setConfirmOpen(true);
       } else {
-        if (resultAction.payload) {
-          toast.error(resultAction.payload); // USE LIBRARY
-        } else {
-          toast.error('Failed to delete resource type. Please try again.'); // USE LIBRARY
-        }
+        // Rare case: server already archived – show toast from result
+        toast.success("Resource type archived");
       }
+    } else {
+      toast.error(action.payload || "Failed to fetch delete preview");
+    }
+  };
+
+  const onConfirmArchive = async () => {
+    
+    if (!confirmTarget) return;
+    setConfirmBusy(true);
+    const action = await dispatch(confirmDeleteResourceType(confirmTarget));
+    setConfirmBusy(false);
+    setConfirmOpen(false);
+
+    if (confirmDeleteResourceType.fulfilled.match(action)) {
+      const { affectedTasks = 0, pulledResources = 0 } = action.payload || {};
+      toast.success(`Archived. Removed ${pulledResources} resource link(s) from ${affectedTasks} active task(s).`);
+    } else {
+      toast.error(action.payload || "Failed to archive resource type.");
     }
   };
 
@@ -207,6 +231,14 @@ const ResourceTypesPage = () => {
     onClose={handleCloseModal}
     resourceTypeToEdit={selectedResourceType}
   />
+   <ConfirmArchiveModal
+        open={confirmOpen}
+        name={confirmTarget?.name}
+        preview={previewData}
+        busy={confirmBusy}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={onConfirmArchive}
+      />
   </>
   );
 };

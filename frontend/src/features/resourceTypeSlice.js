@@ -72,12 +72,40 @@ export const deleteResourceType = createAsyncThunk(
     }
   }
 );
+
+export const previewDeleteResourceType = createAsyncThunk(
+  "resourceTypes/previewDelete",
+  async (id, { getState, dispatch, rejectWithValue }) => {
+    const token = getState().auth.token;
+    if (checkTokenAndLogout(token, dispatch)) return rejectWithValue("Auth");
+    try {
+      return await resourceTypeService.getArchivePreview(id, token); // { needConfirm, preview|result }
+    } catch (e) {
+      return rejectWithValue(e.message);
+    }
+  }
+);
+
+export const confirmDeleteResourceType = createAsyncThunk(
+  "resourceTypes/confirmDelete",
+  async (id, { getState, dispatch, rejectWithValue }) => {
+    const token = getState().auth.token;
+    if (checkTokenAndLogout(token, dispatch)) return rejectWithValue("Auth");
+    try {
+      const result = await resourceTypeService.confirmArchive(id, token);
+      return { id, ...result }; // { id, ok, archived, affectedTasks, pulledResources }
+    } catch (e) {
+      return rejectWithValue(e.message);
+    }
+  }
+);
 const initialState = {
   resourceTypes: [],
   status: 'idle',
   loading: false, // You might consider removing this and just using 'status'
   error: null,
-  lastSocketUpdate: null
+  lastSocketUpdate: null,
+  
 };
 const resourceTypeSlice = createSlice({
   name: 'resourceTypes',
@@ -109,7 +137,7 @@ const resourceTypeSlice = createSlice({
     },
     resourceTypeDeleted: (state, action) => {
       state.resourceTypes = state.resourceTypes.filter(
-        rt => rt._id !== action.payload
+        rt => rt._id !== action.payload.id
       );
     },
     resetResourceTypeState: (state) => {
@@ -191,16 +219,16 @@ const resourceTypeSlice = createSlice({
         state.error = action.payload;
       })
      
-       .addCase(deleteResourceType.pending, (state) => {
+       .addCase(confirmDeleteResourceType.pending, (state) => {
          state.status = 'loading'; 
       })
-      .addCase(deleteResourceType.fulfilled, (state, action) => {
+      .addCase(confirmDeleteResourceType.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.resourceTypes = state.resourceTypes.filter(
-          rt => rt._id !== action.payload
+          rt => rt._id !== action.payload.id
         );
       })
-      .addCase(deleteResourceType.rejected, (state, action) => {
+      .addCase(confirmDeleteResourceType.rejected, (state, action) => {
         state.status = 'failed';
         state.loading = false; // Ensure loading is always reset
         console.warn('Delete resource type failed:', action.payload); // Good for debugging

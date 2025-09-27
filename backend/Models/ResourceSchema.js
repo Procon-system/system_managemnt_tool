@@ -17,7 +17,7 @@ module.exports = (connection) => {
     },
     isBlockableOverride: {
       type: Boolean,
-      default: null // `null` means "inherit from type". `true` or `false` will override the type's setting.
+      default: null 
     },
     displayName: {
       type: String,

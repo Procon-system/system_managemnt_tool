@@ -15,6 +15,11 @@ module.exports = (connection) => {
       ref: 'Organization',
       required: true
     },
+     // SOFT DELETE
+     isDeleted: { type: Boolean, default: false },
+     deletedAt: { type: Date },
+     deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+ 
     isBlockable: {
       type: Boolean,
       default: false 
@@ -71,9 +76,18 @@ module.exports = (connection) => {
     }
   });
 
-  // Indexes
-  resourceTypeSchema.index({ name: 1 }, { unique: true });
-  resourceTypeSchema.index({ isSystem: 1 });
+  // resourceTypeSchema.index({ organization: 1,name: 1 }, { unique: true });
+  // resourceTypeSchema.index({ isSystem: 1 });
+ 
+  resourceTypeSchema.index(
+  { organization: 1, name: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+);
+resourceTypeSchema.index({ organization: 1, isDeleted: 1 });
+resourceTypeSchema.index({ isSystem: 1 });
 
+resourceTypeSchema.pre('findOneAndDelete', function () {
+  throw new Error('Hard deletes disabled. Use soft delete.');
+});
   return connection.model('ResourceType', resourceTypeSchema);
 };

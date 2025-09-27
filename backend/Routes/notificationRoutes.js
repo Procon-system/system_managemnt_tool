@@ -8,8 +8,7 @@ router.post('/register-push-token', async (req, res) => {
     try {
       const { PushToken } = req.tenantModels;
       const { token, platform } = req.body;
-  console.log("token, platform ",token, platform )
-  console.log("req.tenantModels",req.tenantModels)
+ 
       if (!token) return res.status(400).json({ success: false, message: 'token required' });
   
       const doc = await PushToken.findOneAndUpdate(
@@ -31,5 +30,5 @@ router.post('/register-push-token', async (req, res) => {
     }
   });
   
-  module.exports = router;
+
 module.exports = router;

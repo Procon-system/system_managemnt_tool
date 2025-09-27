@@ -64,7 +64,7 @@ exports.createResourceType = async (typeData, ResourceTypeModel) => {
   }
 };
 exports.getResourceTypes = async (ResourceTypeModel) => {
-  return await ResourceTypeModel.find({});
+  return await ResourceTypeModel.find({ isDeleted: { $ne: true }});
 };
 
 exports.getResourceTypeById = async (typeId, ResourceTypeModel) => {
@@ -89,18 +89,70 @@ exports.updateResourceType = async (typeId, updateData, ResourceTypeModel) => {
   return updated;
 };
 
-exports.deleteResourceType = async (typeId, ResourceTypeModel, ResourceModel) => {
-  const resourceCount = await ResourceModel.countDocuments({ type: typeId });
-
-  if (resourceCount > 0) {
-    throw new Error('Cannot delete resource type that has existing resources');
+// services/resourceTypeService.js
+exports.deleteResourceType = async function deleteResourceType(
+  typeId,
+  ResourceTypeModel,
+  ResourceModel,
+  TaskModel,
+  { orgId, userId }
+) {
+  const res = await ResourceTypeModel.updateOne(
+    { _id: typeId, organization: orgId, isDeleted: false },
+    { $set: { isDeleted: true, deletedAt: new Date(), deletedBy: userId } }
+  );
+  if (res.matchedCount === 0) {
+    throw new Error("Resource type not found or already archived");
   }
 
-  const deleted = await ResourceTypeModel.findByIdAndDelete(typeId);
+  // 2) Collect resources that belong to this type
+  const resourceIds = await ResourceModel.find(
+    { organization: orgId, type: typeId },
+    { _id: 1 }
+  ).lean().then(rows => rows.map(r => r._id));
 
-  if (!deleted) {
-    throw new Error('Resource type not found');
+  if (resourceIds.length === 0) {
+    return { ok: true, archived: true, affectedTasks: 0, pulledResources: 0 };
   }
 
-  return deleted;
+  // 3) Pull those resources from tasks that are NOT done
+  const upd = await TaskModel.updateMany(
+    {
+      organization: orgId,
+      status: { $ne: 'done' },
+      'resources.resource': { $in: resourceIds }
+    },
+    {
+      $pull: { resources: { resource: { $in: resourceIds } } }
+    }
+  );
+
+  return {
+    ok: true,
+    archived: true,
+    affectedTasks: upd.modifiedCount || 0,
+    pulledResources: resourceIds.length
+  };
+
+};
+// service
+exports.previewImpact = async (typeId, ResourceType, Resource, Task, { orgId }) => {
+  const rt = await ResourceType.findOne({ _id: typeId, organization: orgId }).lean();
+  if (!rt) throw new Error('Resource type not found');
+
+  const resourceIds = await Resource.find({ organization: orgId, type: typeId }, { _id: 1 })
+    .lean().then(rs => rs.map(r => r._id));
+
+  const affectedTasks = resourceIds.length
+    ? await Task.countDocuments({
+        organization: orgId,
+        status: { $ne: 'done' },
+        'resources.resource': { $in: resourceIds }
+      })
+    : 0;
+
+  return {
+    preview: { resourceCount: resourceIds.length, affectedTasks },
+    canDelete: true
+  };
 };

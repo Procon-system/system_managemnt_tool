@@ -65,8 +65,6 @@ exports.createTask = async (req, res) => {
   try {
     const { Task, Resource, Notification, ResourceBooking,PushToken} = req.tenantModels;
     const cache = req.tenantCache;
-   
-    
     // Validate required fields
     if (!req.body.title || !req.body.schedule?.start || !req.body.schedule?.end) {
       return res.status(400).json({
@@ -172,66 +170,57 @@ exports.createTask = async (req, res) => {
         
       }
      
-      try {
-        const assignedUserIds = (task.assignments || [])
-          .map((a) => a?.user?._id?.toString())
-          .filter(Boolean);
-        if (assignedUserIds.length) {
-          const tokenDocs = await PushToken.find({
-            user: { $in: assignedUserIds },
-            organization: req.user.org_id,
-          })
-            .select("token")
-            .lean();
 
-          const tokens = tokenDocs.map((d) => d.token);
-          
-          if (tokens.length) {
-            const title = "New Task Assigned";
-            const body = `“${task.title}” starting ${new Date(task.schedule.start).toLocaleString()}`;
-            const data = {
-              type: "task:assigned",
-              taskId: task._id.toString(),
-              orgId: req.user.org_id.toString(),
-              // add any deep link params you handle client-side
-            };
+try {
+  const assignedUserIds = (task.assignments || [])
+    .map(a => a?.user?._id?.toString())
+    .filter(Boolean);
 
-            const messages = buildMessages(tokens, { title, body, data });
-            
-            if (messages.length) {
-              const tickets = await sendPushBatch(messages);
+  if (assignedUserIds.length) {
+    const tokenDocs = await PushToken.find({
+      user: { $in: assignedUserIds },
+      organization: req.user.org_id,
+    }).select("token").lean();
 
-              // (Optional) prune bad tokens
-              const receiptsChunks = await fetchAndHandleReceipts(tickets);
-              const badTokens = new Set();
-              // Map ticket id -> token (preserve order mapping)
-              const idToToken = new Map();
-              tickets.forEach((t, i) => {
-                if (t?.id) idToToken.set(t.id, tokens[i]);
-              });
+    const tokens = tokenDocs.map(d => d.token);
+    if (tokens.length) {
+      const title = "New Task Assigned";
+      const body  = `“${task.title}” starting ${new Date(task.schedule.start).toLocaleString()}`;
+      const data  = { type: "task:assigned", taskId: task._id.toString(), orgId: req.user.org_id.toString() };
 
-              for (const chunk of receiptsChunks) {
-                for (const [ticketId, r] of Object.entries(chunk)) {
-                  if (r.status === "error") {
-                    const err = r.details?.error;
-                    if (err === "DeviceNotRegistered" || err === "InvalidCredentials") {
-                      const tok = idToToken.get(ticketId);
-                      if (tok) badTokens.add(tok);
-                    }
-                    console.warn("[ExpoPush] error receipt:", r);
-                  }
-                }
-              }
-              if (badTokens.size) {
-                await PushToken.deleteMany({ token: { $in: Array.from(badTokens) } });
-                console.log(`[ExpoPush] Pruned ${badTokens.size} invalid push tokens`);
+      const messages = buildMessages(tokens, { title, body, data });
+      if (messages.length) {
+        const tickets = await sendPushBatch(messages); // helper handles chunking/sending
+
+        // Map ticket.id -> token using the messages' order
+        const idToToken = new Map();
+        tickets.forEach((t, i) => { if (t?.id) idToToken.set(t.id, messages[i]?.to); });
+
+        // Check receipts and prune bad tokens
+        const receiptsChunks = await fetchAndHandleReceipts(tickets);
+        const badTokens = new Set();
+
+        for (const chunk of receiptsChunks) {
+          for (const [ticketId, r] of Object.entries(chunk)) {
+            if (r.status === "error") {
+              const err = r.details?.error;
+              if (err === "DeviceNotRegistered" || err === "InvalidCredentials") {
+                const tok = idToToken.get(ticketId);
+                if (tok) badTokens.add(tok);
               }
             }
           }
         }
-      } catch (pushErr) {
-        console.error("Expo push send error:", pushErr);
+        if (badTokens.size) {
+          await PushToken.deleteMany({ token: { $in: Array.from(badTokens) } });
+        }
       }
+    }
+  }
+} catch (pushErr) {
+  // Swallowing errors silently is risky; at least surface them to your error tracker if you use one.
+  // e.g., Sentry.captureException(pushErr);
+}
       const { mqttClient, opts} = require('../utils/mqttClient'); 
       const isFromMonitor = req._fromMqttMonitor === true || req.body?.origin === 'monitor';
       const orgIdStr = req.user.org_id.toString();

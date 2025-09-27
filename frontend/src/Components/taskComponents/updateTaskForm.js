@@ -219,8 +219,6 @@ const handleChange = (e) => {
     setNewImages((prevNewImages) => prevNewImages.filter((_, i) => i !== index));
   };
   const handleRecurrenceChange = useCallback((recurrenceValues) => {
-    // This function receives an object like { repeat_frequency: 'weekly', task_period: '2 weeks' }
-    // and merges it into the existing event state.
     setEditableEvent(prevEvent => ({
         ...prevEvent,
         ...recurrenceValues, 
@@ -229,13 +227,9 @@ const handleChange = (e) => {
 
   const onSubmit = (e) => {
     e.preventDefault();
-    // 1. Get the user's timezone, exactly like in handleEventResize
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const fallbackTimezoneOffset = new Date().getTimezoneOffset() / -60;
   const timezoneToUse = userTimezone || fallbackTimezoneOffset;
-
-  // 2. Call the adjustment function on the Date objects from our state
-  // This is the CRUCIAL step that mirrors your working code.
   const adjustedStartTime = adjustTimeForBackend(editableEvent.start, timezoneToUse);
   const adjustedEndTime = adjustTimeForBackend(editableEvent.end, timezoneToUse);
 
@@ -245,8 +239,8 @@ const handleChange = (e) => {
       images: images, 
       newImages: newImages,
       start: adjustedStartTime,
-    end: adjustedEndTime, 
-            assigned_resources: editableEvent.assigned_resources,
+      end: adjustedEndTime, 
+      assigned_resources: editableEvent.assigned_resources,
       notes: editableEvent.notes,
       repeat_frequency: editableEvent.repeat_frequency,
       task_period: editableEvent.task_period

@@ -1,5 +1,6 @@
 import FormInput from './formInput';
-import {SelectInput,SelectTaskPeriodInput} from './selectInput';
+import {SelectInput} from './selectInput';
+import SmartDateTimeInput from './smartDateTimeInput';
 import RichTextEditor from './richTextEditor';
 const DateTimeWithAdjust = ({ label, name, value, onChange }) => {
     const adjustTime = (hours) => {
@@ -63,62 +64,67 @@ const DateTimeWithAdjust = ({ label, name, value, onChange }) => {
         </div>
       );
     };
-const DynamicFormField = ({ field, value, onChange, options }) => {
- 
-  const selectOptions = options || field.options || [];
   
-    switch (field.fieldType) {
-      case 'text':
-        return (
-          <FormInput
-            label={field.displayName}
-            name={field.fieldName}
-            value={value}
-            onChange={onChange}
-            required={field.required}
-          />
-        );
-      case 'select':
-        
-        return (
-          <SelectInput
-            label={field.displayName}
-            name={field.fieldName}
-            value={value}
-            onChange={onChange}
-            options={selectOptions}
-            isMulti={field.multiple}
-            required={field.required}
-          />
-        );
-      case 'datetime':
-        return (
-          <DateTimeWithAdjust
-            label={field.displayName}
-            name={field.fieldName}
-            value={value}
-            onChange={onChange}
-          />
-        );
-      case 'richtext':
-        return (
-          <div>
-            <label className="block mb-1 text-sm font-medium text-gray-600">
-              {field.displayName}
-            </label>
-            <RichTextEditor value={value} onChange={onChange} />
-          </div>
-        );
-      default:
-        return (
-          <FormInput
-            label={field.displayName}
-            name={field.fieldName}
-            value={value}
-            onChange={onChange}
-            required={field.required}
-          />
-        );
-    }
-  };
+    const DynamicFormField = ({ field, value, onChange, options }) => {
+      const selectOptions = options || field.options || [];
+    
+      switch (field.fieldType) {
+        case "text":
+          return (
+            <FormInput
+              label={field.displayName}
+              name={field.fieldName}
+              value={value}
+              onChange={onChange}
+              required={field.required}
+            />
+          );
+    
+        case "select":
+          return (
+            <SelectInput
+              label={field.displayName}
+              name={field.fieldName}
+              value={value}
+              onChange={onChange}
+              options={selectOptions}
+              isMulti={field.multiple}
+              required={field.required}
+            />
+          );
+    
+        case "datetime":
+          return (
+            <SmartDateTimeInput
+              label={field.displayName}
+              name={field.fieldName}
+              value={value}
+              onChange={onChange}
+              required={field.required}
+            />
+          );
+    
+        case "richtext":
+          return (
+            <div>
+              <label className="block mb-1 text-sm font-medium text-gray-600">
+                {field.displayName}
+              </label>
+              <RichTextEditor value={value} onChange={onChange} />
+            </div>
+          );
+    
+        default:
+          return (
+            <FormInput
+              label={field.displayName}
+              name={field.fieldName}
+              value={value}
+              onChange={onChange}
+              required={field.required}
+            />
+          );
+      }
+    };
+    
   export default DynamicFormField;

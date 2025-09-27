@@ -170,7 +170,7 @@ module.exports = (connection) => {
 });
 
 // Indexes for better performance
-taskSchema.index({ organization: 1, status: 1 });
+taskSchema.index({ organization: 1, status: 1, 'resources.resource': 1 });
 taskSchema.index({ 'assignments.user': 1 });
 taskSchema.index({ tags: 1 });
 

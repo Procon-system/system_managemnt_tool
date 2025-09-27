@@ -58,6 +58,24 @@ const resourceTypeService = {
     } catch (error) {
       throw error.response?.data || error.message;
     }
+  },
+  getArchivePreview: async (id, token) => { 
+    const res = await axios.delete(`${API_URL}/${id}?confirm=false`, {
+      headers: { Authorization: `Bearer ${token}` },
+      validateStatus: (s) => s === 200 || s === 412 || s === 400 
+    });
+
+    if (res.status === 412) return { needConfirm: true, preview: res.data?.data };
+    if (res.status === 200) return { needConfirm: false, result: res.data?.data };
+    throw new Error(res.data?.message || "Failed to get preview");
+  },
+
+ 
+  confirmArchive: async (id, token) => {
+    const res = await axios.delete(`${API_URL}/${id}?confirm=true`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return res.data?.data;
   }
 };
 
