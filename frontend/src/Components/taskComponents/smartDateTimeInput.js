@@ -39,35 +39,82 @@ function combineLocal(dateStr, hh, mm) {
 }
 
 /** hour / minute spin box with keyboard + wheel */
+/** hour / minute spin box with keyboard + wheel (buffered typing) */
 function SpinBox({ label, value, min, max, step, onChange }) {
+  const [text, setText] = useState(pad(value));
+  const [focused, setFocused] = useState(false);
+
+  // keep in sync when parent value changes (e.g., via presets/nudges)
+  useEffect(() => {
+    if (!focused) setText(pad(value));
+  }, [value, focused]);
+
+  const commit = (str) => {
+    // sanitize -> int -> clamp
+    const digits = (str || '').replace(/\D/g, '');
+    if (digits === '') {
+      // empty -> revert to current controlled value
+      setText(pad(value));
+      return;
+    }
+    const n = parseInt(digits, 10);
+    const next = clamp(n, min, max);
+    onChange(next);
+    setText(pad(next));
+  };
+
   const onWheel = (e) => {
     e.preventDefault();
     const delta = e.deltaY < 0 ? step : -step;
     const next = clamp(value + delta, min, max);
     onChange(next);
+    setText(pad(next));
   };
+
   const onKeyDown = (e) => {
-    if (e.key === "ArrowUp") {
+    if (e.key === 'ArrowUp') {
       e.preventDefault();
-      onChange(clamp(value + step, min, max));
-    }
-    if (e.key === "ArrowDown") {
+      const next = clamp(value + step, min, max);
+      onChange(next);
+      setText(pad(next));
+    } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      onChange(clamp(value - step, min, max));
+      const next = clamp(value - step, min, max);
+      onChange(next);
+      setText(pad(next));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      commit(text);
+      // optional: blur on enter
+      e.currentTarget.blur();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setText(pad(value)); // revert
+      e.currentTarget.blur();
     }
-    if (e.key === "Escape") document.activeElement?.blur();
   };
+
   return (
     <div className="flex flex-col items-center">
       <input
         inputMode="numeric"
         pattern="[0-9]*"
+        value={text}
+        onFocus={(e) => {
+          setFocused(true);
+          // select all so typing replaces current
+          e.currentTarget.select();
+        }}
+        onBlur={() => {
+          setFocused(false);
+          commit(text); // normalize on blur
+        }}
         onWheel={onWheel}
         onKeyDown={onKeyDown}
-        value={pad(value)}
         onChange={(e) => {
-          const v = parseInt(e.target.value.replace(/\D/g, ""), 10);
-          if (!isNaN(v)) onChange(clamp(v, min, max));
+          // allow free typing of up to 2 digits; no immediate clamp
+          const digits = e.target.value.replace(/\D/g, '').slice(0, 2);
+          setText(digits);
         }}
         className="w-16 text-center text-lg font-semibold rounded-lg border px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
         aria-label={label}
@@ -77,6 +124,7 @@ function SpinBox({ label, value, min, max, step, onChange }) {
   );
 }
 
+
 function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChange, onClose }) {
   const popRef = useRef(null);
   const [style, setStyle] = useState({});
@@ -85,8 +133,8 @@ function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChang
   useEffect(() => {
     if (!open || !anchorRef?.current) return;
     const r = anchorRef.current.getBoundingClientRect();
-    const width = 280;
-    const height = 300;
+    const width = 380;  
+    const height = 260;  
     let left = r.left;
     let top = r.bottom + 8;
 
@@ -146,7 +194,6 @@ function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChang
     { label: "Now",            fn: () => new Date() },
     { label: "+15m",           fn: (b) => addMinutes(b, 15) },
     { label: "+30m",           fn: (b) => addMinutes(b, 30) },
-    { label: "+1h",            fn: (b) => addHours(b, 1) },
     { label: "Tonight 20:00",  fn: (b) => { const d = new Date(b); d.setHours(20, 0, 0, 0); return d; } },
     { label: "Tomorrow 09:00", fn: (b) => { const d = new Date(b); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d; } },
   ];
@@ -163,57 +210,106 @@ function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChang
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {/* Date */}
-      <div className="mb-3">
-        <label className="block text-xs text-gray-500 mb-1">Date</label>
-        <input
-          type="date"
-          value={dateStr}
-          onChange={onDateChange}
-          className="w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
-        />
+      {/* Top row: Date + Time (HH/MM) */}
+      <div className="flex items-start gap-4">
+        {/* Date */}
+        <div className="min-w-[180px]">
+          <label className="block text-xs text-gray-500 mb-1">Date</label>
+          <input
+            type="date"
+            value={dateStr}
+            onChange={onDateChange}
+            className="w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
+          />
+        </div>
+  
+        {/* Time (HH / MM) */}
+        <div className="flex flex-col items-center justify-center flex-1">
+          <label className="block text-xs text-gray-500 mb-1 self-start">Time</label>
+          <div className="flex items-center justify-center gap-3">
+            <SpinBox
+              label="HH"
+              value={hh}
+              min={0}
+              max={23}
+              step={1}
+              onChange={(v) => onChangeHM(v, mm)}
+            />
+            <span className="text-gray-400 select-none">:</span>
+            <SpinBox
+              label="MM"
+              value={mm}
+              min={0}
+              max={59}
+              step={5}
+              onChange={(v) => onChangeHM(hh, v - (v % 5))}
+            />
+          </div>
+        </div>
       </div>
+  
+<div className="mt-3 flex flex-col w-full gap-3">
 
-      {/* Time (HH / MM) */}
-      <div className="flex items-center justify-center gap-3">
-        <SpinBox label="HH" value={hh} min={0} max={23} step={1} onChange={(v) => onChangeHM(v, mm)} />
-        <span className="text-gray-400 select-none">:</span>
-        <SpinBox label="MM" value={mm} min={0} max={59} step={5} onChange={(v) => onChangeHM(hh, v - (v % 5))} />
-      </div>
+{/* Nudges — single row, 3 buttons split equally */}
+<div className="flex w-full gap-2">
+  <button
+    type="button"
+    onClick={() => bump("hh", +1)}
+    className="basis-0 flex-1 px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-sm text-center"
+  >
+    +1h
+  </button>
+  <button
+    type="button"
+    onClick={() => bump("mm", +5)}
+    className="basis-0 flex-1 px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-sm text-center"
+  >
+    +5m
+  </button>
+  <button
+    type="button"
+    onClick={() => bump("mm", -5)}
+    className="basis-0 flex-1 px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-sm text-center"
+  >
+    -5m
+  </button>
+</div>
 
-      {/* Nudges */}
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <button type="button" onClick={() => bump("hh", +1)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm">+1h</button>
-        <button type="button" onClick={() => bump("mm", +5)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm">+5m</button>
-        <button type="button" onClick={() => bump("mm", -5)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm">-5m</button>
-      </div>
+{/* Presets — multi-row flex, each button takes an equal fraction per row and wraps */}
+<div className="flex w-full flex-wrap gap-2">
+  {presets.map((p) => (
+    <button
+      key={p.label}
+      onClick={() => setPreset(p.fn)}
+      type="button"
+      className="
+        flex-1 basis-1/2
+        sm:basis-1/3
+        md:basis-1/4
+        lg:basis-1/6
+        px-3 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-sm text-center
+      "
+    >
+      {p.label}
+    </button>
+  ))}
+</div>
 
-      {/* Presets */}
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {presets.map((p) => (
-          <button
-            key={p.label}
-            onClick={() => setPreset(p.fn)}
-            type="button"
-            className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm"
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+{/* Actions */}
+<div className="flex w-full justify-end">
+  <button
+    type="button"
+    onClick={(e) => { e.stopPropagation(); onClose(); }}
+    className="px-3 py-2 rounded bg-gray-800 text-white text-sm"
+  >
+    Done
+  </button>
+</div>
+</div>
 
-      {/* Actions */}
-      <div className="mt-3 text-right space-x-2">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onClose(); }}
-          className="px-3 py-2 rounded bg-gray-800 text-white text-sm"
-        >
-          Done
-        </button>
-      </div>
     </div>
   );
+  
 }
 
 export default function SmartDateTimeInput({
