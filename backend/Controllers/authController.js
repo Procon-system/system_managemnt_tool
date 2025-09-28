@@ -243,7 +243,7 @@ const resetPasswordController = async (req, res) => {
     const { token } = req.params;
     const { password,confirmPassword } = req.body;
    
-    const result = await resetPassword(token, password);
+    const result = await resetPassword(token, password,confirmPassword);
 
     // Set cookie with new token
     res.cookie('jwt', result.token, {
