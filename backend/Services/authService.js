@@ -12,7 +12,7 @@ const {
   sendWelcomeEmail,
   sendResetPasswordLink
 } = require("../Helper/sendEmail");
-const { validateRegistration } = require('../Helper/validators');
+const { validateRegistration,validatePasswordReset } = require('../Helper/validators');
 const registerAdminUser = async (userData) => {
   const { 
     email, 
@@ -353,52 +353,64 @@ async function forgotPassword(email) {
   };
 }
 
-async function resetPassword(token, password) {
+async function resetPassword(token, password,confirmPassword) {
+
+  // Validate password using the helper
+  const { error } = validatePasswordReset({ password, confirmPassword });
+  if (error) {
+    // Combine all validation messages
+    const message = error.details.map(d => d.message).join('; ');
+    const err = new Error(message);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Verify and decode token
   let decoded;
-    try {
+  try {
     decoded = jwt.verify(token, process.env.RESET_PASSWORD_JWT_SECRET);
-  } catch (error) {
-    // Catches JsonWebTokenError, TokenExpiredError, etc.
-    throw new Error("Invalid or expired password reset token.");
+  } catch (e) {
+    const err = new Error('Invalid or expired password reset token.');
+    err.statusCode = 400;
+    throw err;
   }
 
   // Ensure the token's purpose is correct
   if (decoded.purpose !== 'password-reset') {
-      throw new Error("Invalid token.");
+    const err = new Error('Invalid token.');
+    err.statusCode = 400;
+    throw err;
   }
 
   const { id, tenantId } = decoded;
-  let user;
 
-  // 2. Find the user in the correct database using info from the token.
-  // NO LOOPING REQUIRED!
+  // Find the user in the correct DB
+  let user;
   if (tenantId) {
-    // It's a tenant user
     const tenantConn = await getOrganizationDB(tenantId);
     const User = tenantConn.models.get('User');
     user = await User.findById(id);
   } else {
-    // It's a Superadmin
     const Superadmin = mongoose.model('Superadmin');
     user = await Superadmin.findById(id);
   }
 
-  // 3. If user not found (e.g., deleted after token was sent)
   if (!user) {
-    throw new Error("User associated with this token no longer exists.");
+    const err = new Error('User associated with this token no longer exists.');
+    err.statusCode = 404;
+    throw err;
   }
 
-  // 4. Update password and save.
-  user.password = password; // Assuming a pre-save hook handles hashing
-  // No token fields to clear from the user model anymore.
+  // Update + save (assumes pre-save hook hashes password)
+  user.password = password;
   await user.save();
 
-  // 5. Generate a new authentication JWT for immediate login.
+  // Issue fresh auth token
   const authToken = user.generateAuthToken();
 
   return {
     success: true,
-    message: "Password has been reset successfully.",
+    message: 'Password has been reset successfully.',
     token: authToken
   };
 }

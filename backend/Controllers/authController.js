@@ -241,8 +241,8 @@ const forgotPasswordController = async (req, res) => {
 const resetPasswordController = async (req, res) => {
   try {
     const { token } = req.params;
-    const { password } = req.body;
-    
+    const { password,confirmPassword } = req.body;
+   
     const result = await resetPassword(token, password);
 
     // Set cookie with new token

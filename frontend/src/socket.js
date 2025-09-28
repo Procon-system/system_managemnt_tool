@@ -3,8 +3,6 @@ import store from "./Store/store"; // Your Redux store
 import { addNotification } from "./features/notificationSlice";
 import {
   addTask,
-  // updateTask, // We'll add this to your taskSlice
-  // removeTask, // We'll add this to your taskSlice
 } from "./features/taskSlice"; // Import new task actions
 
 let socket;

@@ -77,17 +77,16 @@ function SpinBox({ label, value, min, max, step, onChange }) {
   );
 }
 
-/** Popover with smart positioning to avoid overlapping columns */
 function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChange, onClose }) {
   const popRef = useRef(null);
   const [style, setStyle] = useState({});
 
-  // smart position (fixed) under the anchor, clamp to viewport
+  // Position under anchor, clamped to viewport
   useEffect(() => {
     if (!open || !anchorRef?.current) return;
     const r = anchorRef.current.getBoundingClientRect();
     const width = 280;
-    const height = 260;
+    const height = 300;
     let left = r.left;
     let top = r.bottom + 8;
 
@@ -97,15 +96,10 @@ function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChang
     if (left + width > vw - 8) left = Math.max(8, vw - width - 8);
     if (top + height > vh - 8) top = Math.max(8, r.top - height - 8);
 
-    setStyle({
-      position: "fixed",
-      top: `${top}px`,
-      left: `${left}px`,
-      width,
-    });
+    setStyle({ position: "fixed", top: `${top}px`, left: `${left}px`, width });
   }, [open, anchorRef]);
 
-  // close on outside click / Escape
+  // Close on outside click / Escape
   useEffect(() => {
     if (!open) return;
     function onDoc(e) {
@@ -123,41 +117,43 @@ function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChang
     };
   }, [open, onClose, anchorRef]);
 
+  // ✅ compute from current selection without a hook
+  const base = combineLocal(dateStr, hh, mm);
+
   if (!open) return null;
 
-  const bump = (key, delta) => {
-    if (key === "hh") onChangeHM(clamp(hh + delta, 0, 23), mm);
-    else onChangeHM(hh, (mm + delta + 60) % 60);
+  const addMinutes = (d, mins) => new Date(d.getTime() + mins * 60000);
+  const addHours   = (d, hrs)  => addMinutes(d, hrs * 60);
+
+  // Apply a Date to both date & time (round minutes to 5)
+  const applyDateTime = (d) => {
+    const roundedMin = d.getMinutes() - (d.getMinutes() % 5);
+    onDateChange({ target: { value: toLocalDateInput(d) } });
+    onChangeHM(d.getHours(), roundedMin);
   };
 
+  // SpinBox nudges (carry minute wrapping correctly)
+  const bump = (key, delta) => {
+    const cur = combineLocal(dateStr, hh, mm);
+    let next = new Date(cur);
+    if (key === "hh") next = addHours(cur, delta);
+    else next = addMinutes(cur, delta);
+    applyDateTime(next);
+  };
+
+  // Presets (relative to selected base; “Now” uses real time)
   const presets = [
-    { label: "Now", fn: () => new Date() },
-    { label: "+15m", fn: () => new Date(Date.now() + 15 * 60000) },
-    { label: "+30m", fn: () => new Date(Date.now() + 30 * 60000) },
-    { label: "+1h", fn: () => new Date(Date.now() + 60 * 60000) },
-    {
-      label: "Tonight 20:00",
-      fn: () => {
-        const d = new Date();
-        d.setHours(20, 0, 0, 0);
-        return d;
-      },
-    },
-    {
-      label: "Tomorrow 09:00",
-      fn: () => {
-        const d = new Date();
-        d.setDate(d.getDate() + 1);
-        d.setHours(9, 0, 0, 0);
-        return d;
-      },
-    },
+    { label: "Now",            fn: () => new Date() },
+    { label: "+15m",           fn: (b) => addMinutes(b, 15) },
+    { label: "+30m",           fn: (b) => addMinutes(b, 30) },
+    { label: "+1h",            fn: (b) => addHours(b, 1) },
+    { label: "Tonight 20:00",  fn: (b) => { const d = new Date(b); d.setHours(20, 0, 0, 0); return d; } },
+    { label: "Tomorrow 09:00", fn: (b) => { const d = new Date(b); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d; } },
   ];
 
   const setPreset = (fn) => {
-    const d = fn();
-    onChangeHM(d.getHours(), d.getMinutes() - (d.getMinutes() % 5));
-    onClose();
+    const d = fn(fn === presets[0].fn ? undefined : base);
+    applyDateTime(d);
   };
 
   return (
@@ -165,8 +161,9 @@ function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChang
       ref={popRef}
       className="z-50 rounded-xl border bg-white shadow-2xl p-3"
       style={style}
+      onMouseDown={(e) => e.stopPropagation()}
     >
-      {/* Date row */}
+      {/* Date */}
       <div className="mb-3">
         <label className="block text-xs text-gray-500 mb-1">Date</label>
         <input
@@ -177,26 +174,18 @@ function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChang
         />
       </div>
 
-      {/* Time controls */}
+      {/* Time (HH / MM) */}
       <div className="flex items-center justify-center gap-3">
         <SpinBox label="HH" value={hh} min={0} max={23} step={1} onChange={(v) => onChangeHM(v, mm)} />
         <span className="text-gray-400 select-none">:</span>
-        <SpinBox
-          label="MM"
-          value={mm}
-          min={0}
-          max={59}
-          step={5}
-          onChange={(v) => onChangeHM(hh, v - (v % 5))}
-        />
+        <SpinBox label="MM" value={mm} min={0} max={59} step={5} onChange={(v) => onChangeHM(hh, v - (v % 5))} />
       </div>
 
       {/* Nudges */}
       <div className="mt-3 grid grid-cols-3 gap-2">
-      <button type="button" onClick={() => bump("hh", +1)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm">+1h</button>
-<button type="button" onClick={() => bump("mm", +5)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm">+5m</button>
-<button type="button" onClick={() => bump("mm", -5)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm">-5m</button>
-
+        <button type="button" onClick={() => bump("hh", +1)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm">+1h</button>
+        <button type="button" onClick={() => bump("mm", +5)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm">+5m</button>
+        <button type="button" onClick={() => bump("mm", -5)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm">-5m</button>
       </div>
 
       {/* Presets */}
@@ -213,14 +202,20 @@ function TimePopover({ open, anchorRef, hh, mm, onChangeHM, dateStr, onDateChang
         ))}
       </div>
 
-      <div className="mt-3 text-right">
-        <button type="button"  onClick={onClose} className="px-3 py-2 rounded bg-gray-800 text-white text-sm">
+      {/* Actions */}
+      <div className="mt-3 text-right space-x-2">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
+          className="px-3 py-2 rounded bg-gray-800 text-white text-sm"
+        >
           Done
         </button>
       </div>
     </div>
   );
 }
+
 export default function SmartDateTimeInput({
   label,
   name,
