@@ -30,10 +30,17 @@ const checkResourceTypeLimit = async (req, res, next) => {
       return res.status(500).json({ success: false, message: 'ResourceType model not available' });
     }
 
-    // Count resource types in this organization
+    const orgId = adminUser.organization ?? adminUser.org_id;
+
     const currentCount = await ResourceTypeModel.countDocuments({
-      organization: adminUser.organization || adminUser.org_id
+      organization: orgId,
+      $or: [
+        { isDeleted: false },
+        { isDeleted: { $exists: false } },
+        { isDeleted: null },
+      ],
     });
+    
 
     if (currentCount >= adminUser.max_permitted_resource_amount) {
       return res.status(403).json({

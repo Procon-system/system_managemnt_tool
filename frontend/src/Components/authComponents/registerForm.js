@@ -294,9 +294,9 @@ const handleSubmit = async (e) => {
             value={formData.access_level}
             onChange={handleChange}
             options={[
-              { value: 1, description: '1 - Random User' },
-              { value: 2, description: '2 - Service Personnel' },
-              { value: 3, description: '3 - Manager' },
+              
+              { value: 2, description: 'Service Personnel' },
+              { value: 3, description: 'Manager' },
               // { value: 4, description: '4 - Free' },
             ]}
           />

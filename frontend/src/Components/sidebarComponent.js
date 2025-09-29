@@ -328,14 +328,14 @@ const handleViewAllDoneTasksClick = () => {
         }`}>
           {access_level >= 4 && (
             <>
-              <StyledAddButton 
+              {/* <StyledAddButton 
                 icon={<FiUsers size={18} />} 
                 label="Team" 
                 onClick={() => {
                   handleNavigation('/teams');
                   setShowAddOptions(false);
                 }}
-              />
+              /> */}
               <StyledAddButton 
                 icon={<FiTool size={18} />} 
                 label="Assets" 

@@ -13,7 +13,7 @@ const ROLES = {
 };
 const authenticateUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
- console.log("authHeader",authHeader)
+
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Token missing or malformed" });
   }
@@ -70,7 +70,7 @@ const isServicePersonal = (req, res, next) => {
   if (req.user.access_level >= ROLES.SERVICE_PERSONAL) {
     return next();
   }
-  console.log("access",req.user.access_level)
+  
   return res.status(403).json({ error: "Access denied. Service personnel privileges required." });
 };
 
@@ -99,7 +99,6 @@ const isAdmin = (req, res, next) => {
   if (req.user.access_level === ROLES.ADMIN) {
     return next();
   }
-  console.log("req user",req.user.access_level);
   return res.status(403).json({ error: "Access denied. Admin privileges required." });
 };
 // Role-based authorization
