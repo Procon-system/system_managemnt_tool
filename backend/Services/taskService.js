@@ -228,7 +228,6 @@ exports.getTaskById = async (taskId, TaskModel) => {
 exports.updateTask = async (taskId, updateData, TaskModel,ResourceModel, ResourceBookingModel) => {
  
   const taskBeforeUpdate = await TaskModel.findById(taskId);
-
   if (!taskBeforeUpdate) {
     throw { message: 'Task not found', statusCode: 404 };
   }

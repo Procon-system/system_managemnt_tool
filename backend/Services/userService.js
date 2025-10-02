@@ -7,6 +7,7 @@ const {
   DatabaseError
 } = require('../utils/errors');
 
+const { validatePasswordStrength } = require('../Helper/validators');
 class UserService {
  
 async getAllUsers(requester, UserModel) {
@@ -153,7 +154,136 @@ async deleteUser(userId, requester, UserModel) {
     throw new DatabaseError('Failed to delete user');
   }
 }
-async updateSelf({ requester, updateData, models }) {
+// async updateSelf({ requester, updateData, models }) {
+//   try {
+//     const { Superadmin, TenantUser, TenantUserInOrg } = models;
+//     let CoreUserModel;
+//     let UserInOrgModel;
+//     let searchField;
+
+//     if (requester.access_level === 5 && Superadmin) {
+//       CoreUserModel = Superadmin;
+//       searchField = '_id';
+//     } else if (TenantUser) {
+//       CoreUserModel = TenantUser;
+//       searchField = 'email';
+//       if (TenantUserInOrg) {
+//         UserInOrgModel = TenantUserInOrg;
+//       }
+//     } else {
+//       throw new DatabaseError('Server configuration error: No appropriate user model found.');
+//     }
+
+//     const userId = requester._id.toString();
+//     const userEmail = requester.email;
+//     const tenantId = requester.org_id ? requester.org_id.toString() : null;
+
+//     const allowedFields = ['first_name', 'last_name', 'email', 'personal_number', 'phone', 'address', 'profilePicture'];
+//     const filteredUpdateData = {};
+//     for (const key in updateData) {
+//       if (allowedFields.includes(key)) {
+//         filteredUpdateData[key] = updateData[key];
+//       }
+//     }
+
+//     if (Object.keys(filteredUpdateData).length === 0 && !updateData.password) {
+//       throw new ValidationError('Please provide valid fields to update or a new password.');
+//     }
+
+//     let coreUserQuery = {};
+//     if (searchField === '_id') {
+//       coreUserQuery._id = userId;
+//     } else {
+//       coreUserQuery.email = userEmail;
+//     }
+
+//     // --- Email Uniqueness Check (using ConflictError) ---
+//     if (filteredUpdateData.email && filteredUpdateData.email !== requester.email) {
+//       const newEmail = filteredUpdateData.email;
+
+//       // Check Superadmin model
+//       if (Superadmin) {
+//         const superadminExists = await Superadmin.findOne({ email: newEmail });
+//         if (superadminExists && superadminExists._id.toString() !== userId) {
+//           throw new ConflictError(`The email "${newEmail}" is already registered as a Superadmin. Please use a different email.`);
+//         }
+//       }
+
+//       // Check TenantUser model
+//       if (TenantUser && CoreUserModel !== TenantUser) {
+//         const tenantUserExists = await TenantUser.findOne({ email: newEmail });
+//         if (tenantUserExists && tenantUserExists._id.toString() !== userId) {
+//           throw new ConflictError(`The email "${newEmail}" is already registered by another Tenant User. Please use a different email.`);
+//         }
+//       } else if (CoreUserModel === TenantUser) {
+//         const existingTenantUser = await TenantUser.findOne({ email: newEmail });
+//         if (existingTenantUser && existingTenantUser._id.toString() !== userId) {
+//           throw new ConflictError(`The email "${newEmail}" is already in use by another user in the system. Please use a different email.`);
+//         }
+//       }
+      
+//     }
+    
+//     if (updateData.password) {
+//       const user = await CoreUserModel.findOne(coreUserQuery);
+//       if (!user) throw new NotFoundError('Your user account could not be found for password update.');
+//       user.password = updateData.password;
+//       await user.save();
+//       delete filteredUpdateData.password;
+//     }
+
+//     let updatedCoreUser;
+//     let updatedUserInOrg;
+//     if (Object.keys(filteredUpdateData).length > 0) {
+//       try {
+//         updatedCoreUser = await CoreUserModel.findOneAndUpdate(
+//           coreUserQuery,
+//           { $set: filteredUpdateData },
+//           { new: true, runValidators: true }
+//         ).select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire');
+
+//         if (!updatedCoreUser) throw new NotFoundError('Your user account could not be found for profile update.');
+
+//       } catch (mongooseError) {
+//         if (mongooseError.name === 'MongoServerError' && mongooseError.code === 11000) {
+//           const field = Object.keys(mongooseError.keyValue)[0];
+//           throw new ConflictError(`The ${field} "${mongooseError.keyValue[field]}" is already taken.`);
+//         }
+//         console.error("Mongoose error during update:", mongooseError);
+//         throw new DatabaseError("Failed to update user profile due to a database issue.");
+//       }
+//     } else {
+//       updatedCoreUser = await CoreUserModel.findOne(coreUserQuery).select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire');
+//       if (!updatedCoreUser) throw new NotFoundError('Your user account could not be found after password update.');
+//     }
+
+//     if (UserInOrgModel && tenantId && (filteredUpdateData.email || filteredUpdateData.first_name || filteredUpdateData.last_name)) {
+//       const userInOrg = await UserInOrgModel.findOne({
+//         org_id: tenantId,
+//         _id: userId
+//       });
+
+//       if (userInOrg) {
+//         if (filteredUpdateData.email && filteredUpdateData.email !== requester.email) userInOrg.email = filteredUpdateData.email;
+//         if (filteredUpdateData.first_name) userInOrg.first_name = filteredUpdateData.first_name;
+//         if (filteredUpdateData.last_name) userInOrg.last_name = filteredUpdateData.last_name;
+//         updatedUserInOrg = await userInOrg.save();
+//       } else {
+//         console.warn(`TenantUserInOrg not found for tenantId: ${tenantId}, userId: ${userId}. Name/Email not synced.`);
+//       }
+//     }
+
+//     return updatedCoreUser;
+
+//   } catch (error) {
+//     if (error instanceof AppError) { // Catch all custom errors that inherit from AppError
+//       throw error;
+//     }
+//     console.error('Unexpected error updating self profile:', error);
+//     throw new DatabaseError('An unexpected server error occurred while updating your profile.');
+//   }
+// }
+async updateSelf({ requester, updateData, models, getTenantConnection }) {
   try {
     const { Superadmin, TenantUser, TenantUserInOrg } = models;
     let CoreUserModel;
@@ -162,89 +292,171 @@ async updateSelf({ requester, updateData, models }) {
 
     if (requester.access_level === 5 && Superadmin) {
       CoreUserModel = Superadmin;
-      searchField = '_id';
+      searchField = "_id";
     } else if (TenantUser) {
-      CoreUserModel = TenantUser;
-      searchField = 'email';
-      if (TenantUserInOrg) {
-        UserInOrgModel = TenantUserInOrg;
-      }
+      CoreUserModel = TenantUser; // NOTE: this is the **schema**, but not necessarily bound to tenant conn
+      searchField = "email";
+      if (TenantUserInOrg) UserInOrgModel = TenantUserInOrg;
     } else {
-      throw new DatabaseError('Server configuration error: No appropriate user model found.');
+      throw new DatabaseError("Server configuration error: No appropriate user model found.");
     }
 
     const userId = requester._id.toString();
     const userEmail = requester.email;
     const tenantId = requester.org_id ? requester.org_id.toString() : null;
 
-    const allowedFields = ['first_name', 'last_name', 'email', 'personal_number', 'phone', 'address', 'profilePicture'];
+    const allowedFields = [
+      "first_name",
+      "last_name",
+      "email",
+      "personal_number",
+      "phone",
+      "address",
+      "profilePicture",
+    ];
     const filteredUpdateData = {};
     for (const key in updateData) {
-      if (allowedFields.includes(key)) {
-        filteredUpdateData[key] = updateData[key];
-      }
+      if (allowedFields.includes(key)) filteredUpdateData[key] = updateData[key];
     }
 
-    if (Object.keys(filteredUpdateData).length === 0 && !updateData.password) {
-      throw new ValidationError('Please provide valid fields to update or a new password.');
+    if (
+      Object.keys(filteredUpdateData).length === 0 &&
+      !updateData.password && !updateData.currentPassword && !updateData.confirmPassword
+    ) {
+      throw new ValidationError("Please provide valid fields to update or a new password.");
     }
 
-    let coreUserQuery = {};
-    if (searchField === '_id') {
-      coreUserQuery._id = userId;
-    } else {
-      coreUserQuery.email = userEmail;
-    }
+    const coreUserQuery = (searchField === "_id") ? { _id: userId } : { email: userEmail };
 
-    // --- Email Uniqueness Check (using ConflictError) ---
+    // --- Email uniqueness checks (unchanged from your version) ---
     if (filteredUpdateData.email && filteredUpdateData.email !== requester.email) {
       const newEmail = filteredUpdateData.email;
 
-      // Check Superadmin model
       if (Superadmin) {
         const superadminExists = await Superadmin.findOne({ email: newEmail });
         if (superadminExists && superadminExists._id.toString() !== userId) {
-          throw new ConflictError(`The email "${newEmail}" is already registered as a Superadmin. Please use a different email.`);
+          throw new ConflictError(`The email "${newEmail}" is already registered as a Superadmin.`);
         }
       }
 
-      // Check TenantUser model
+      // Check TenantUser globally (main or tenant — your repo likely binds `TenantUser` to main)
       if (TenantUser && CoreUserModel !== TenantUser) {
         const tenantUserExists = await TenantUser.findOne({ email: newEmail });
         if (tenantUserExists && tenantUserExists._id.toString() !== userId) {
-          throw new ConflictError(`The email "${newEmail}" is already registered by another Tenant User. Please use a different email.`);
+          throw new ConflictError(`The email "${newEmail}" is already registered by another Tenant User.`);
         }
       } else if (CoreUserModel === TenantUser) {
         const existingTenantUser = await TenantUser.findOne({ email: newEmail });
         if (existingTenantUser && existingTenantUser._id.toString() !== userId) {
-          throw new ConflictError(`The email "${newEmail}" is already in use by another user in the system. Please use a different email.`);
+          throw new ConflictError(`The email "${newEmail}" is already in use by another user in the system.`);
         }
       }
-      
-    }
-    
-    if (updateData.password) {
-      const user = await CoreUserModel.findOne(coreUserQuery);
-      if (!user) throw new NotFoundError('Your user account could not be found for password update.');
-      user.password = updateData.password;
-      await user.save();
-      delete filteredUpdateData.password;
     }
 
+    // ---------------------------
+    // TENANT-AWARE PASSWORD CHANGE
+    // ---------------------------
+    const wantsPwChange = (updateData.currentPassword || updateData.password || updateData.confirmPassword);
+
+    if (wantsPwChange) {
+      const currentPassword = String(updateData.currentPassword || "");
+      const newPassword = String(updateData.password || "");
+      const confirmPassword = String(updateData.confirmPassword || "");
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        throw new ValidationError("Current password, new password and confirmation are all required.");
+      }
+      if (newPassword !== confirmPassword) {
+        throw new ValidationError("New password and confirmation do not match.");
+      }
+      if (newPassword === currentPassword) {
+        throw new ValidationError("New password must be different from your current password.");
+      }
+
+      // Resolve the right model/connection for password:
+      let passwordDoc = null;
+
+      if (requester.access_level === 5) {
+        // Superadmin lives in main DB
+        passwordDoc = await Superadmin.findOne({ _id: userId }).select("+password");
+      } else {
+        // Tenant users: get **tenant connection**, then bind TenantUser schema onto it
+        if (!tenantId) {
+          throw new ValidationError("Tenant is required for password change.");
+        }
+
+        // Get tenant mongoose connection (adapt this to your infra)
+        // const tenantConn =
+        //   models.tenantConn ||
+        //   (typeof getTenantConnection === "function" ? getTenantConnection(tenantId) : null);
+
+        // if (!tenantConn) {
+        //   throw new DatabaseError("Tenant connection not available to update password.");
+        // }
+
+        // Bind the TenantUser model to the tenant connection using the same schema
+        const TenantUserOnTenant = TenantUserInOrg
+          
+        // Prefer the core user id in tenant DB if available
+        const coreId =
+          requester.userIdInTenantDB?.toString() ||
+          requester._id?.toString();
+
+        passwordDoc = await TenantUserOnTenant.findOne({ _id: coreId }).select("+password");
+      }
+
+      if (!passwordDoc) {
+        throw new NotFoundError("Your user account could not be found for password update.");
+      }
+
+      // Compare current password (instance method if available, otherwise bcrypt)
+      let currentOk = false;
+      if (typeof passwordDoc.comparePassword === "function") {
+        currentOk = await passwordDoc.comparePassword(currentPassword);
+      } else {
+        const bcrypt = require("bcryptjs");
+        if (!passwordDoc.password) {
+          throw new ValidationError("Password cannot be verified for this account type.");
+        }
+        currentOk = await bcrypt.compare(currentPassword, passwordDoc.password);
+      }
+      if (!currentOk) {
+        throw new ValidationError("Current password is incorrect.");
+      }
+
+      // Strength check (your existing helper)
+      const { ok, message } = validatePasswordStrength(newPassword, {
+        email: requester.email,
+        first_name: requester.first_name,
+        last_name: requester.last_name,
+      });
+      if (!ok) throw new ValidationError(message);
+
+      // Set + save on tenant-bound doc so pre-save hash runs on tenant schema
+      passwordDoc.password = newPassword;
+      await passwordDoc.save();
+
+      // scrub password fields from profile updates
+      delete filteredUpdateData.password;
+      delete filteredUpdateData.currentPassword;
+      delete filteredUpdateData.confirmPassword;
+    }
+
+    // --- Profile fields update (main logic unchanged) ---
     let updatedCoreUser;
-    let updatedUserInOrg;
     if (Object.keys(filteredUpdateData).length > 0) {
       try {
         updatedCoreUser = await CoreUserModel.findOneAndUpdate(
           coreUserQuery,
           { $set: filteredUpdateData },
           { new: true, runValidators: true }
-        ).select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire');
+        ).select("-password -confirmationCode -resetPasswordToken -resetPasswordExpire");
 
-        if (!updatedCoreUser) throw new NotFoundError('Your user account could not be found for profile update.');
-
+        if (!updatedCoreUser) {
+          throw new NotFoundError("Your user account could not be found for profile update.");
+        }
       } catch (mongooseError) {
-        if (mongooseError.name === 'MongoServerError' && mongooseError.code === 11000) {
+        if (mongooseError.name === "MongoServerError" && mongooseError.code === 11000) {
           const field = Object.keys(mongooseError.keyValue)[0];
           throw new ConflictError(`The ${field} "${mongooseError.keyValue[field]}" is already taken.`);
         }
@@ -252,36 +464,41 @@ async updateSelf({ requester, updateData, models }) {
         throw new DatabaseError("Failed to update user profile due to a database issue.");
       }
     } else {
-      updatedCoreUser = await CoreUserModel.findOne(coreUserQuery).select('-password -confirmationCode -resetPasswordToken -resetPasswordExpire');
-      if (!updatedCoreUser) throw new NotFoundError('Your user account could not be found after password update.');
+      updatedCoreUser = await CoreUserModel.findOne(coreUserQuery)
+        .select("-password -confirmationCode -resetPasswordToken -resetPasswordExpire");
+      if (!updatedCoreUser) {
+        throw new NotFoundError("Your user account could not be found after password update.");
+      }
     }
 
-    if (UserInOrgModel && tenantId && (filteredUpdateData.email || filteredUpdateData.first_name || filteredUpdateData.last_name)) {
-      const userInOrg = await UserInOrgModel.findOne({
-        org_id: tenantId,
-        _id: userId
-      });
-
+    // --- Sync name/email to TenantUserInOrg (main-db mapping) ---
+    if (
+      UserInOrgModel &&
+      tenantId &&
+      (filteredUpdateData.email || filteredUpdateData.first_name || filteredUpdateData.last_name)
+    ) {
+      const userInOrg = await UserInOrgModel.findOne({ org_id: tenantId, _id: userId });
       if (userInOrg) {
-        if (filteredUpdateData.email && filteredUpdateData.email !== requester.email) userInOrg.email = filteredUpdateData.email;
+        if (filteredUpdateData.email && filteredUpdateData.email !== requester.email)
+          userInOrg.email = filteredUpdateData.email;
         if (filteredUpdateData.first_name) userInOrg.first_name = filteredUpdateData.first_name;
         if (filteredUpdateData.last_name) userInOrg.last_name = filteredUpdateData.last_name;
-        updatedUserInOrg = await userInOrg.save();
+        await userInOrg.save();
       } else {
-        console.warn(`TenantUserInOrg not found for tenantId: ${tenantId}, userId: ${userId}. Name/Email not synced.`);
+        console.warn(
+          `TenantUserInOrg not found for tenantId: ${tenantId}, userId: ${userId}. Name/Email not synced.`
+        );
       }
     }
 
     return updatedCoreUser;
-
   } catch (error) {
-    if (error instanceof AppError) { // Catch all custom errors that inherit from AppError
-      throw error;
-    }
-    console.error('Unexpected error updating self profile:', error);
-    throw new DatabaseError('An unexpected server error occurred while updating your profile.');
+    if (error instanceof AppError) throw error;
+    console.error("Unexpected error updating self profile:", error);
+    throw new DatabaseError("An unexpected server error occurred while updating your profile.");
   }
 }
+
 async deleteSelf({ requester, models }) {
   try {
     const { Superadmin, TenantUser, TenantUserInOrg } = models;

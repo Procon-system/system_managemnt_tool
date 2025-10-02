@@ -197,6 +197,14 @@ export const filterTasks = createAsyncThunk(
   }
 );
 
+const upsertInto = (arr, item, pred) => {
+  const i = arr.findIndex(pred);
+  if (i === -1) return [item, ...arr];
+  const copy = arr.slice();
+  copy[i] = item;
+  return copy;
+};
+
 const taskSlice = createSlice({
   name: 'tasks',
   initialState: {
@@ -213,6 +221,26 @@ const taskSlice = createSlice({
       state.currentView = action.payload;
     },
     
+    upsertTask(state, action) {
+      const t = action.payload;
+      if (!t?._id) return;
+      state.tasks = upsertInto(state.tasks, t, (x) => x._id === t._id);
+      const belongs =
+        state.currentView === "allTasks" || state.currentView === t.status;
+
+      if (belongs) {
+        state.filteredTasks = upsertInto(
+          state.filteredTasks,
+          t,
+          (x) => x._id === t._id
+        );
+      } else {
+        state.filteredTasks = state.filteredTasks.filter(
+          (x) => x._id !== t._id
+        );
+      }
+    },
+
     addMultipleTasksFromSocket: (state, action) => {
       // Ensure state.tasks is always an array
       if (!Array.isArray(state.tasks)) {
@@ -244,7 +272,6 @@ const taskSlice = createSlice({
       state.currentView = 'allTasks'; // Reset to all tasks view
     },
     addTask: (state, action) => {
-     
       const incoming = Array.isArray(action.payload)
           ? action.payload
           : [action.payload];
@@ -392,7 +419,6 @@ const taskSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload || 'Failed to fetch assigned tasks';
       })
-      
       .addCase(getTasksDoneByAssignedUser.pending, (state) => {
         state.status = 'loading';
       })
@@ -470,9 +496,8 @@ const taskSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload || 'Failed to update tasks';
       })
-     
   },
 });
-export const { setTaskView,addMultipleTasksFromSocket, addTask ,resetFilteredTasks} = taskSlice.actions;
+export const { setTaskView,addMultipleTasksFromSocket, addTask ,resetFilteredTasks, upsertTask} = taskSlice.actions;
 
 export default taskSlice.reducer;

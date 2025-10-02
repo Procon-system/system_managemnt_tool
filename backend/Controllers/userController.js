@@ -100,7 +100,7 @@ class UserController {
         message: 'User updated successfully',
       });
     } catch (err) {
-     
+     console.log("err",err)
       if (err instanceof AppError) {
         return res.status(err.statusCode).json({
           success: false,

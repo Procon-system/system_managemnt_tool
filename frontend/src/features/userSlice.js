@@ -25,25 +25,41 @@ export const getUsersByIds = createAsyncThunk(
     }
   }
 );
+// export const updateMe = createAsyncThunk(
+//   "users/updateMe",
+//   async (updateData, { getState, dispatch, rejectWithValue }) => { // No 'id' needed
+//     const token = getState().auth.token;
+//     if (checkTokenAndLogout(token, dispatch)) {
+//       return null;
+//     }
+//     try {
+//       const updatedUser = await updateSelfProfile(updateData, token);
+//       // Optional: Update the user info in the auth slice if it's stored there
+//       // dispatch(authActions.setUserInfo(updatedUser));
+//       return updatedUser;
+//     }  catch (error) {
+//       if (error) {
+//         const errorMessage = error.message || error || "Failed to update profile.";
+//       return rejectWithValue(errorMessage);
+//       }
+//       // Fallback for network errors or unhandled server errors
+//       return rejectWithValue(error || "Failed to update profile.");
+//     }
+//   }
+// );
 export const updateMe = createAsyncThunk(
   "users/updateMe",
-  async (updateData, { getState, dispatch, rejectWithValue }) => { // No 'id' needed
+  async (updateData, { getState, dispatch, rejectWithValue }) => {
     const token = getState().auth.token;
     if (checkTokenAndLogout(token, dispatch)) {
       return null;
     }
     try {
       const updatedUser = await updateSelfProfile(updateData, token);
-      // Optional: Update the user info in the auth slice if it's stored there
-      // dispatch(authActions.setUserInfo(updatedUser));
       return updatedUser;
-    }  catch (error) {
-      if (error) {
-        const errorMessage = error.message || error || "Failed to update profile.";
-      return rejectWithValue(errorMessage);
-      }
-      // Fallback for network errors or unhandled server errors
-      return rejectWithValue(error || "Failed to update profile.");
+    } catch (error) {
+      const msg = error?.message || "Failed to update profile.";
+      return rejectWithValue(msg);
     }
   }
 );

@@ -376,7 +376,7 @@ const handleChange = (e) => {
      </div>
       )}
 
-{role >= 2 && (
+{role >= 3 && (
   // We give it more space (col-span-2) as it's a more complex component
   <div className="md:col-span-2"> 
     

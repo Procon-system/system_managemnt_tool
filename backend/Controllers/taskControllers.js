@@ -523,6 +523,7 @@ if (updatedTask.assignments && updatedTask.assignments.length > 0) {
   
         // Real-time
         notifyUser(userId.toString(), 'task:updated', {
+          taskPayload: taskForPayload,
           taskId: updatedTask._id,
           title: updatedTask.title,
           message: `Task "${updatedTask.title}" has been updated.`,

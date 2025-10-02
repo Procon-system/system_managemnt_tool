@@ -37,15 +37,41 @@ export const getUser = async (userId, token) => {
     throw new Error(error.response?.data?.message || 'Failed to fetch user');
   }
 };
+// export const updateSelfProfile = async (updateData, token) => {
+//   try {
+//     const response = await axios.put(`${API_URL}/me`, updateData, { // <-- Changed to /me
+//       headers: { Authorization: `Bearer ${token}` },
+//     });
+//     return response.data.data;
+//   } catch (error) {
+   
+//     throw new Error(error.response?.data?.message || 'Failed to update own profile');
+//   }
+// };
 export const updateSelfProfile = async (updateData, token) => {
   try {
-    const response = await axios.put(`${API_URL}/me`, updateData, { // <-- Changed to /me
+    const allowed = [
+      "first_name",
+      "last_name",
+      "email",
+      "personal_number",
+      "phone",
+      "address",
+      "profilePicture",
+      "currentPassword",   // only if changing password
+      "password",          // new password
+      "confirmPassword"    // confirm new password
+    ];
+    const cleanPayload = Object.fromEntries(
+      Object.entries(updateData).filter(([k, v]) => allowed.includes(k) && v !== undefined)
+    );
+
+    const response = await axios.put(`${API_URL}/me`, cleanPayload, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data.data;
   } catch (error) {
-   
-    throw new Error(error.response?.data?.message || 'Failed to update own profile');
+    throw new Error(error.response?.data?.message || "Failed to update own profile");
   }
 };
 export const deleteMeSelfProfile = async (token) => { 

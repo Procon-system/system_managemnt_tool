@@ -54,11 +54,6 @@ const notificationSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      // .addCase(fetchNotifications.fulfilled, (state, action) => {
-      //   state.loading = false;
-      //   state.items = action.payload;
-      //   state.unreadCount = action.payload?.filter(n => !n.isRead).length;
-      // })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
         state.loading = false;
         
@@ -79,10 +74,7 @@ const notificationSlice = createSlice({
         state.items = state.items.map(n => action.payload.includes(n._id) ? { ...n, isRead: true } : n);
         state.unreadCount = state.items.filter(n => !n.isRead).length;
       });
-      // .addCase(markNotificationsAsRead.fulfilled, (state, action) => {
-      //   state.items = state.items.map(n => action.payload.includes(n._id) ? { ...n, isRead: true } : n);
-      //   state.unreadCount = state.items.filter(n => !n.isRead).length;
-      // });
+     
   }
 });
 

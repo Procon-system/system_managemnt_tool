@@ -101,7 +101,7 @@ const App = () => {
             path="/profile"
             element={
               <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
-                <ProfilePage />
+                <MainLayout><ProfilePage /></MainLayout>
               </ProtectedRoute>
             }
           />

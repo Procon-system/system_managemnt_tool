@@ -3,10 +3,21 @@ import store from "./Store/store"; // Your Redux store
 import { addNotification } from "./features/notificationSlice";
 import {
   addTask,
+  upsertTask
 } from "./features/taskSlice"; // Import new task actions
 
 let socket;
-
+const normalizeTask = (t) => ({
+  ...t,
+  _id: String(t._id),
+  schedule: t?.schedule
+    ? {
+        ...t.schedule,
+        start: t.schedule.start ? String(t.schedule.start) : null,
+        end: t.schedule.end ? String(t.schedule.end) : null,
+      }
+    : null,
+});
 export const connectSocket = (token) => {
   socket = io(process.env.REACT_APP_SOCKET_URL || "https://app.tasknitter.com", {
     auth: {
@@ -28,16 +39,17 @@ export const connectSocket = (token) => {
     console.error("⚠️ Socket connection error:", err.message);
   });
 
-  socket.on("task:updated", (data) => {
-    console.log("📬 Notification received:", data);
-    store.dispatch(addNotification({ ...data, isRead: false }));
-  });
-
   socket.on("task:assigned", (data) => {
     console.log("📬 Notification received:", data);
     store.dispatch(addNotification({ ...data, isRead: false }));
   });
-
+  
+  socket.on("task:updated", (payload) => {
+    store.dispatch(addNotification({ ...payload, isRead: false }));
+    if (payload?.taskPayload?._id) {
+      store.dispatch(upsertTask(normalizeTask(payload.taskPayload)));
+    }
+  });
   socket.on("task:deleted", (data) => {
     console.log("📬 Notification received:", data);
     store.dispatch(addNotification({ ...data, isRead: false }));
