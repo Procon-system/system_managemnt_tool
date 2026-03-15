@@ -23,20 +23,59 @@ const getResourceNames = (task, typeName) => {
     .join(', ') || 'N/A';
 };
 
+const wrapText = (text, width, font, fontSize) => {
+  if (!text || text === 'N/A') return [String(text || 'N/A')];
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    let testLine = currentLine ? `${currentLine} ${word}` : word;
+    let testWidth = font.widthOfTextAtSize(testLine, fontSize);
+
+    if (testWidth <= width) {
+      currentLine = testLine;
+    } else {
+      // If the word itself is too wide, split it
+      if (font.widthOfTextAtSize(word, fontSize) > width) {
+        if (currentLine) lines.push(currentLine);
+        currentLine = '';
+
+        // Character-by-character split for very long words
+        let tempWord = '';
+        for (const char of word) {
+          if (font.widthOfTextAtSize(tempWord + char, fontSize) <= width) {
+            tempWord += char;
+          } else {
+            lines.push(tempWord);
+            tempWord = char;
+          }
+        }
+        currentLine = tempWord;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines;
+};
+
 export const generatePDF = async (tasks, metadata = {}) => {
   const { clientName = 'N/A', dateRange = 'N/A' } = metadata;
 
-  // Define the table headers
+  // Adjusted widths to prevent overlap
   const headers = [
-    { label: 'Date', width: 60 },
-    { label: 'Hours', width: 50 },
-    { label: 'Title', width: 100 },
-    { label: 'Note', width: 100 },
+    { label: 'Date', width: 55 },
+    { label: 'Hours', width: 35 },
+    { label: 'Title', width: 90 },
+    { label: 'Note', width: 120 },
     { label: 'Assigned To', width: 80 },
-    { label: 'Facility', width: 80 },
-    { label: 'Machine', width: 80 },
-    { label: 'Status', width: 60 },
-    { label: 'Task Period', width: 80 },
+    { label: 'Facility', width: 70 },
+    { label: 'Machine', width: 70 },
+    { label: 'Status', width: 45 },
+    { label: 'Task Period', width: 90 },
     { label: 'Tools', width: 80 },
     { label: 'Materials', width: 80 },
   ];
@@ -96,16 +135,12 @@ export const generatePDF = async (tasks, metadata = {}) => {
 
   // Draw table rows
   tasks.forEach((task) => {
-    // Check if we need a new page (e.g., if currentY is too low for a row + footer space)
-    if (currentY < 120) { // Keep some buffer for footer if it's the last page
-      addNewPage();
-    }
-
     const hours = calculateHours(task.schedule?.start, task.schedule?.end);
     totalHours += parseFloat(hours);
 
-    let currentX = startX;
-    headers.forEach((header) => {
+    // Prepare wrapped text for each cell
+    let maxLinesInRow = 1;
+    const rowContent = headers.map(header => {
       let text = 'N/A';
       switch (header.label) {
         case 'Date': text = formatDate(task.schedule?.start); break;
@@ -125,23 +160,32 @@ export const generatePDF = async (tasks, metadata = {}) => {
         case 'Materials': text = getResourceNames(task, 'Material'); break;
         default: text = 'N/A';
       }
-
-      // Draw text with basic clipping/wrapping logic
-      const maxWidth = header.width - 5;
-      const truncatedText = font.widthOfTextAtSize(text, fontSize) > maxWidth
-        ? text.substring(0, Math.floor(maxWidth / 5)) + '...'
-        : text;
-
-      page.drawText(truncatedText, {
-        x: currentX,
-        y: currentY,
-        size: fontSize,
-        font,
-      });
-      currentX += header.width;
+      const lines = wrapText(text, header.width - 5, font, fontSize);
+      if (lines.length > maxLinesInRow) maxLinesInRow = lines.length;
+      return lines;
     });
 
-    currentY -= rowHeight;
+    const currentRowHeight = Math.max(rowHeight, maxLinesInRow * (fontSize + 3) + 10);
+
+    // Check if we need a new page
+    if (currentY - currentRowHeight < 120) {
+      addNewPage();
+    }
+
+    let currentX = startX;
+    rowContent.forEach((lines, i) => {
+      lines.forEach((line, lineIdx) => {
+        page.drawText(line, {
+          x: currentX,
+          y: currentY - lineIdx * (fontSize + 3),
+          size: fontSize,
+          font,
+        });
+      });
+      currentX += headers[i].width;
+    });
+
+    currentY -= currentRowHeight;
   });
 
   // Footer (drawn on the last page)
@@ -202,15 +246,15 @@ export const generateAnalyticsPDF = async (tasks, metadata = {}, kpis = []) => {
   const { clientName = 'N/A', dateRange = 'N/A' } = metadata;
 
   const headers = [
-    { label: 'Date', width: 60 },
-    { label: 'Hours', width: 50 },
-    { label: 'Title', width: 100 },
-    { label: 'Note', width: 100 },
+    { label: 'Date', width: 55 },
+    { label: 'Hours', width: 35 },
+    { label: 'Title', width: 90 },
+    { label: 'Note', width: 120 },
     { label: 'Assigned To', width: 80 },
-    { label: 'Facility', width: 80 },
-    { label: 'Machine', width: 80 },
-    { label: 'Status', width: 60 },
-    { label: 'Task Period', width: 80 },
+    { label: 'Facility', width: 70 },
+    { label: 'Machine', width: 70 },
+    { label: 'Status', width: 45 },
+    { label: 'Task Period', width: 90 },
     { label: 'Tools', width: 80 },
     { label: 'Materials', width: 80 },
   ];
@@ -247,12 +291,11 @@ export const generateAnalyticsPDF = async (tasks, metadata = {}, kpis = []) => {
   addNewPage();
 
   tasks.forEach((task) => {
-    if (currentY < 150) addNewPage(); // More buffer for KPI section
-
-    let currentX = startX;
     const hours = calculateHours(task.schedule?.start, task.schedule?.end);
 
-    headers.forEach((header) => {
+    // Prepare wrapped text for each cell
+    let maxLinesInRow = 1;
+    const rowContent = headers.map(header => {
       let text = 'N/A';
       switch (header.label) {
         case 'Date': text = formatDate(task.schedule?.start); break;
@@ -269,16 +312,27 @@ export const generateAnalyticsPDF = async (tasks, metadata = {}, kpis = []) => {
         case 'Tools': text = getResourceNames(task, 'Tool'); break;
         case 'Materials': text = getResourceNames(task, 'Material'); break;
       }
-
-      const maxWidth = header.width - 5;
-      const truncatedText = font.widthOfTextAtSize(text, fontSize) > maxWidth
-        ? text.substring(0, Math.floor(maxWidth / 5)) + '...'
-        : text;
-
-      page.drawText(truncatedText, { x: currentX, y: currentY, size: fontSize, font });
-      currentX += header.width;
+      const lines = wrapText(text, header.width - 5, font, fontSize);
+      if (lines.length > maxLinesInRow) maxLinesInRow = lines.length;
+      return lines;
     });
-    currentY -= rowHeight;
+
+    const currentRowHeight = Math.max(rowHeight, maxLinesInRow * (fontSize + 3) + 10);
+    if (currentY - currentRowHeight < 150) addNewPage(); // More buffer for KPI section
+
+    let currentX = startX;
+    rowContent.forEach((lines, i) => {
+      lines.forEach((line, lineIdx) => {
+        page.drawText(line, {
+          x: currentX,
+          y: currentY - lineIdx * (fontSize + 3),
+          size: fontSize,
+          font
+        });
+      });
+      currentX += headers[i].width;
+    });
+    currentY -= currentRowHeight;
   });
 
   // KPI Summary Section

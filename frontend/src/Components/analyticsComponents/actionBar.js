@@ -77,13 +77,13 @@ const ActionBar = ({
               >
                 CSV Export
               </li>
-              <li 
+              <li
                 className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm flex items-center gap-2"
                 onClick={() => { generateAnalyticsExcel(rawTasks, metadata, kpis); setIsExportOpen(false); }}
               >
                 Excel Report
               </li>
-              <li 
+              <li
                 className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm flex items-center gap-2"
                 onClick={() => { generateAnalyticsPDF(rawTasks, metadata, kpis); setIsExportOpen(false); }}
               >
