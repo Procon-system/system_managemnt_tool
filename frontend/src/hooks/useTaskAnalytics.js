@@ -34,7 +34,7 @@ export const useTaskAnalytics = ({
     filters = {},        // The current filter state from the page component
     customColumns = [],  // The user-defined custom columns
 }) => {
-    
+
     return useMemo(() => {
         // --- STEP 1: EXTRACT FILTER OPTIONS FROM THE COMPLETE, UNFILTERED DATASET ---
         // This ensures the filter dropdowns are always fully populated.
@@ -92,42 +92,78 @@ export const useTaskAnalytics = ({
                 }
             });
         }
-        
+
         const allResourceTypes = Array.from(resourceTypeMap.values());
-        
+
         let baseColumns = [
-            { key: 'title', label: 'Task', width: 'w-64' },
-            { key: 'completedOn', label: 'Completed On', width: 'w-48' },
+            { key: 'date', label: 'Date', width: 'w-32' },
+            { key: 'hours', label: 'Hours', width: 'w-24', isNumeric: true },
+            { key: 'title', label: 'Title', width: 'w-64' },
+            { key: 'note', label: 'Note', width: 'w-64' },
             { key: 'assignedUsers', label: 'Assigned To', width: 'w-48' },
-            { key: 'totalLoggedMinutes', label: 'Time (min)', width: 'w-32', isNumeric: true },
-            { key: 'totalLaborCost', label: 'Labor Cost', width: 'w-32', isCurrency: true },
+            { key: 'facility', label: 'Facility', width: 'w-40' },
+            { key: 'machine', label: 'Machine', width: 'w-40' },
+            { key: 'status', label: 'Status', width: 'w-24' },
+            { key: 'task_period', label: 'Task Period', width: 'w-32' },
+            // Keeping these for internal calculations or if user wants them back
+            // { key: 'totalLoggedMinutes', label: 'Time (min)', width: 'w-32', isNumeric: true },
+            // { key: 'totalLaborCost', label: 'Labor Cost', width: 'w-32', isCurrency: true },
         ];
-        
+
         const resourceColumns = [];
         allResourceTypes.forEach(rt => {
             rt.fieldDefinitions?.forEach(fd => {
                 if (fd.isQuantifiable) {
                     const unit = fd.quantifiableUnit ? ` (${fd.quantifiableUnit})` : '';
                     const key = `${fd.quantifiableCategory}_${rt._id}`;
-                    resourceColumns.push({ 
-                        key, 
-                        label: `${fd.displayName || fd.fieldName}${unit}`, 
-                        width: 'w-40', 
-                        isCurrency: fd.quantifiableCategory === 'cost', 
+                    resourceColumns.push({
+                        key,
+                        label: `${fd.displayName || fd.fieldName}${unit}`,
+                        width: 'w-40',
+                        isCurrency: fd.quantifiableCategory === 'cost',
                         isNumeric: true,
                         resourceTypeId: rt._id // <-- Store the parent type ID
                     });
                 }
             });
         });
-        
+
+        // Let's add Tools and Materials summary columns as well if they match the image exactly
+        baseColumns.push({ key: 'tools', label: 'Tools', width: 'w-40' });
+        baseColumns.push({ key: 'materials', label: 'Materials', width: 'w-40' });
+
         let dynamicColumns = [...baseColumns, ...resourceColumns];
 
         const kpiTotals = { totalTasks: 0, totalLaborCost: 0, totalHoursLogged: 0 };
         const processedTasks = filteredTasks.map(task => {
-            let processed = { id: task._id, title: task.title };
-            processed.completedOn = task.schedule?.end ? format(new Date(task.schedule.end), 'MMM d, yyyy HH:mm') : 'N/A';
-            
+            const hours = task.schedule?.start && task.schedule?.end
+                ? (Math.abs(new Date(task.schedule.end) - new Date(task.schedule.start)) / (1000 * 60 * 60)).toFixed(2)
+                : '0.00';
+
+            let processed = {
+                id: task._id,
+                title: task.title,
+                date: task.schedule?.start ? format(new Date(task.schedule.start), 'MMM d, yyyy') : 'N/A',
+                hours: parseFloat(hours),
+                note: task.notes ? task.notes.replace(/<[^>]*>/g, '') : 'N/A',
+                facility: task.facility?.facility_name || 'N/A',
+                machine: task.machine?.machine_name || 'N/A',
+                status: task.status || 'N/A',
+                task_period: task.task_period || 'N/A',
+            };
+
+            // Helper to get resource names by category (Tools/Materials)
+            const getResourcesByCategory = (task, typeName) => {
+                if (!task.resources) return 'N/A';
+                return task.resources
+                    .filter(r => r.resource?.type?.name?.toLowerCase() === typeName.toLowerCase() || r.resource?.type === typeName)
+                    .map(r => r.resource?.displayName || r.resource?.name || 'Unknown')
+                    .join(', ') || 'N/A';
+            };
+
+            processed.tools = getResourcesByCategory(task, 'Tool');
+            processed.materials = getResourcesByCategory(task, 'Material');
+
             let totalLaborCost = 0, totalLoggedMinutes = 0;
             task.timeLogs?.forEach(log => {
                 const user = userMap.get(log.user?._id || log.user);
@@ -140,7 +176,7 @@ export const useTaskAnalytics = ({
             processed.totalLoggedMinutes = totalLoggedMinutes;
 
             const assignedUserNames = new Set();
-            task.assignments.forEach(a => userMap.has(a.user?._id) && assignedUserNames.add(userMap.get(a.user._id).first_name || userMap.get(a.user._id).email));
+            task.assignments.forEach(a => userMap.has(a.user?._id) && assignedUserNames.add(userMap.get(a.user._id).first_name || userMap.get(a.user._id).last_name || userMap.get(a.user._id).email));
             processed.assignedUsers = Array.from(assignedUserNames).join(', ');
 
             task.resourceLogs?.forEach(log => {
@@ -158,17 +194,17 @@ export const useTaskAnalytics = ({
                     });
                 }
             });
-            
+
             customColumns.forEach(customCol => {
                 processed[customCol.key] = evaluateFormula(customCol.formula, processed);
             });
-            
+
             kpiTotals.totalTasks++;
             kpiTotals.totalLaborCost += totalLaborCost;
             kpiTotals.totalHoursLogged += totalLoggedMinutes / 60;
             return processed;
         });
-        
+
         customColumns.forEach(customCol => {
             dynamicColumns.push({
                 key: customCol.key, label: customCol.name, width: 'w-40', isNumeric: true,
@@ -182,28 +218,28 @@ export const useTaskAnalytics = ({
             { title: 'Total Hours Logged', value: kpiTotals.totalHoursLogged, format: 'decimal', subtitle: 'For filtered tasks', color: 'text-orange-600' },
             { title: 'Avg. Duration (Hours)', value: kpiTotals.totalTasks > 0 ? kpiTotals.totalHoursLogged / kpiTotals.totalTasks : 0, format: 'decimal', subtitle: 'Per filtered task', color: 'text-purple-600' },
         ];
-        
+
         resourceColumns.forEach((rc, index) => {
             if (kpiTotals[rc.key] !== undefined) {
                 // Look up the resource type using the ID we stored
                 const resourceType = resourceTypeMap.get(rc.resourceTypeId);
                 kpis.push({
-                    title: `Total ${rc.label}`, 
+                    title: `Total ${rc.label}`,
                     value: kpiTotals[rc.key],
                     format: rc.isCurrency ? 'currency' : 'number',
                     // Use the name for a dynamic subtitle, with a fallback
-                    subtitle: `From '${resourceType?.name || 'resource'}'`, 
+                    subtitle: `From '${resourceType?.name || 'resource'}'`,
                     color: ['text-red-600', 'text-indigo-600', 'text-pink-600', 'text-teal-600'][index % 4]
                 });
             }
         });
-        
-        return { 
-            processedTasks, 
-            dynamicColumns, 
-            kpis, 
-            availableUsers, 
-            availableResources 
+
+        return {
+            processedTasks,
+            dynamicColumns,
+            kpis,
+            availableUsers,
+            availableResources
         };
     }, [populatedTasks, filters, customColumns]);
 };

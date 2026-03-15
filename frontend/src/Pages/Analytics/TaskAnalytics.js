@@ -23,6 +23,12 @@ const TaskAnalytics = () => {
     const [customColumns, setCustomColumns] = useState([]);
 
     const { allTasks: rawTasks = [], status, error } = useSelector((state) => state.analytics);
+    const user = useSelector((state) => state.auth.user);
+    const userName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'N/A' : 'N/A';
+
+    const dateRangeString = filters.dateRange.start && filters.dateRange.end
+        ? `${new Date(filters.dateRange.start).toLocaleDateString()} - ${new Date(filters.dateRange.end).toLocaleDateString()}`
+        : 'All Time';
 
     const {
         processedTasks,
@@ -69,11 +75,14 @@ const TaskAnalytics = () => {
                     <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                         Task Analytics
                     </h1>
-                    <ActionBar 
-    onAddCustomColumn={() => setShowCustomColumnDialog(true)} 
-    dataToExport={processedTasks} // Pass the processed data
-    columnsToExport={dynamicColumns} // Pass the column definitions
-/>
+                    <ActionBar
+                        onAddCustomColumn={() => setShowCustomColumnDialog(true)}
+                        dataToExport={processedTasks}
+                        columnsToExport={dynamicColumns}
+                        rawTasks={rawTasks}
+                        metadata={{ clientName: userName, dateRange: dateRangeString }}
+                        kpis={kpis}
+                    />
 
                 </div>
 
