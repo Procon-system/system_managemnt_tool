@@ -9,8 +9,8 @@ export const handleEventDuplication = async ({
 }) => {
   try {
     // Deep copy the event data to avoid unintended mutations
-        const eventData = JSON.parse(JSON.stringify(info.event));
-   
+    const eventData = JSON.parse(JSON.stringify(info.event));
+
     const eventTimezone = getTimezoneFromDate(eventData.start);
     const extendedProps = eventData.extendedProps || {};
     const assignedResources = extendedProps.assigned_resources || {
@@ -18,7 +18,7 @@ export const handleEventDuplication = async ({
       materials: [],
       tools: []
     };
-     // Prepare the new event object
+    // Prepare the new event object
     const newEvent = {
       start_time: adjustTimeForBackend(eventData.start, eventTimezone),
       end_time: adjustTimeForBackend(eventData.end, eventTimezone),
@@ -32,7 +32,7 @@ export const handleEventDuplication = async ({
         : [],
       tools: Array.isArray(assignedResources.tools)
         ? assignedResources.tools.filter((tool) => tool && tool._id).map((tool) => tool._id)
-        : [],      machine: eventData.extendedProps?.machine || null,
+        : [], machine: eventData.extendedProps?.machine || null,
       facility: eventData.extendedProps?.facility || null,
       created_by: eventData.extendedProps?.created_by || "unknown",
       repeat_frequency: "none",
@@ -56,7 +56,7 @@ export const handleEventDuplication = async ({
     }
 
     console.log("Event duplication successful:", newEvent);
-     } catch (error) {
+  } catch (error) {
     console.error("Error during event duplication:", error);
 
     // Revert UI changes if the operation fails
@@ -75,7 +75,7 @@ export const handleDateClick = (info, user, adjustTimeForBackend, openCreateForm
     toast.error('You do not have permission to create events. try logging in again');
     return;
   }
-  const timezoneOffset = 3;
+  const timezoneOffset = -new Date(info.date).getTimezoneOffset() / 60;
   const adjustedStartTime = adjustTimeForBackend(info.date, timezoneOffset);
   const newEvent = {
     start_time: adjustedStartTime,
@@ -169,7 +169,7 @@ export const handleEventDidMount = (info, selectedEvents, updateEventAppearance)
   const eventElement = info.el;
   const eventId = info.event.extendedProps._id;
   eventElement.setAttribute('data-event-id', eventId);
-  
+
   if (selectedEvents.has(eventId)) {
     updateEventAppearance(eventId, true);
   }
@@ -179,16 +179,16 @@ export const handleEventDidMount = (info, selectedEvents, updateEventAppearance)
 export const handleEventDrag = (info, selectedEventsRef, dragStartPositionsRef, calendarRef) => {
   const mainEventId = info.event.extendedProps._id;
   const deltaMs = info.event.start.getTime() - info.event._instance.range.start.getTime();
-  
+
   selectedEventsRef.current.forEach(eventId => {
     if (eventId !== mainEventId) {
       const eventToMove = calendarRef.current.getEventById(eventId);
       const startPosition = dragStartPositionsRef.current.get(eventId);
-      
+
       if (eventToMove && startPosition) {
         const newStart = new Date(startPosition.start.getTime() + deltaMs);
         const newEnd = new Date(startPosition.end.getTime() + deltaMs);
-        
+
         try {
           calendarRef.current.updateEvent({
             id: eventId,
@@ -219,10 +219,10 @@ export const handleEventResize = async (info, user, onEventUpdate, adjustTimeFor
   }
   // 1. Get user's timezone dynamically
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  
+
   // 2. Fallback to local timezone offset if needed (in hours)
   const fallbackTimezoneOffset = new Date().getTimezoneOffset() / -60;
-  
+
   // 3. Use detected timezone (preferred) or fallback
   const timezoneToUse = userTimezone || fallbackTimezoneOffset;
 

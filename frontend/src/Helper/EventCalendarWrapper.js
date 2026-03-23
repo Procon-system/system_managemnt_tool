@@ -1,4 +1,697 @@
-import React, { useEffect, useRef ,useState,useMemo,useCallback} from 'react';
+// import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+// import Calendar from '@event-calendar/core';
+// import DayGrid from '@event-calendar/day-grid';
+// import Interaction from '@event-calendar/interaction';
+// import List from '@event-calendar/list';
+// import ResourceTimeGrid from '@event-calendar/resource-time-grid';
+// import TimeGrid from '@event-calendar/time-grid';
+// import ResourceTimeline from '@event-calendar/resource-timeline';
+// import '@event-calendar/core/index.css';
+// import { useSelector } from 'react-redux';
+// import { toast } from 'react-toastify';
+// import promptForStartAndEndTime from './promptHelper';
+// import { handleMonthBulkUpdate, handleWeekBulkUpdate, handleSingleEventUpdate } from './eventDropHandler';
+// import { getTimezoneOffsetHours } from './getTimezones';
+// import {
+//    handleEventDuplication, 
+//   handleEventResize
+// } from './calendarHandlers';
+// import './custom.css';
+// import { useLocation } from 'react-router-dom';
+// const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdate, calendarStartDate, onEventCreate, openForm, openCreateForm }) => {
+//   const location = useLocation();
+//   const navState = location.state || {};
+//   const navView = navState.calendarView;
+//   const navDate = navState.calendarDate;
+//   const calendarContainer = useRef(null);
+//   const [changedView, setChangedView] = useState('timeGridWeek'); 
+//   const calendarRef = useRef(null);
+//   const user = useSelector((state) => state.auth);
+//   const currentDateRef = useRef(new Date()); 
+//   const [selectedEvents, setSelectedEvents] = useState(new Set());
+//   const selectedEventsRef = useRef(new Set()); 
+//   const dragStartPositionsRef = useRef(new Map());
+//   const [calendarDate, setCalendarDate] = useState(new Date()); 
+//   const isDateChangeAllowed = useRef(true); 
+ 
+//   useEffect(() => {
+   
+//     if ((navView && navView !== changedView) || (navDate && navDate !== calendarDate)) {
+//       setCalendarDate(navDate);
+//       setChangedView(navView);
+//     }
+//   }, [location.key]);
+  
+//   const handleDateChange = useCallback((args) => {
+//     const currentView = args.view.type;
+//     let normalizedArgsStart;
+//       let normalizedCalendarDate;
+//     if (currentView === "dayGridMonth") {
+//       const viewStart = args.view.currentStart;
+//       const newDate = new Date(viewStart.getFullYear(), viewStart.getMonth(), 1);
+      
+//       // Only update if month actually changed
+//       if (newDate.getMonth() !== calendarDate.getMonth() || 
+//           newDate.getFullYear() !== calendarDate.getFullYear()) {
+//         setCalendarDate(newDate);
+//       }
+//     }  else {
+//             // For week and day views, normalize to the start of the day
+//             normalizedArgsStart = new Date(args.start).setHours(0, 0, 0, 0);
+//             normalizedCalendarDate = new Date(calendarDate).setHours(0, 0, 0, 0);
+//           }
+      
+//           if (normalizedCalendarDate !== normalizedArgsStart) {
+//             setCalendarDate(new Date(normalizedArgsStart));
+//             currentDateRef.current = new Date(normalizedArgsStart);
+//           }
+//   }, [calendarDate]);
+
+//   const mappedEvents = events.map(event => ({
+//     _id: event._id,
+//     start: event.schedule.start || new Date(),
+//     end: event.schedule.end || new Date(),
+//     title: event.title || 'Untitled Event',
+//     color: event.color|| event.color_code || '#fbbf24',
+//     allDay: false,
+    
+//     resourceIds: [
+//       // Handle assigned_to with null checks
+//       ...(event.assigned_resources?.assigned_to
+//         ?.map(a => a?.user?.id || a?.user?._id || a?._id) // Check multiple possible ID locations
+//         .filter(id => id && typeof id === 'string') // Ensure valid string IDs
+//         || []),
+      
+//       // Handle resources with null checks  
+//       ...(event.assigned_resources?.resources
+//         ?.map(r => r?.resource?._id || r?._id) // Check both resource._id and root _id
+//         .filter(id => id && typeof id === 'string') // Ensure valid string IDs
+//         || []),
+
+//       ...((event.clientAssets || [])
+//              .map(ca => (typeof ca === 'string' ? ca : (ca?._id || ca?.id)))
+//              .filter(Boolean))
+//     ],
+//     extendedProps: {
+//       ...event,
+//       clientAssets: event.clientAssets || [],
+//       created_by: event.createdBy ? {
+//         id: event.createdBy._id,
+//         name: event.createdBy.full_name || 
+//               `${event.createdBy.first_name} ${event.createdBy.last_name}`,
+//         email: event.createdBy.email
+//       } : null,
+//       assigned_resources: {
+//         assigned_to: event.assigned_resources?.assigned_to?.map(assignment => ({
+//           _id: assignment._id,
+//           role: assignment.role,
+//           team: assignment.team,
+//           id: assignment.user?.id, // Use _id instead of id
+//           name: assignment.user?.name,
+//           email: assignment.user?.email,
+//           color: assignment.user?.color || '#cccccc', // Default color if not set
+//         })) || [],
+//         resources: event.assigned_resources?.resources
+//       ?.filter(resource => resource?.resource) // Filter null resources
+//       ?.map(resource => ({
+//         _id: resource._id,
+//         relationshipType: resource.relationshipType,
+//         required: resource.required,
+//         resource: {
+//           _id: resource.resource._id,
+//           type: resource.resource.type,
+//           displayName: resource.resource.displayName,
+//           fields: resource.resource.fields,
+//           status: resource.resource.status
+//         }
+//       })) || []
+//       }
+//     }
+//   }));
+ 
+//   const groupedAssignedResources = useMemo(() => {
+//     const uniqueUsers = new Map();
+//     const uniqueResources = new Map();
+//     const uniqueClientAssets = new Map();
+    
+//     mappedEvents.forEach(event => {
+//       // Process assigned users
+//       event.extendedProps.assigned_resources?.assigned_to?.forEach(assignment => {
+//         const user = assignment; // Get the user object
+//         if (user?.id && !uniqueUsers.has(user.id)) {
+//           uniqueUsers.set(user.id, {
+//             id: user.id,
+//             title: user.name,
+//             email: user.email,
+//             role: assignment.role,
+//             parent: 'assignedUsers'
+//           });
+//         }
+//       });
+  
+//       // Process resources
+//       event.extendedProps.assigned_resources.resources.forEach(resource => {
+//         if (resource.resource?._id && !uniqueResources.has(resource.resource._id)) {
+//           uniqueResources.set(resource.resource._id, {
+//             id: resource.resource._id,
+//             title: resource.resource.displayName || 'Unknown Resource',
+//             type: resource.resource.type,
+//             relationshipType: resource.relationshipType,
+//             required: resource.required,
+//             parent: 'resources'
+//           });
+//         }
+//       });
+
+//        // Client Assets
+//   (event.extendedProps.clientAssets || []).forEach(ca => {
+//        const id = typeof ca === 'string' ? ca : (ca?._id || ca?.id);
+//        if (id && !uniqueClientAssets.has(id)) {
+//        uniqueClientAssets.set(id, {
+//            id,
+//            title: (ca?.clientName || ca?.name || 'Client Asset'),
+//            parent: 'clientAssets'
+//          });
+//        }
+//      });
+//     });
+  
+//     return [
+//       {
+//         id: 'assignedUsers',
+//         title: 'Assigned Users',
+//         children: Array.from(uniqueUsers.values())
+//       },
+//       {
+//         id: 'resources',
+//         title: 'Resources',
+//         children: Array.from(uniqueResources.values())
+//       },
+//       { 
+//         id: 'clientAssets',  
+//         title: 'Client Assets',  
+//         children: Array.from(uniqueClientAssets.values()) 
+//       }
+
+//     ];
+//   }, [mappedEvents]);
+
+//   const assigned_resources = useMemo(() => [...groupedAssignedResources], [groupedAssignedResources]);
+//   const getTimezoneFromDate = (date) => {
+//     const timezoneOffsetMinutes = new Date(date).getTimezoneOffset(); // In minutes
+//     if (isNaN(timezoneOffsetMinutes)) {
+//       console.error('Invalid date for timezone calculation:', date);
+//       return null;
+//     }
+//     return -timezoneOffsetMinutes / 60; // Convert to hours
+//   };
+//   const adjustTimeForBackend = (time, timezoneInput) => {
+//     try {
+//       // Validate time
+//       const date = new Date(time);
+//       if (isNaN(date.getTime())) {
+//         console.error('Invalid date input:', time);
+//         return null;
+//       }
+  
+//       // Get offset in hours (handles both numbers and timezone names)
+//       const timezoneOffset = getTimezoneOffsetHours(timezoneInput);
+      
+//       // Calculate adjusted time
+//       const utcTime = date.getTime();
+//       const adjustedTime = new Date(utcTime + timezoneOffset * 60 * 60 * 1000);
+  
+//       if (isNaN(adjustedTime.getTime())) {
+//         console.error('Invalid adjusted time:', adjustedTime);
+//         return null;
+//       }
+  
+//       return adjustedTime.toISOString();
+//     } catch (error) {
+//       console.error('Error adjusting time:', error);
+//       return null;
+//     }
+//   };
+//   const updateEventAppearance = (eventId, isSelected) => {
+//     const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
+//     if (eventElement) {
+//       if (isSelected) {
+//         eventElement.style.border = '2px solid #ff4444';
+//         eventElement.style.boxShadow = '0 0 4px rgba(255, 68, 68, 0.5)';
+//       } else {
+//         eventElement.style.border = '';
+//         eventElement.style.boxShadow = '';
+//       }
+//     }
+//   };
+//   const handleViewChange = (view) => {
+//     setChangedView(view);
+//   };
+//   const preserveCalendarView = useCallback(() => {
+//     const calendarApi = calendarRef.current?.getView();
+//     if (calendarApi) {
+//       return {
+//         date: calendarApi.currentStart,
+//         view: calendarApi.type,
+//       };
+//     }
+//     return null;
+//   }, [calendarRef]); 
+
+//   const restoreCalendarView = useCallback((viewState) => {
+//     const calendarApi = calendarRef.current;
+
+//     if (calendarApi && viewState) {
+     
+//       calendarApi.view.currentStart.setDate(viewState.date);
+//       setCalendarDate(viewState.date);
+//     }
+   
+//   }, [calendarRef]); 
+
+//   const handleEventDrop = async (info) => {
+//     if (user.access_level < 2) {
+//       toast.error('You do not have permission to modify events.');
+//       info.revert();
+//       return;
+//     }
+
+//     const { event, jsEvent } = info;
+    
+//     const deltaMs = event.start.getTime() - info.oldEvent.start.getTime();
+//     const selectedEventIds = Array.from(selectedEventsRef.current);
+//     try {
+//       if (selectedEventIds.length > 0 && !jsEvent.altKey) {
+//         if (info.view.type === "dayGridMonth") {
+//           await handleMonthBulkUpdate({
+//             info,
+//             event,
+//             deltaMs,
+//             selectedEventIds,
+//             events,
+//             calendarRef,
+//             onMultipleEventUpdate,
+//             clearEventSelection,
+//             promptForStartAndEndTime
+//           });
+//         } else {
+//           await handleWeekBulkUpdate({
+//             info,
+//             deltaMs,
+//             selectedEventIds,
+//             events,
+//             onMultipleEventUpdate,
+//             clearEventSelection,
+//             calendarRef
+//           });
+//         }
+//       } else if (jsEvent.altKey) {
+//         await handleEventDuplication({
+//           info,
+//           onEventCreate,
+//           adjustTimeForBackend,
+//           preserveCalendarView,
+//           restoreCalendarView,
+//           getTimezoneFromDate
+//         });
+//       } else {
+//         await handleSingleEventUpdate({
+//           info,
+//           onEventUpdate,
+//           adjustTimeForBackend,
+//           calendarRef,
+//           promptForStartAndEndTime,
+//           getTimezoneFromDate
+//         });
+//       }
+//     } catch (error) {
+//       console.error('Error in event drop:', error);
+//       info.revert();
+//       toast.error('Failed to update event(s)');
+//     }
+  
+//   };
+  
+//   useEffect(() => {
+//     if (!calendarContainer.current) return;
+//     if (calendarRef.current) {
+//       calendarRef.current.destroy();
+//     }
+//     if (!mappedEvents || !groupedAssignedResources) {
+//       console.warn('Mapped events or grouped resources are not ready yet.');
+//       return;
+//     }
+//     calendarRef.current = new Calendar({
+//       target: calendarContainer.current,
+//       props: {
+//         plugins: [DayGrid, TimeGrid, List, ResourceTimeGrid, ResourceTimeline, Interaction],
+//         options: {
+//           // date: currentDateRef.current,
+//           date: calendarStartDate || calendarDate,
+//           view: changedView ,
+//           selectable: true,
+//           selectMirror: true,
+//           unselectAuto: false,
+//           editable: true,
+//           eventStartEditable: true,
+//           eventDurationEditable: true,
+//           events: mappedEvents,
+//           resources: assigned_resources,
+//           selectBackgroundColor: 'rgba(255, 68, 68, 0.2)',
+//           headerToolbar: {
+//             start: 'today,prev,next',
+//             center: 'title',
+//             end: 'year,month,week,day,list,resource,timeline',
+//           },
+//           datesSet: (args) => {
+//             if (!isDateChangeAllowed.current) return;
+//             isDateChangeAllowed.current = false;
+//             setTimeout(() => { isDateChangeAllowed.current = true }, 100);
+//             handleDateChange(args);
+//           },
+//           customButtons: {
+//             month: {
+//               text: 'Month',
+//               click: () => handleViewChange('dayGridMonth'),
+//             },
+//             week: {
+//               text: 'Week',
+//               click: () => handleViewChange('timeGridWeek'),
+//             },
+//             day: {
+//               text: 'Day',
+//               click: () => handleViewChange('timeGridDay'),
+//             },
+//             list: {
+//               text: 'List',
+//               click: () => handleViewChange('listWeek'),
+//             },
+//             year: {
+//               text: 'Year',
+//               click: () => handleViewChange('listYear'),
+//             },
+//             resource: {
+//               text: 'Resource',
+//               click: () => handleViewChange('resourceTimeGridDay'),
+//             },
+//             timeline: {
+//               text: 'Timeline',
+//               click: () => handleViewChange('resourceTimelineDay'), 
+//             },
+//           },
+//           eventClassNames: (arg) => {
+//             return selectedEvents.has(arg.event.extendedProps._id) ? 'selected-event' : '';
+//           },
+
+//           select: (info) => {
+//             if (user.access_level < 2) {
+//               toast.error('You do not have permission to create events.try logging in again');
+//               return;
+//             }
+//             const { start, end, resource } = info;
+//             const timezoneOffset = 3;
+//             const adjustedStartTime = adjustTimeForBackend(start, timezoneOffset);
+//             const adjustedEndTime = adjustTimeForBackend(end, timezoneOffset);
+            
+//             const newEvent = {
+//               start_time: adjustedStartTime,
+//               end_time: adjustedEndTime,
+             
+//               title: 'new task',
+//               resource,
+//             };
+//             openCreateForm(newEvent);
+//           },
+          
+//           dateClick: (info) => {
+//             if (user.access_level < 2) {
+//               toast.error('You do not have permission to create events. try logging in again');
+//               return;
+//             }
+//             const timezoneOffset = 3;
+//             const adjustedStartTime = adjustTimeForBackend(info.date, timezoneOffset);
+//             const newEvent = {
+//               start_time: adjustedStartTime,
+//               title: 'new task',
+//             };
+//              // Preserve the current view before opening the form
+//            const currentViewState = preserveCalendarView();
+
+//            openCreateForm(newEvent); // Open form with pre-filled start time
+
+//            // Restore the calendar view after form submission (assuming successful)
+//           if (currentViewState) {
+//                   restoreCalendarView(currentViewState);
+//               }
+//           },
+//           eventClick: (info) => {
+//             if (user.access_level < 2) {
+//               toast.error('You do not have permission to modify events.');
+//               return;
+//             }
+
+//             const eventId = info.event.extendedProps._id;
+           
+        
+//             if (info.jsEvent.shiftKey || info.jsEvent.ctrlKey) {
+//               info.jsEvent.preventDefault();
+//               const newSelected = new Set(selectedEventsRef.current);
+              
+//               if (newSelected.has(eventId)) {
+//                 newSelected.delete(eventId);
+//                 updateEventAppearance(eventId, false);
+//               } else {
+//                 newSelected.add(eventId);
+//                 updateEventAppearance(eventId, true);
+//               }
+              
+//               // Update both state and ref
+//               selectedEventsRef.current = newSelected;
+//               setSelectedEvents(newSelected);
+//             } else {
+//               // Single select mode
+//               if (selectedEvents.size > 0) {
+//                 clearEventSelection();
+//               }
+//               const { event } = info;
+//               const { extendedProps } = event;
+               
+// // Helper function to process resource arrays
+// const processResourceArray = (resources) => {
+//   if (!resources) return [];
+  
+//   return resources.map(resource => {
+//     if (typeof resource === 'string') return resource;
+    
+//     // Handle both direct IDs and resource objects
+//     return {
+//       _id: resource._id || resource.id,
+//       relationshipType: resource.relationshipType || 'requires',
+//       required: resource.required || false,
+//       resource: resource.resource ? {
+//         _id: resource.resource._id,
+//         displayName: resource.resource.displayName,
+//         fields: resource.resource.fields || {},
+//         status: resource.resource.status,
+//         type: resource.resource.type
+//       } : null
+//     };
+//   });
+// };
+
+// const updatedEvent = {
+//   _id: event._id || eventId,
+//   title: event.title || 'Untitled Event',
+//   start: event.start || new Date(),
+//   end: event.end || new Date(),
+//   color: event.backgroundColor || extendedProps?.color || '#cccccc',
+//   images: extendedProps?.images || [],
+//   notes: extendedProps?.notes || '',
+//   status: extendedProps?.status || 'pending',
+//   repeat_frequency: extendedProps?.repeat_frequency || 'none',
+//   task_period: extendedProps?.task_period || '1 week',
+//   priority: extendedProps?.priority || 'medium',
+//   timezone: extendedProps?.timezone || 'UTC',
+//   visibility: extendedProps?.visibility || 'team',
+//   created_by: extendedProps?.created_by || null,
+//   clientAssets: Array.isArray(extendedProps?.clientAssets) ? extendedProps.clientAssets : [],
+  
+//   // Process assigned resources
+//   assigned_resources: {
+//     assigned_to: Array.isArray(extendedProps?.assigned_resources?.assigned_to)
+//     ? extendedProps.assigned_resources.assigned_to.map(user => 
+//         typeof user === 'object' ? {
+//           // Include full user object if available
+//           ...user,
+//           _id: user._id || user.id
+//         } : user
+//       )
+//     : [],
+    
+//     resources: processResourceArray(extendedProps?.assigned_resources?.resources)
+//   },
+  
+//   // Include all resource IDs in a flat array
+//   resourceIds: extendedProps?.resourceIds || []
+// };
+
+// openForm(updatedEvent);
+//           }
+//           },
+//           eventDidMount: function(info) {
+//             try {
+//                 const users = info.event.extendedProps.assigned_resources?.assigned_to;
+//                 if (!Array.isArray(users) || users.length === 0) {
+//                     return;
+//                 }
+        
+//                 // --- Helper Functions (moved here for clarity) ---
+//                 const getInitials = (name) => {
+//                     if (!name) return '??';
+//                     const parts = name.trim().split(/\s+/).filter(Boolean);
+//                     if (parts.length === 0) return '??';
+//                     if (parts.length === 1) return parts[0][0].toUpperCase();
+//                     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+//                 };
+        
+//                 // You'll need this function to calculate text color for the badges
+//                 const getContrastingTextColor = (hexColor) => {
+//                     if (!hexColor) return '#000000';
+//                     const r = parseInt(hexColor.substr(1, 2), 16);
+//                     const g = parseInt(hexColor.substr(3, 2), 16);
+//                     const b = parseInt(hexColor.substr(5, 2), 16);
+//                     const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+//                     return (yiq >= 128) ? '#000000' : '#FFFFFF';
+//                 };
+//                 // --- End Helper Functions ---
+        
+        
+//                 const eventEl = info.el;
+//                 const originalChildren = Array.from(eventEl.childNodes);
+        
+//                 // This master wrapper will hold everything.
+//                 const masterWrapper = document.createElement('div');
+//                 Object.assign(masterWrapper.style, {
+//                     position: 'relative',
+//                     width: '100%',
+//                     height: '100%',
+//                     display: 'flex',
+//                     flexDirection: 'column', // This is key: it stacks children vertically
+//                     overflow: 'hidden' // Hide anything that spills out
+//                 });
+        
+//                 // NEW: Create the top color bar using the first user's color
+//                 const topBarColor = users[0]?.color || '#dddddd'; // Fallback color
+//                 const topColorBar = document.createElement('div');
+//                 Object.assign(topColorBar.style, {
+//                     backgroundColor: topBarColor,
+//                     height: '10px', // A thin bar is often cleaner. For a literal half, use '50%'.
+//                     // height: '50%', 
+//                     width: '100%',
+//                     flexShrink: '0' // Prevents the bar from shrinking if content is large
+//                 });
+        
+//                 // This wrapper holds the original event content (title, time, etc.)
+//                 const contentWrapper = document.createElement('div');
+//                 Object.assign(contentWrapper.style, {
+//                     flexGrow: '1',
+//                     overflow: 'hidden',
+//                     textOverflow: 'ellipsis',
+//                     padding: '2px 4px' // Add some padding so text isn't flush with edges
+//                 });
+        
+//                 originalChildren.forEach(child => contentWrapper.appendChild(child));
+        
+//                 // This container holds the user avatar badges
+//                 const badgeContainer = document.createElement('div');
+//                 Object.assign(badgeContainer.style, {
+//                     position: 'absolute',
+//                     bottom: '2px',
+//                     right: '2px',
+//                     display: 'flex',
+//                     alignItems: 'center',
+//                     zIndex: '5'
+//                 });
+//                 // Create the individual user badges (no changes here)
+//                 users.slice(0, 3).forEach((user) => {
+//                     const name = user?.name || user?.first_name || 'Unknown';
+//                     const initials = getInitials(name);
+//                     const userBackgroundColor = user?.color || '#cccccc';
+//                     const userTextColor = getContrastingTextColor(userBackgroundColor);
+        
+//                     const badge = document.createElement('span');
+//                     badge.textContent = initials;
+//                     badge.title = name;
+        
+//                     Object.assign(badge.style, {
+//                         backgroundColor: userBackgroundColor,
+//                         color: userTextColor,
+//                         width: '20px', // Slightly smaller for better fit
+//                         height: '20px',
+//                         borderRadius: '50%',
+//                         display: 'inline-flex',
+//                         alignItems: 'center',
+//                         justifyContent: 'center',
+//                         fontSize: '9px',
+//                         fontWeight: '600',
+//                         marginRight: '-5px',
+//                         border: '1px solid white',
+//                         boxSizing: 'border-box',
+//                     });
+//                     badgeContainer.appendChild(badge);
+//                 });
+        
+//                 masterWrapper.appendChild(topColorBar); 
+//                 masterWrapper.appendChild(contentWrapper); 
+//                 masterWrapper.appendChild(badgeContainer); 
+        
+//                 eventEl.innerHTML = ''; // Clear the original event element
+//                 eventEl.appendChild(masterWrapper); // Add our new, structured content
+        
+//             } catch (error) {
+//                 console.error('Failed to mount user badges/color bar on event:', info.event.title, error);
+//             }
+//         },
+//                   eventDrop: (info) => {
+//             handleEventDrop(info).catch(console.error);
+//           },
+//           eventResize: (info) => { 
+//             handleEventResize(info, user, onEventUpdate, adjustTimeForBackend);
+//           }
+//         },
+//       },
+//     });
+    
+//   }, [events, assigned_resources, changedView]);
+//     // Update clearEventSelection to handle both state and ref
+//     const clearEventSelection = useCallback(() => {
+//       Array.from(selectedEventsRef.current).forEach(eventId => {
+//         updateEventAppearance(eventId, false);
+//       });
+//       selectedEventsRef.current.clear();
+//       setSelectedEvents(new Set());
+//     }, []);
+  
+   
+//     useEffect(() => {
+//       selectedEventsRef.current = new Set(selectedEvents);
+//     }, [selectedEvents]);
+  
+//   useEffect(() => {
+//     return () => {
+//         dragStartPositionsRef.current.clear();
+//     };
+//   }, []);
+
+//   return (
+//     <>
+//       <div ref={calendarContainer} id="ec" />
+//     </>
+//   );
+// };
+
+// export default EventCalendarWrapper;
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import Calendar from '@event-calendar/core';
 import DayGrid from '@event-calendar/day-grid';
 import Interaction from '@event-calendar/interaction';
@@ -7,63 +700,64 @@ import ResourceTimeGrid from '@event-calendar/resource-time-grid';
 import TimeGrid from '@event-calendar/time-grid';
 import ResourceTimeline from '@event-calendar/resource-timeline';
 import '@event-calendar/core/index.css';
-import { useSelector} from 'react-redux';
+import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import promptForStartAndEndTime from './promptHelper';
 import { handleMonthBulkUpdate, handleWeekBulkUpdate, handleSingleEventUpdate } from './eventDropHandler';
-import {getTimezoneOffsetHours} from './getTimezones';
+import { getTimezoneOffsetHours } from './getTimezones';
 import {
-   handleEventDuplication, 
-  handleEventResize } from './calendarHandlers';
+  handleEventDuplication,
+  handleEventResize
+} from './calendarHandlers';
 import './custom.css';
 import { useLocation } from 'react-router-dom';
 const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdate, calendarStartDate, onEventCreate, openForm, openCreateForm }) => {
   const location = useLocation();
   const navState = location.state || {};
-  const navView  = navState.calendarView;
-  const navDate  = navState.calendarDate;
+  const navView = navState.calendarView;
+  const navDate = navState.calendarDate;
   const calendarContainer = useRef(null);
-  const [changedView, setChangedView] = useState('timeGridWeek'); 
+  const [changedView, setChangedView] = useState('timeGridWeek');
   const calendarRef = useRef(null);
   const user = useSelector((state) => state.auth);
-  const currentDateRef = useRef(new Date()); 
+  const currentDateRef = useRef(new Date());
   const [selectedEvents, setSelectedEvents] = useState(new Set());
-  const selectedEventsRef = useRef(new Set()); 
+  const selectedEventsRef = useRef(new Set());
   const dragStartPositionsRef = useRef(new Map());
-  const [calendarDate, setCalendarDate] = useState(new Date()); 
-  const isDateChangeAllowed = useRef(true); 
- 
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const isDateChangeAllowed = useRef(true);
+
   useEffect(() => {
-   
+
     if ((navView && navView !== changedView) || (navDate && navDate !== calendarDate)) {
       setCalendarDate(navDate);
       setChangedView(navView);
     }
   }, [location.key]);
-  
+
   const handleDateChange = useCallback((args) => {
     const currentView = args.view.type;
     let normalizedArgsStart;
-      let normalizedCalendarDate;
+    let normalizedCalendarDate;
     if (currentView === "dayGridMonth") {
       const viewStart = args.view.currentStart;
       const newDate = new Date(viewStart.getFullYear(), viewStart.getMonth(), 1);
-      
+
       // Only update if month actually changed
-      if (newDate.getMonth() !== calendarDate.getMonth() || 
-          newDate.getFullYear() !== calendarDate.getFullYear()) {
+      if (newDate.getMonth() !== calendarDate.getMonth() ||
+        newDate.getFullYear() !== calendarDate.getFullYear()) {
         setCalendarDate(newDate);
       }
-    }  else {
-            // For week and day views, normalize to the start of the day
-            normalizedArgsStart = new Date(args.start).setHours(0, 0, 0, 0);
-            normalizedCalendarDate = new Date(calendarDate).setHours(0, 0, 0, 0);
-          }
-      
-          if (normalizedCalendarDate !== normalizedArgsStart) {
-            setCalendarDate(new Date(normalizedArgsStart));
-            currentDateRef.current = new Date(normalizedArgsStart);
-          }
+    } else {
+      // For week and day views, normalize to the start of the day
+      normalizedArgsStart = new Date(args.start).setHours(0, 0, 0, 0);
+      normalizedCalendarDate = new Date(calendarDate).setHours(0, 0, 0, 0);
+    }
+
+    if (normalizedCalendarDate !== normalizedArgsStart) {
+      setCalendarDate(new Date(normalizedArgsStart));
+      currentDateRef.current = new Date(normalizedArgsStart);
+    }
   }, [calendarDate]);
 
   const mappedEvents = events.map(event => ({
@@ -71,28 +765,33 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
     start: event.schedule.start || new Date(),
     end: event.schedule.end || new Date(),
     title: event.title || 'Untitled Event',
-    color: event.color|| event.color_code || '#fbbf24',
+    color: event.color || event.color_code || '#fbbf24',
     allDay: false,
-    
+
     resourceIds: [
       // Handle assigned_to with null checks
       ...(event.assigned_resources?.assigned_to
         ?.map(a => a?.user?.id || a?.user?._id || a?._id) // Check multiple possible ID locations
         .filter(id => id && typeof id === 'string') // Ensure valid string IDs
         || []),
-      
+
       // Handle resources with null checks  
       ...(event.assigned_resources?.resources
         ?.map(r => r?.resource?._id || r?._id) // Check both resource._id and root _id
         .filter(id => id && typeof id === 'string') // Ensure valid string IDs
-        || [])
+        || []),
+
+      ...((event.clientAssets || [])
+        .map(ca => (typeof ca === 'string' ? ca : (ca?._id || ca?.id)))
+        .filter(Boolean))
     ],
     extendedProps: {
       ...event,
+      clientAssets: event.clientAssets || [],
       created_by: event.createdBy ? {
         id: event.createdBy._id,
-        name: event.createdBy.full_name || 
-              `${event.createdBy.first_name} ${event.createdBy.last_name}`,
+        name: event.createdBy.full_name ||
+          `${event.createdBy.first_name} ${event.createdBy.last_name}`,
         email: event.createdBy.email
       } : null,
       assigned_resources: {
@@ -106,27 +805,28 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
           color: assignment.user?.color || '#cccccc', // Default color if not set
         })) || [],
         resources: event.assigned_resources?.resources
-      ?.filter(resource => resource?.resource) // Filter null resources
-      ?.map(resource => ({
-        _id: resource._id,
-        relationshipType: resource.relationshipType,
-        required: resource.required,
-        resource: {
-          _id: resource.resource._id,
-          type: resource.resource.type,
-          displayName: resource.resource.displayName,
-          fields: resource.resource.fields,
-          status: resource.resource.status
-        }
-      })) || []
+          ?.filter(resource => resource?.resource) // Filter null resources
+          ?.map(resource => ({
+            _id: resource._id,
+            relationshipType: resource.relationshipType,
+            required: resource.required,
+            resource: {
+              _id: resource.resource._id,
+              type: resource.resource.type,
+              displayName: resource.resource.displayName,
+              fields: resource.resource.fields,
+              status: resource.resource.status
+            }
+          })) || []
       }
     }
   }));
- 
+
   const groupedAssignedResources = useMemo(() => {
     const uniqueUsers = new Map();
     const uniqueResources = new Map();
-   
+    const uniqueClientAssets = new Map();
+
     mappedEvents.forEach(event => {
       // Process assigned users
       event.extendedProps.assigned_resources?.assigned_to?.forEach(assignment => {
@@ -134,14 +834,14 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
         if (user?.id && !uniqueUsers.has(user.id)) {
           uniqueUsers.set(user.id, {
             id: user.id,
-            title: user.name, // Now properly accessing the name
+            title: user.name,
             email: user.email,
             role: assignment.role,
             parent: 'assignedUsers'
           });
         }
       });
-  
+
       // Process resources
       event.extendedProps.assigned_resources.resources.forEach(resource => {
         if (resource.resource?._id && !uniqueResources.has(resource.resource._id)) {
@@ -155,8 +855,20 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
           });
         }
       });
+
+      // Client Assets
+      (event.extendedProps.clientAssets || []).forEach(ca => {
+        const id = typeof ca === 'string' ? ca : (ca?._id || ca?.id);
+        if (id && !uniqueClientAssets.has(id)) {
+          uniqueClientAssets.set(id, {
+            id,
+            title: (ca?.clientName || ca?.name || 'Client Asset'),
+            parent: 'clientAssets'
+          });
+        }
+      });
     });
-  
+
     return [
       {
         id: 'assignedUsers',
@@ -167,7 +879,13 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
         id: 'resources',
         title: 'Resources',
         children: Array.from(uniqueResources.values())
+      },
+      {
+        id: 'clientAssets',
+        title: 'Client Assets',
+        children: Array.from(uniqueClientAssets.values())
       }
+
     ];
   }, [mappedEvents]);
 
@@ -188,19 +906,19 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
         console.error('Invalid date input:', time);
         return null;
       }
-  
+
       // Get offset in hours (handles both numbers and timezone names)
       const timezoneOffset = getTimezoneOffsetHours(timezoneInput);
-      
+
       // Calculate adjusted time
       const utcTime = date.getTime();
       const adjustedTime = new Date(utcTime + timezoneOffset * 60 * 60 * 1000);
-  
+
       if (isNaN(adjustedTime.getTime())) {
         console.error('Invalid adjusted time:', adjustedTime);
         return null;
       }
-  
+
       return adjustedTime.toISOString();
     } catch (error) {
       console.error('Error adjusting time:', error);
@@ -231,18 +949,18 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
       };
     }
     return null;
-  }, [calendarRef]); 
+  }, [calendarRef]);
 
   const restoreCalendarView = useCallback((viewState) => {
     const calendarApi = calendarRef.current;
 
     if (calendarApi && viewState) {
-     
+
       calendarApi.view.currentStart.setDate(viewState.date);
       setCalendarDate(viewState.date);
     }
-   
-  }, [calendarRef]); 
+
+  }, [calendarRef]);
 
   const handleEventDrop = async (info) => {
     if (user.access_level < 2) {
@@ -252,7 +970,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
     }
 
     const { event, jsEvent } = info;
-    
+
     const deltaMs = event.start.getTime() - info.oldEvent.start.getTime();
     const selectedEventIds = Array.from(selectedEventsRef.current);
     try {
@@ -304,9 +1022,9 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
       info.revert();
       toast.error('Failed to update event(s)');
     }
-  
+
   };
-  
+
   useEffect(() => {
     if (!calendarContainer.current) return;
     if (calendarRef.current) {
@@ -323,7 +1041,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
         options: {
           // date: currentDateRef.current,
           date: calendarStartDate || calendarDate,
-          view: changedView ,
+          view: changedView,
           selectable: true,
           selectMirror: true,
           unselectAuto: false,
@@ -371,7 +1089,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             },
             timeline: {
               text: 'Timeline',
-              click: () => handleViewChange('resourceTimelineDay'), 
+              click: () => handleViewChange('resourceTimelineDay'),
             },
           },
           eventClassNames: (arg) => {
@@ -384,41 +1102,40 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
               return;
             }
             const { start, end, resource } = info;
-            const timezoneOffset = 3;
+            const timezoneOffset = getTimezoneFromDate(start);
             const adjustedStartTime = adjustTimeForBackend(start, timezoneOffset);
             const adjustedEndTime = adjustTimeForBackend(end, timezoneOffset);
-            
+
             const newEvent = {
               start_time: adjustedStartTime,
               end_time: adjustedEndTime,
-             
+
               title: 'new task',
               resource,
             };
             openCreateForm(newEvent);
           },
-          
+
           dateClick: (info) => {
             if (user.access_level < 2) {
               toast.error('You do not have permission to create events. try logging in again');
               return;
             }
-            const timezoneOffset = 3;
+            const timezoneOffset = getTimezoneFromDate(info.date);
             const adjustedStartTime = adjustTimeForBackend(info.date, timezoneOffset);
             const newEvent = {
               start_time: adjustedStartTime,
               title: 'new task',
             };
-             // Preserve the current view before opening the form
-  const currentViewState = preserveCalendarView();
+            // Preserve the current view before opening the form
+            const currentViewState = preserveCalendarView();
 
-  openCreateForm(newEvent); // Open form with pre-filled start time
+            openCreateForm(newEvent); // Open form with pre-filled start time
 
-  // Restore the calendar view after form submission (assuming successful)
-  if (currentViewState) {
-    restoreCalendarView(currentViewState);
-  }
-            // openCreateForm(newEvent); // Open form with pre-filled start time
+            // Restore the calendar view after form submission (assuming successful)
+            if (currentViewState) {
+              restoreCalendarView(currentViewState);
+            }
           },
           eventClick: (info) => {
             if (user.access_level < 2) {
@@ -427,12 +1144,12 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
             }
 
             const eventId = info.event.extendedProps._id;
-           
-        
+
+
             if (info.jsEvent.shiftKey || info.jsEvent.ctrlKey) {
               info.jsEvent.preventDefault();
               const newSelected = new Set(selectedEventsRef.current);
-              
+
               if (newSelected.has(eventId)) {
                 newSelected.delete(eventId);
                 updateEventAppearance(eventId, false);
@@ -440,7 +1157,7 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
                 newSelected.add(eventId);
                 updateEventAppearance(eventId, true);
               }
-              
+
               // Update both state and ref
               selectedEventsRef.current = newSelected;
               setSelectedEvents(newSelected);
@@ -451,210 +1168,211 @@ const EventCalendarWrapper = ({ events = [], onEventUpdate, onMultipleEventUpdat
               }
               const { event } = info;
               const { extendedProps } = event;
-               
-// Helper function to process resource arrays
-const processResourceArray = (resources) => {
-  if (!resources) return [];
-  
-  return resources.map(resource => {
-    if (typeof resource === 'string') return resource;
-    
-    // Handle both direct IDs and resource objects
-    return {
-      _id: resource._id || resource.id,
-      relationshipType: resource.relationshipType || 'requires',
-      required: resource.required || false,
-      resource: resource.resource ? {
-        _id: resource.resource._id,
-        displayName: resource.resource.displayName,
-        fields: resource.resource.fields || {},
-        status: resource.resource.status,
-        type: resource.resource.type
-      } : null
-    };
-  });
-};
 
-const updatedEvent = {
-  _id: event._id || eventId,
-  title: event.title || 'Untitled Event',
-  start: event.start || new Date(),
-  end: event.end || new Date(),
-  color: event.backgroundColor || extendedProps?.color || '#cccccc',
-  images: extendedProps?.images || [],
-  notes: extendedProps?.notes || '',
-  status: extendedProps?.status || 'pending',
-  repeat_frequency: extendedProps?.repeat_frequency || 'none',
-  task_period: extendedProps?.task_period || '1 week',
-  priority: extendedProps?.priority || 'medium',
-  timezone: extendedProps?.timezone || 'UTC',
-  visibility: extendedProps?.visibility || 'team',
-  created_by: extendedProps?.created_by || null,
-  
-  // Process assigned resources
-  assigned_resources: {
-    assigned_to: Array.isArray(extendedProps?.assigned_resources?.assigned_to)
-    ? extendedProps.assigned_resources.assigned_to.map(user => 
-        typeof user === 'object' ? {
-          // Include full user object if available
-          ...user,
-          _id: user._id || user.id
-        } : user
-      )
-    : [],
-    
-    resources: processResourceArray(extendedProps?.assigned_resources?.resources)
-  },
-  
-  // Include all resource IDs in a flat array
-  resourceIds: extendedProps?.resourceIds || []
-};
+              // Helper function to process resource arrays
+              const processResourceArray = (resources) => {
+                if (!resources) return [];
 
-openForm(updatedEvent);
-          }
-          },
-          eventDidMount: function(info) {
-            try {
-                const users = info.event.extendedProps.assigned_resources?.assigned_to;
-                if (!Array.isArray(users) || users.length === 0) {
-                    return;
-                }
-        
-                // --- Helper Functions (moved here for clarity) ---
-                const getInitials = (name) => {
-                    if (!name) return '??';
-                    const parts = name.trim().split(/\s+/).filter(Boolean);
-                    if (parts.length === 0) return '??';
-                    if (parts.length === 1) return parts[0][0].toUpperCase();
-                    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-                };
-        
-                // You'll need this function to calculate text color for the badges
-                const getContrastingTextColor = (hexColor) => {
-                    if (!hexColor) return '#000000';
-                    const r = parseInt(hexColor.substr(1, 2), 16);
-                    const g = parseInt(hexColor.substr(3, 2), 16);
-                    const b = parseInt(hexColor.substr(5, 2), 16);
-                    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-                    return (yiq >= 128) ? '#000000' : '#FFFFFF';
-                };
-                // --- End Helper Functions ---
-        
-        
-                const eventEl = info.el;
-                const originalChildren = Array.from(eventEl.childNodes);
-        
-                // This master wrapper will hold everything.
-                const masterWrapper = document.createElement('div');
-                Object.assign(masterWrapper.style, {
-                    position: 'relative',
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column', // This is key: it stacks children vertically
-                    overflow: 'hidden' // Hide anything that spills out
+                return resources.map(resource => {
+                  if (typeof resource === 'string') return resource;
+
+                  // Handle both direct IDs and resource objects
+                  return {
+                    _id: resource._id || resource.id,
+                    relationshipType: resource.relationshipType || 'requires',
+                    required: resource.required || false,
+                    resource: resource.resource ? {
+                      _id: resource.resource._id,
+                      displayName: resource.resource.displayName,
+                      fields: resource.resource.fields || {},
+                      status: resource.resource.status,
+                      type: resource.resource.type
+                    } : null
+                  };
                 });
-        
-                // NEW: Create the top color bar using the first user's color
-                const topBarColor = users[0]?.color || '#dddddd'; // Fallback color
-                const topColorBar = document.createElement('div');
-                Object.assign(topColorBar.style, {
-                    backgroundColor: topBarColor,
-                    height: '10px', // A thin bar is often cleaner. For a literal half, use '50%'.
-                    // height: '50%', 
-                    width: '100%',
-                    flexShrink: '0' // Prevents the bar from shrinking if content is large
-                });
-        
-                // This wrapper holds the original event content (title, time, etc.)
-                const contentWrapper = document.createElement('div');
-                Object.assign(contentWrapper.style, {
-                    flexGrow: '1',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    padding: '2px 4px' // Add some padding so text isn't flush with edges
-                });
-        
-                originalChildren.forEach(child => contentWrapper.appendChild(child));
-        
-                // This container holds the user avatar badges
-                const badgeContainer = document.createElement('div');
-                Object.assign(badgeContainer.style, {
-                    position: 'absolute',
-                    bottom: '2px',
-                    right: '2px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    zIndex: '5'
-                });
-                // Create the individual user badges (no changes here)
-                users.slice(0, 3).forEach((user) => {
-                    const name = user?.name || user?.first_name || 'Unknown';
-                    const initials = getInitials(name);
-                    const userBackgroundColor = user?.color || '#cccccc';
-                    const userTextColor = getContrastingTextColor(userBackgroundColor);
-        
-                    const badge = document.createElement('span');
-                    badge.textContent = initials;
-                    badge.title = name;
-        
-                    Object.assign(badge.style, {
-                        backgroundColor: userBackgroundColor,
-                        color: userTextColor,
-                        width: '20px', // Slightly smaller for better fit
-                        height: '20px',
-                        borderRadius: '50%',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '9px',
-                        fontWeight: '600',
-                        marginRight: '-5px',
-                        border: '1px solid white',
-                        boxSizing: 'border-box',
-                    });
-                    badgeContainer.appendChild(badge);
-                });
-        
-                masterWrapper.appendChild(topColorBar); 
-                masterWrapper.appendChild(contentWrapper); 
-                masterWrapper.appendChild(badgeContainer); 
-        
-                eventEl.innerHTML = ''; // Clear the original event element
-                eventEl.appendChild(masterWrapper); // Add our new, structured content
-        
-            } catch (error) {
-                console.error('Failed to mount user badges/color bar on event:', info.event.title, error);
+              };
+
+              const updatedEvent = {
+                _id: event._id || eventId,
+                title: event.title || 'Untitled Event',
+                start: event.start || new Date(),
+                end: event.end || new Date(),
+                color: event.backgroundColor || extendedProps?.color || '#cccccc',
+                images: extendedProps?.images || [],
+                notes: extendedProps?.notes || '',
+                status: extendedProps?.status || 'pending',
+                repeat_frequency: extendedProps?.repeat_frequency || 'none',
+                task_period: extendedProps?.task_period || '1 week',
+                priority: extendedProps?.priority || 'medium',
+                timezone: extendedProps?.timezone || 'UTC',
+                visibility: extendedProps?.visibility || 'team',
+                created_by: extendedProps?.created_by || null,
+                clientAssets: Array.isArray(extendedProps?.clientAssets) ? extendedProps.clientAssets : [],
+
+                // Process assigned resources
+                assigned_resources: {
+                  assigned_to: Array.isArray(extendedProps?.assigned_resources?.assigned_to)
+                    ? extendedProps.assigned_resources.assigned_to.map(user =>
+                      typeof user === 'object' ? {
+                        // Include full user object if available
+                        ...user,
+                        _id: user._id || user.id
+                      } : user
+                    )
+                    : [],
+
+                  resources: processResourceArray(extendedProps?.assigned_resources?.resources)
+                },
+
+                // Include all resource IDs in a flat array
+                resourceIds: extendedProps?.resourceIds || []
+              };
+
+              openForm(updatedEvent);
             }
-        },
-                  eventDrop: (info) => {
+          },
+          eventDidMount: function (info) {
+            try {
+              const users = info.event.extendedProps.assigned_resources?.assigned_to;
+              if (!Array.isArray(users) || users.length === 0) {
+                return;
+              }
+
+              // --- Helper Functions (moved here for clarity) ---
+              const getInitials = (name) => {
+                if (!name) return '??';
+                const parts = name.trim().split(/\s+/).filter(Boolean);
+                if (parts.length === 0) return '??';
+                if (parts.length === 1) return parts[0][0].toUpperCase();
+                return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+              };
+
+              // You'll need this function to calculate text color for the badges
+              const getContrastingTextColor = (hexColor) => {
+                if (!hexColor) return '#000000';
+                const r = parseInt(hexColor.substr(1, 2), 16);
+                const g = parseInt(hexColor.substr(3, 2), 16);
+                const b = parseInt(hexColor.substr(5, 2), 16);
+                const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+                return (yiq >= 128) ? '#000000' : '#FFFFFF';
+              };
+              // --- End Helper Functions ---
+
+
+              const eventEl = info.el;
+              const originalChildren = Array.from(eventEl.childNodes);
+
+              // This master wrapper will hold everything.
+              const masterWrapper = document.createElement('div');
+              Object.assign(masterWrapper.style, {
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column', // This is key: it stacks children vertically
+                overflow: 'hidden' // Hide anything that spills out
+              });
+
+              // NEW: Create the top color bar using the first user's color
+              const topBarColor = users[0]?.color || '#dddddd'; // Fallback color
+              const topColorBar = document.createElement('div');
+              Object.assign(topColorBar.style, {
+                backgroundColor: topBarColor,
+                height: '10px', // A thin bar is often cleaner. For a literal half, use '50%'.
+                // height: '50%', 
+                width: '100%',
+                flexShrink: '0' // Prevents the bar from shrinking if content is large
+              });
+
+              // This wrapper holds the original event content (title, time, etc.)
+              const contentWrapper = document.createElement('div');
+              Object.assign(contentWrapper.style, {
+                flexGrow: '1',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                padding: '2px 4px' // Add some padding so text isn't flush with edges
+              });
+
+              originalChildren.forEach(child => contentWrapper.appendChild(child));
+
+              // This container holds the user avatar badges
+              const badgeContainer = document.createElement('div');
+              Object.assign(badgeContainer.style, {
+                position: 'absolute',
+                bottom: '2px',
+                right: '2px',
+                display: 'flex',
+                alignItems: 'center',
+                zIndex: '5'
+              });
+              // Create the individual user badges (no changes here)
+              users.slice(0, 3).forEach((user) => {
+                const name = user?.name || user?.first_name || 'Unknown';
+                const initials = getInitials(name);
+                const userBackgroundColor = user?.color || '#cccccc';
+                const userTextColor = getContrastingTextColor(userBackgroundColor);
+
+                const badge = document.createElement('span');
+                badge.textContent = initials;
+                badge.title = name;
+
+                Object.assign(badge.style, {
+                  backgroundColor: userBackgroundColor,
+                  color: userTextColor,
+                  width: '20px', // Slightly smaller for better fit
+                  height: '20px',
+                  borderRadius: '50%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '9px',
+                  fontWeight: '600',
+                  marginRight: '-5px',
+                  border: '1px solid white',
+                  boxSizing: 'border-box',
+                });
+                badgeContainer.appendChild(badge);
+              });
+
+              masterWrapper.appendChild(topColorBar);
+              masterWrapper.appendChild(contentWrapper);
+              masterWrapper.appendChild(badgeContainer);
+
+              eventEl.innerHTML = ''; // Clear the original event element
+              eventEl.appendChild(masterWrapper); // Add our new, structured content
+
+            } catch (error) {
+              console.error('Failed to mount user badges/color bar on event:', info.event.title, error);
+            }
+          },
+          eventDrop: (info) => {
             handleEventDrop(info).catch(console.error);
           },
-          eventResize: (info) => { 
+          eventResize: (info) => {
             handleEventResize(info, user, onEventUpdate, adjustTimeForBackend);
           }
         },
       },
     });
-    
+
   }, [events, assigned_resources, changedView]);
-    // Update clearEventSelection to handle both state and ref
-    const clearEventSelection = useCallback(() => {
-      Array.from(selectedEventsRef.current).forEach(eventId => {
-        updateEventAppearance(eventId, false);
-      });
-      selectedEventsRef.current.clear();
-      setSelectedEvents(new Set());
-    }, []);
-  
-   
-    useEffect(() => {
-      selectedEventsRef.current = new Set(selectedEvents);
-    }, [selectedEvents]);
-  
+  // Update clearEventSelection to handle both state and ref
+  const clearEventSelection = useCallback(() => {
+    Array.from(selectedEventsRef.current).forEach(eventId => {
+      updateEventAppearance(eventId, false);
+    });
+    selectedEventsRef.current.clear();
+    setSelectedEvents(new Set());
+  }, []);
+
+
+  useEffect(() => {
+    selectedEventsRef.current = new Set(selectedEvents);
+  }, [selectedEvents]);
+
   useEffect(() => {
     return () => {
-        dragStartPositionsRef.current.clear();
+      dragStartPositionsRef.current.clear();
     };
   }, []);
 
