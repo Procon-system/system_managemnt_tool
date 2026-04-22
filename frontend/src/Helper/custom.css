@@ -1,6 +1,87 @@
 
+/* Keep all toolbar start-section groups on one horizontal line */
+.ec-toolbar {
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+.ec-toolbar .ec-start {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+.ec-toolbar .ec-start > * {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+/* Style the built-in date title to sit inline like a label */
+.ec-toolbar .ec-title {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  white-space: nowrap !important;
+  margin: 0 4px !important;
+}
+
+/* ── Back & Next navigation buttons ──────────────────────────── */
+.ec-toolbar .ec-button[class*="customPrev"],
+.ec-toolbar .ec-button[class*="customNext"] {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+  border: 1.5px solid #93c5fd !important;
+  color: #1d4ed8 !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  letter-spacing: 0.3px !important;
+  border-radius: 20px !important;
+  padding: 4px 14px !important;
+  transition: all 0.18s ease !important;
+  box-shadow: 0 1px 3px rgba(37,99,235,0.12) !important;
+}
+.ec-toolbar .ec-button[class*="customPrev"]:hover,
+.ec-toolbar .ec-button[class*="customNext"]:hover {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 4px 10px rgba(37,99,235,0.2) !important;
+  transform: translateY(-1px) !important;
+}
+.ec-toolbar .ec-button[class*="customPrev"]:active,
+.ec-toolbar .ec-button[class*="customNext"]:active {
+  transform: translateY(0px) scale(0.97) !important;
+  box-shadow: 0 1px 3px rgba(37,99,235,0.1) !important;
+}
+
 .ec-toolbar .ec-end .ec-button:nth-child(6) {
   padding-right: 25px !important;
+}
+
+
+/* "Show/Hide Resources" toggle button — blue instead of default yellow */
+.ec-button[class*="toggleResources"],
+.ec-toolbar button[title="toggleResources"] {
+  background-color: #2563eb !important;
+  border-color: #1d4ed8 !important;
+  color: #fff !important;
+}
+.ec-button[class*="toggleResources"]:hover,
+.ec-toolbar button[title="toggleResources"]:hover {
+  background-color: #1d4ed8 !important;
+  border-color: #1e40af !important;
+}
+
+/* Inline date range display between ← Back and Forward → */
+.ec-button[class*="dateDisplay"] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  cursor: default !important;
+  pointer-events: none !important;
+  padding: 0 6px !important;
 }
 .ec-event.selected-event {
   border: 2px solid #ff4444 !important;
