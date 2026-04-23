@@ -45,7 +45,7 @@ export default function PurchasePage({
   const luhnValid = (num) => {
     let sum = 0;
     let alt = false;
-    for (let i = num.length - 1; i >= 0; i++) {
+    for (let i = num.length - 1; i >= 0; i--) {
       let n = parseInt(num[i], 10);
       if (alt) {
         n *= 2;
