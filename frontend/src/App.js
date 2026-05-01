@@ -29,8 +29,8 @@ import CalendarImport from './Components/calendarImport';
 import LandingPage from './Pages/Subscription/landingPage';
 import DashboardPage from './Pages/Subscription/dashboardPage';
 import RegistrationFlow from './Pages/Subscription/registrationFlow';
-import ClientAssetsPage from "./Pages/ClientAsset/clientAssetPage";
-import ClientAssetDetailPage from "./Pages/ClientAsset/clientAssetDetailPage";
+// import ClientAssetsPage from "./Pages/ClientAsset/clientAssetPage";
+// import ClientAssetDetailPage from "./Pages/ClientAsset/clientAssetDetailPage";
 import SensorPage from "./Pages/Sensor/SensorPage";
 import TrendPage from "./Pages/Sensor/TrendPage";
 
@@ -102,7 +102,7 @@ const App = () => {
         <Route path="/confirm-email/:tenantId/:confirmationCode" element={<ConfirmEmail />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
         <Route path="/import-calendar" element={<MainLayout><CalendarImport /></MainLayout>} />
-        <Route path="/client-assets" element={
+        {/* <Route path="/client-assets" element={
           <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
             <MainLayout><ClientAssetsPage /></MainLayout>
           </ProtectedRoute>
@@ -111,7 +111,7 @@ const App = () => {
           <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
             <MainLayout><ClientAssetDetailPage /></MainLayout>
           </ProtectedRoute>
-        } />
+        } /> */}
         <Route
           path="/profile"
           element={
