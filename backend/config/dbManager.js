@@ -1,12 +1,8 @@
 
 const mongoose = require('mongoose');
 const config = require('./config');
-
-// Track all active connections and initialized tenants
 const tenantConnections = new Map();
-const initializedTenants = new Map(); // Now tracks model initialization per connection
-// Track all active connections
-
+const initializedTenants = new Map();
 class TenantConnection {
   constructor(connection, orgId) {
     this.connection = connection;
@@ -27,7 +23,10 @@ class TenantConnection {
         ResourceType: require('../Models/ResourceTypeSchema'),
         Notification: require('../Models/NotificationSchema'),
         ResourceBooking: require('../Models/ResourceBookingSchema'),
-        PushToken: require('../Models/PushTokenSchema')
+        PushToken: require('../Models/PushTokenSchema'),
+        ClientAsset: require('../Models/ClientAsset'),
+        Sensor: require('../Models/SensorSchema'),
+        SensorData: require('../Models/SensorDataSchema'),
       };
 
       for (const [modelName, initFn] of Object.entries(modelInitializers)) {

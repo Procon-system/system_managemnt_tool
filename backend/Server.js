@@ -57,7 +57,8 @@ app.use(async (req, res, next) => {
         ResourceType: tenantConn.models.get('ResourceType'),
         Notification: tenantConn.models.get('Notification'),
         ResourceBooking: tenantConn.models.get('ResourceBooking'),
-        PushToken: tenantConn.models.get('PushToken')
+        PushToken: tenantConn.models.get('PushToken'),
+        ClientAsset: tenantConn.models.get('ClientAsset'),
       };
     }
 

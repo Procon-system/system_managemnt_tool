@@ -24,11 +24,16 @@ import UserManagementPage from "./Pages/User/userPage";
 import MainLayout from './Components/layout/layoutWrapper'
 import ResourceTypesPage from './Pages/ResourceType/showResourceTypePage';
 import TeamsPage from './Pages/Team/TeamsPage';
-import TaskAnalytics  from './Pages/Analytics/TaskAnalytics';
+import TaskAnalytics from './Pages/Analytics/TaskAnalytics';
 import CalendarImport from './Components/calendarImport';
 import LandingPage from './Pages/Subscription/landingPage';
 import DashboardPage from './Pages/Subscription/dashboardPage';
 import RegistrationFlow from './Pages/Subscription/registrationFlow';
+import ClientAssetsPage from "./Pages/ClientAsset/clientAssetPage";
+import ClientAssetDetailPage from "./Pages/ClientAsset/clientAssetDetailPage";
+import SensorPage from "./Pages/Sensor/SensorPage";
+import TrendPage from "./Pages/Sensor/TrendPage";
+
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { connectSocket } from "./socket";
@@ -36,7 +41,7 @@ const ConditionalNavBar = ({ children }) => {
   const location = useLocation();
 
   // Paths where Navbar and Sidebar are not displayed
-  const authPaths = [ "/sub","/dashboard", "/purchase","/subscription", "/register-sub", "/landing","/login", "/logout", "/forgot-password", "/reset-password", "/confirm-email"];
+  const authPaths = ["/sub", "/dashboard", "/purchase", "/subscription", "/register-sub", "/landing", "/login", "/logout", "/forgot-password", "/reset-password", "/confirm-email"];
 
   const hideNavBar = authPaths.some(path => location.pathname.startsWith(path));
 
@@ -46,12 +51,12 @@ const ConditionalNavBar = ({ children }) => {
         <>
           <Navbar />
           <Sidebar />
-          <div className="pt-16"> 
+          <div className="pt-16">
             {children}
           </div>
         </>
       )}
-      {hideNavBar && children} 
+      {hideNavBar && children}
     </>
   );
 };
@@ -68,7 +73,7 @@ const App = () => {
 
   return (
     <Router>
-      <ToastContainer 
+      <ToastContainer
         position="top-right"
         autoClose={5000}
         hideProgressBar={false}
@@ -79,118 +84,144 @@ const App = () => {
         draggable
         pauseOnHover />
       <ConditionalNavBar />
-      
-        <Routes>
-          <Route path="/" element={isLoggedIn ? <Navigate to="/home" /> : <Navigate to="/landing" /> } />
-          <Route path="/landing" element={<LandingPage />} />
-          <Route path="/dashboard" element={< DashboardPage/>}/>
-          <Route
-           path="/sub"
-           element={isLoggedIn ? <Navigate to="/home" replace /> : <RegistrationFlow />}
-          />
-          
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/logout" element={<LogoutPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-          <Route path="/confirm-email/:tenantId/:confirmationCode" element={<ConfirmEmail />} />
-          <Route path="/unauthorized" element={<UnauthorizedPage />} />
-          <Route path="/import-calendar" element={<MainLayout><CalendarImport /></MainLayout>} />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
-                <MainLayout><ProfilePage /></MainLayout>
-              </ProtectedRoute>
-            }
-          />
-           <Route
-            path="/register"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
-                <MainLayout><RegisterPage /></MainLayout>
-                
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/user"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.ADMIN}>
-               <MainLayout><UserManagementPage /></MainLayout> 
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/analytics"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
-                 <MainLayout>
-                 <TaskAnalytics/>
-                 </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-           <Route
-            path="/teams"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
-                 <MainLayout>
-                 <TeamsPage />
-                 </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/create-task"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
-                <TaskPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/filter-tasks"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
-                <FilterPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/create-resource-type"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
-                <MainLayout>
-      <CreateResourceTypePage />
-    </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-           <Route
-            path="/show-resource-type"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
-                <MainLayout>
-      <ResourceTypesPage/>
-    </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/resource-types/:typeId"
-            element={
-              <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
-                 <MainLayout>
-               < ResourceListPage/>
-               </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-        </Routes>
-     
+
+      <Routes>
+        <Route path="/" element={isLoggedIn ? <Navigate to="/home" /> : <Navigate to="/landing" />} />
+        <Route path="/landing" element={<LandingPage />} />
+        <Route path="/dashboard" element={< DashboardPage />} />
+        <Route
+          path="/sub"
+          element={isLoggedIn ? <Navigate to="/home" replace /> : <RegistrationFlow />}
+        />
+
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/logout" element={<LogoutPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/confirm-email/:tenantId/:confirmationCode" element={<ConfirmEmail />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/import-calendar" element={<MainLayout><CalendarImport /></MainLayout>} />
+        <Route path="/client-assets" element={
+          <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+            <MainLayout><ClientAssetsPage /></MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/client-assets/:id" element={
+          <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+            <MainLayout><ClientAssetDetailPage /></MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
+              <MainLayout><ProfilePage /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+              <MainLayout><RegisterPage /></MainLayout>
+
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.ADMIN}>
+              <MainLayout><UserManagementPage /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
+              <MainLayout>
+                <TaskAnalytics />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teams"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
+              <MainLayout>
+                <TeamsPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/create-task"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+              <TaskPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/filter-tasks"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+              <FilterPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/create-resource-type"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+              <MainLayout>
+                <CreateResourceTypePage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/show-resource-type"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+              <MainLayout>
+                <ResourceTypesPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/resource-types/:typeId"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+              <MainLayout>
+                < ResourceListPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sensors"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.MANAGER}>
+              <MainLayout><SensorPage /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trend"
+          element={
+            <ProtectedRoute requiredAccessLevel={ROLES.RANDOM_USER}>
+              <MainLayout><TrendPage /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+      </Routes>
+
     </Router>
   );
 };

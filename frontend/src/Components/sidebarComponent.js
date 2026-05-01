@@ -5,7 +5,8 @@ import { FaBars, FaTimes, FaPlus } from 'react-icons/fa';
 import { FaUsersCog } from 'react-icons/fa';
 import { setTaskView } from '../features/taskSlice';
 import {FiChevronDown } from 'react-icons/fi';
-import { FiList, FiCheckCircle, FiArchive, FiClipboard, FiTool, FiUsers, FiUserPlus,  FiPackage } from "react-icons/fi";
+import { FiList, FiCheckCircle, FiArchive, FiClipboard, FiTool, FiPackage, FiBriefcase, FiExternalLink, FiUserPlus, FiRadio } from "react-icons/fi";
+import { MdTimeline } from 'react-icons/md';
 import DateRangeFilter from "../Components/taskComponents/datePicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { AiOutlineHome,AiOutlineCalendar} from "react-icons/ai";
@@ -184,6 +185,13 @@ const handleViewAllDoneTasksClick = () => {
       <MdDashboard className="text-blue-500 mr-3" size={24} />
       Analytics Dashboard
     </button>
+    <button
+      className="w-full flex items-center text-gray-800 bg-indigo-100 px-4 py-3 mt-2 rounded-md hover:bg-indigo-200 transition"
+      onClick={() => handleNavigation('/trend')}
+    >
+      <MdTimeline className="text-indigo-500 mr-3" size={24} />
+      Trend
+    </button>
   </>
 )}
 
@@ -240,7 +248,7 @@ const handleViewAllDoneTasksClick = () => {
         {/* ... same as before ... */}
       </div>
     )}
-        <div className="mb-2">
+        {/* <div className="mb-2">
       <button
         onClick={() => toggleCategory('resources')}
         className="w-full flex items-center justify-between px-4 py-2 text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-all"
@@ -271,7 +279,7 @@ const handleViewAllDoneTasksClick = () => {
           onClick={() => navigate('/user')}
           className="w-full flex items-center text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
         >
-          <span className="mr-2" style={{ color: '#4b5563' }}> {/* gray-600 */}
+          <span className="mr-2" style={{ color: '#4b5563' }}>
             <FaUsersCog size={16} />
           </span>
           <span className="truncate">Manage Users</span>
@@ -297,7 +305,86 @@ const handleViewAllDoneTasksClick = () => {
       
       </div>
       </div>
+      </div> */}
+      <div className="mb-2">
+  <button
+    onClick={() => toggleCategory('resources')}
+    className="w-full flex items-center justify-between px-4 py-2 text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-all"
+  >
+    <div className="flex items-center">
+      <FiPackage className="mr-3 text-blue-500" size={18} />
+      <span>Assets</span>
+    </div>
+    <FiChevronDown
+      className={`transition-transform duration-200 ${expandedCategories.resources ? 'transform rotate-180' : ''}`}
+      size={16}
+    />
+  </button>
+
+  <div
+    className={`
+      overflow-y-auto 
+      transition-all duration-300 ease-in-out
+      ${expandedCategories.resources ? 'max-h-[360px]' : 'max-h-0'}
+    `}
+  >
+    <div className="ml-4 mt-1 space-y-1 max-w-full overflow-x-auto">
+      <div className="flex flex-col w-full min-w-[260px]">
+        {/* Admin-only */}
+        {access_level === 5 && (
+          <button
+            onClick={() => navigate('/user')}
+            className="w-full flex items-center text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
+          >
+            <span className="mr-2" style={{ color: '#4b5563' }}>
+              <FaUsersCog size={16} />
+            </span>
+            <span className="truncate">Manage Users</span>
+          </button>
+        )}
+
+        {/* Existing dynamic resource types */}
+        {categorizedResources.resources && categorizedResources.resources.map(type => (
+          <button
+            key={type._id}
+            onClick={() => navigate(`/resource-types/${type._id}`)}
+            className="w-full flex items-center text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
+          >
+            {type.icon && (
+              <span className="mr-2" style={{ color: type.color || '#1f2937' }}>
+                {RenderDynamicIcon(type.icon, 20)}
+              </span>
+            )}
+            <span className="truncate">{type.name}</span>
+          </button>
+        ))}
+
+        {/* Divider */}
+        <div className="border-t border-gray-200" />
+
+
+
+<button
+  onClick={() => navigate('/client-assets')}
+  className="w-full flex items-center justify-between text-left px-3 py-2 rounded-md hover:bg-blue-100 text-gray-700 transition-colors"
+  title="Open Client Assets"
+>
+  <div className="flex items-center min-w-0">
+    <span className="mr-2" style={{ color: '#4b5563' }}>
+      <FiBriefcase size={16} />
+    </span>
+    <div className="min-w-0">
+      <div className="truncate ">Client Assets</div>
+         </div>
+  </div>
+  
+</button>
+
       </div>
+    </div>
+  </div>
+</div>
+
   </div>
 )}
         </div>
@@ -326,6 +413,16 @@ const handleViewAllDoneTasksClick = () => {
         <div className={`absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center space-y-2 transition-all duration-500 ease-in-out ${
           showAddOptions ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
         }`}>
+          {access_level >= 3 && (
+            <StyledAddButton
+              icon={<FiRadio size={18} />}
+              label="Sensors"
+              onClick={() => {
+                handleNavigation('/sensors');
+                setShowAddOptions(false);
+              }}
+            />
+          )}
           {access_level >= 4 && (
             <>
               {/* <StyledAddButton 
