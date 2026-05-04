@@ -88,7 +88,6 @@ export default function SensorPage() {
 
   const [sourceDeviceId, setSourceDeviceId] = useState('');
   const [sourceTagId, setSourceTagId] = useState('');
-  const [customName, setCustomName] = useState('');
  const [customForm, setCustomForm] = useState({
     custom_name: '',
 

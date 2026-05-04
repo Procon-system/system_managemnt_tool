@@ -4,6 +4,10 @@ import {
   Line,
   ResponsiveContainer,
   Tooltip,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
 } from 'recharts';
 import {
   FiActivity,
@@ -11,6 +15,8 @@ import {
   FiTrendingUp,
   FiTrendingDown,
   FiMinus,
+  FiX,
+  FiInfo,
 } from 'react-icons/fi';
 
 import {
@@ -37,7 +43,21 @@ const displayTagName = item =>
   item?.tag_id ||
   'Unknown tag';
 
-function SparkCard({ item, timeRange }) {
+const formatTime = timestamp => {
+  if (!timestamp) return '—';
+  return new Date(timestamp).toLocaleString();
+};
+
+const formatChartTime = ts => {
+  const d = new Date(ts);
+
+  return `${d.getHours().toString().padStart(2, '0')}:${d
+    .getMinutes()
+    .toString()
+    .padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+};
+
+function SparkCard({ item, timeRange, onClick }) {
   const [sparkData, setSparkData] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -130,13 +150,16 @@ function SparkCard({ item, timeRange }) {
   return (
     <div
       style={cardStyle}
+      onClick={() => onClick(item)}
       onMouseEnter={e => {
         e.currentTarget.style.boxShadow = '0 10px 15px -3px rgb(0 0 0 / 0.1)';
         e.currentTarget.style.borderColor = '#3b82f6';
+        e.currentTarget.style.transform = 'translateY(-2px)';
       }}
       onMouseLeave={e => {
         e.currentTarget.style.boxShadow = '0 1px 3px 0 rgb(0 0 0 / 0.1)';
         e.currentTarget.style.borderColor = '#e2e8f0';
+        e.currentTarget.style.transform = 'translateY(0)';
       }}
     >
       <div style={cardTopRowStyle}>
@@ -210,6 +233,258 @@ function SparkCard({ item, timeRange }) {
           ? `Updated ${new Date(item.latest.timestamp).toLocaleString()}`
           : 'Waiting for MQTT data'}
       </div>
+
+      <div style={clickHintStyle}>
+        Click to view detailed chart
+      </div>
+    </div>
+  );
+}
+
+function SensorDetailModal({ item, timeRange, onClose }) {
+  const [detailData, setDetailData] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!item) return undefined;
+
+    let mounted = true;
+
+    const fetchDetailData = async () => {
+      setLoading(true);
+
+      try {
+        const now = Date.now();
+
+        const rows = await getTagData(item.device_id, item.tag_id, {
+          from: now - timeRange.ms,
+          to: now,
+          limit: 2000,
+        });
+
+        if (!mounted) return;
+
+        const mapped = Array.isArray(rows)
+          ? rows
+              .filter(row => row.timestamp && row.value !== undefined && row.value !== null)
+              .map(row => ({
+                ...row,
+                value: Number(row.value),
+                ts: new Date(row.timestamp).getTime(),
+              }))
+              .filter(row => !Number.isNaN(row.value) && !Number.isNaN(row.ts))
+          : [];
+
+        setDetailData(mapped);
+      } catch (err) {
+        console.error('Failed to load detailed sensor data:', err);
+
+        if (mounted) {
+          setDetailData([]);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchDetailData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [item, timeRange]);
+
+  if (!item) return null;
+
+  const values = detailData.map(row => row.value);
+  const latestValue =
+    item.latest?.value !== undefined && item.latest?.value !== null
+      ? Number(item.latest.value)
+      : values.length
+        ? values[values.length - 1]
+        : null;
+
+  const minValue = values.length ? Math.min(...values) : null;
+  const maxValue = values.length ? Math.max(...values) : null;
+  const avgValue = values.length
+    ? values.reduce((sum, value) => sum + value, 0) / values.length
+    : null;
+
+  const unit = item.unit || '';
+  const latestTimestamp = item.latest?.timestamp || detailData[detailData.length - 1]?.timestamp;
+
+  return (
+    <div style={modalOverlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={e => e.stopPropagation()}>
+        <div style={modalHeaderStyle}>
+          <div>
+            <div style={modalKickerStyle}>
+              Sensor Detail
+            </div>
+
+            <h2 style={modalTitleStyle}>
+              {displayTagName(item)}
+            </h2>
+
+            <p style={modalSubtitleStyle}>
+              {displayDeviceName(item)}
+            </p>
+          </div>
+
+          <button type="button" style={closeButtonStyle} onClick={onClose}>
+            <FiX size={20} />
+          </button>
+        </div>
+
+        <div style={detailGridStyle}>
+          <DetailBox
+            label="Latest"
+            value={latestValue === null ? '—' : latestValue.toFixed(2)}
+            suffix={unit}
+          />
+
+          <DetailBox
+            label="Minimum"
+            value={minValue === null ? '—' : minValue.toFixed(2)}
+            suffix={unit}
+          />
+
+          <DetailBox
+            label="Maximum"
+            value={maxValue === null ? '—' : maxValue.toFixed(2)}
+            suffix={unit}
+          />
+
+          <DetailBox
+            label="Average"
+            value={avgValue === null ? '—' : avgValue.toFixed(2)}
+            suffix={unit}
+          />
+        </div>
+
+        <div style={descriptionBoxStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FiInfo size={16} color="#2563eb" />
+            <strong>Details</strong>
+          </div>
+
+          <div style={descriptionGridStyle}>
+            <DescriptionItem label="Device ID" value={item.device_id} />
+            <DescriptionItem label="Device Name" value={displayDeviceName(item)} />
+            <DescriptionItem label="Tag ID" value={item.tag_id} />
+            <DescriptionItem label="Tag Name" value={displayTagName(item)} />
+            <DescriptionItem label="Sensor Type" value={item.sensor_type || '—'} />
+            <DescriptionItem label="Unit" value={unit || '—'} />
+            <DescriptionItem label="Latest Update" value={formatTime(latestTimestamp)} />
+            <DescriptionItem label="Data Points" value={detailData.length} />
+          </div>
+        </div>
+
+        <div style={largeChartBoxStyle}>
+          <div style={largeChartHeaderStyle}>
+            <div>
+              <h3 style={largeChartTitleStyle}>
+                Historical Trend
+              </h3>
+
+              <p style={largeChartSubtitleStyle}>
+                Showing {timeRange.label} history for this sensor tag.
+              </p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div style={largeChartEmptyStyle}>
+              Loading detailed chart…
+            </div>
+          ) : detailData.length === 0 ? (
+            <div style={largeChartEmptyStyle}>
+              No historical data available for this sensor.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={360}>
+              <LineChart data={detailData} margin={{ top: 20, right: 24, bottom: 20, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+
+                <XAxis
+                  dataKey="ts"
+                  type="number"
+                  domain={['dataMin', 'dataMax']}
+                  scale="time"
+                  tickFormatter={formatChartTime}
+                  tick={{ fill: '#64748b', fontSize: 11 }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={false}
+                />
+
+                <YAxis
+                  tick={{ fill: '#64748b', fontSize: 11 }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={false}
+                  width={56}
+                />
+
+                <Tooltip
+                  contentStyle={largeTooltipStyle}
+                  labelFormatter={label => new Date(label).toLocaleString()}
+                  formatter={value => [
+                    `${Number(value).toFixed(3)} ${unit || ''}`,
+                    displayTagName(item),
+                  ]}
+                />
+
+                <Legend
+                  formatter={() => (
+                    <span style={{ color: '#334155', fontSize: 12, fontWeight: 700 }}>
+                      {displayTagName(item)}
+                    </span>
+                  )}
+                />
+
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  name={displayTagName(item)}
+                  stroke="#2563eb"
+                  strokeWidth={3}
+                  dot={false}
+                  activeDot={{
+                    r: 6,
+                    fill: '#2563eb',
+                    stroke: '#fff',
+                    strokeWidth: 2,
+                  }}
+                  isAnimationActive={detailData.length < 200}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailBox({ label, value, suffix }) {
+  return (
+    <div style={detailBoxStyle}>
+      <div style={detailLabelStyle}>{label}</div>
+
+      <div style={detailValueStyle}>
+        {value}
+        {suffix ? <span style={detailSuffixStyle}> {suffix}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function DescriptionItem({ label, value }) {
+  return (
+    <div>
+      <div style={descriptionLabelStyle}>{label}</div>
+      <div style={descriptionValueStyle}>{value || '—'}</div>
     </div>
   );
 }
@@ -221,6 +496,7 @@ export default function TrendPage() {
   const [refreshAt, setRefreshAt] = useState(Date.now());
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
@@ -370,9 +646,18 @@ export default function TrendPage() {
               key={`${item.device_id}-${item.tag_id}`}
               item={item}
               timeRange={timeRange}
+              onClick={setSelectedItem}
             />
           ))}
         </div>
+      )}
+
+      {selectedItem && (
+        <SensorDetailModal
+          item={selectedItem}
+          timeRange={timeRange}
+          onClose={() => setSelectedItem(null)}
+        />
       )}
 
       <style>{`
@@ -512,7 +797,7 @@ const cardStyle = {
   flexDirection: 'column',
   gap: 10,
   transition: 'all 0.2s',
-  cursor: 'default',
+  cursor: 'pointer',
   boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
 };
 
@@ -571,6 +856,12 @@ const footerStyle = {
   fontWeight: 600,
 };
 
+const clickHintStyle = {
+  fontSize: 10,
+  color: '#2563eb',
+  fontWeight: 700,
+};
+
 const tooltipContentStyle = {
   background: '#fff',
   border: '1px solid #e2e8f0',
@@ -602,4 +893,172 @@ const errorStyle = {
   padding: '10px 14px',
   marginBottom: 18,
   fontWeight: 700,
+};
+
+const modalOverlayStyle = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(15, 23, 42, 0.55)',
+  zIndex: 9999,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 24,
+};
+
+const modalStyle = {
+  width: 'min(1100px, 96vw)',
+  maxHeight: '92vh',
+  overflowY: 'auto',
+  background: '#fff',
+  borderRadius: 20,
+  padding: 24,
+  boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)',
+};
+
+const modalHeaderStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 16,
+  marginBottom: 20,
+};
+
+const modalKickerStyle = {
+  fontSize: 11,
+  textTransform: 'uppercase',
+  color: '#2563eb',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+};
+
+const modalTitleStyle = {
+  margin: '4px 0 0',
+  fontSize: 28,
+  color: '#0f172a',
+};
+
+const modalSubtitleStyle = {
+  margin: '4px 0 0',
+  color: '#64748b',
+  fontWeight: 600,
+};
+
+const closeButtonStyle = {
+  width: 38,
+  height: 38,
+  borderRadius: 10,
+  border: '1px solid #e2e8f0',
+  background: '#fff',
+  cursor: 'pointer',
+  color: '#0f172a',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const detailGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gap: 12,
+  marginBottom: 18,
+};
+
+const detailBoxStyle = {
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  borderRadius: 14,
+  padding: 14,
+};
+
+const detailLabelStyle = {
+  fontSize: 11,
+  textTransform: 'uppercase',
+  color: '#64748b',
+  fontWeight: 800,
+  marginBottom: 6,
+};
+
+const detailValueStyle = {
+  fontSize: 24,
+  color: '#0f172a',
+  fontWeight: 800,
+};
+
+const detailSuffixStyle = {
+  fontSize: 12,
+  color: '#64748b',
+  fontWeight: 700,
+};
+
+const descriptionBoxStyle = {
+  background: '#eff6ff',
+  border: '1px solid #bfdbfe',
+  borderRadius: 14,
+  padding: 16,
+  marginBottom: 18,
+  color: '#1e3a8a',
+};
+
+const descriptionGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 12,
+  marginTop: 12,
+};
+
+const descriptionLabelStyle = {
+  fontSize: 11,
+  textTransform: 'uppercase',
+  color: '#64748b',
+  fontWeight: 800,
+};
+
+const descriptionValueStyle = {
+  fontSize: 13,
+  color: '#0f172a',
+  fontWeight: 700,
+  wordBreak: 'break-word',
+};
+
+const largeChartBoxStyle = {
+  background: '#fff',
+  border: '1px solid #e2e8f0',
+  borderRadius: 16,
+  padding: 18,
+};
+
+const largeChartHeaderStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  marginBottom: 12,
+};
+
+const largeChartTitleStyle = {
+  margin: 0,
+  fontSize: 18,
+  fontWeight: 800,
+  color: '#0f172a',
+};
+
+const largeChartSubtitleStyle = {
+  margin: '4px 0 0',
+  color: '#64748b',
+  fontSize: 12,
+};
+
+const largeChartEmptyStyle = {
+  height: 360,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#94a3b8',
+};
+
+const largeTooltipStyle = {
+  background: '#fff',
+  border: '1px solid #e2e8f0',
+  borderRadius: 10,
+  fontSize: 12,
+  color: '#1e293b',
+  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
 };

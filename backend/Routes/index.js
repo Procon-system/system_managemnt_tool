@@ -27,7 +27,7 @@ router.use('/resource-types', authenticateUser, orgMiddleware, resourceTypeRoute
 router.use('/users', authenticateUser, orgMiddleware, userRoutes);
 router.use('/notifications', authenticateUser, orgMiddleware, notificationRoutes);
 // router.use('/client-assets', authenticateUser, orgMiddleware, clientAssetRoutes);
-router.use('/reports', authenticateUser, orgMiddleware, reportRoutes);
+// router.use('/reports', authenticateUser, orgMiddleware, reportRoutes);
 router.use('/sensors', authenticateUser, orgMiddleware, sensorRoutes);
 router.use('/custom-sensors', authenticateUser, orgMiddleware, customSensorRoutes);
 module.exports = router;
