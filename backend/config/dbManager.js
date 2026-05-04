@@ -16,6 +16,7 @@ class TenantConnection {
       if (this.models.size > 0) return;
 
       const modelInitializers = {
+        CustomSensor: require('../Models/CustomSensor'),
         User: require('../Models/UserSchema'),
         Team: require('../Models/TeamSchema'),
         Task: require('../Models/TaskSchema'),
@@ -25,16 +26,39 @@ class TenantConnection {
         ResourceBooking: require('../Models/ResourceBookingSchema'),
         PushToken: require('../Models/PushTokenSchema'),
         ClientAsset: require('../Models/ClientAsset'),
-        Sensor: require('../Models/SensorSchema'),
-        SensorData: require('../Models/SensorDataSchema'),
+        Sensor: require('../Models/Sensor'),
+        SensorData: require('../Models/SensorData'),
+        
       };
 
       for (const [modelName, initFn] of Object.entries(modelInitializers)) {
-        if (!this.connection.models[modelName]) {
-          const model = initFn(this.connection);
+        if (typeof initFn !== 'function') {
+          throw new TypeError(
+            `Model initializer for ${modelName} must export a function. Check ../Models/${modelName}.js`
+          );
+        }
+
+        // Important:
+        // Do not return early just because some models exist.
+        // Always add any missing models.
+        let model = this.models.get(modelName);
+
+        if (!model) {
+          model = this.connection.models[modelName] || await initFn(this.connection);
           this.models.set(modelName, model);
         }
       }
+
+      console.log(`✅ Tenant models initialized for org ${this.orgId}:`, [
+        ...this.models.keys(),
+      ]);
+
+      // for (const [modelName, initFn] of Object.entries(modelInitializers)) {
+      //   if (!this.connection.models[modelName]) {
+      //     const model = initFn(this.connection);
+      //     this.models.set(modelName, model);
+      //   }
+      // }
     } catch (error) {
       console.error(`Model initialization failed for org ${this.orgId}:`, error);
       throw error;
@@ -54,14 +78,22 @@ class TenantConnection {
 async function getOrganizationDB(orgId) {
   const orgIdStr = orgId.toString();
 
+  // if (tenantConnections.has(orgIdStr)) {
+  //   // ✅ Return the whole TenantConnection object
+  //   return tenantConnections.get(orgIdStr);
+  // }
   if (tenantConnections.has(orgIdStr)) {
-    // ✅ Return the whole TenantConnection object
-    return tenantConnections.get(orgIdStr);
-  }
+    const tenantConn = tenantConnections.get(orgIdStr);
 
+    // Important:
+    // Re-run initializeModels so newly added models like CustomSensor are added.
+    await tenantConn.initializeModels();
+
+    return tenantConn;
+  }
   const dbName = `org_${orgIdStr}`;
   const connectionUri = config.mongoURI.replace(
-    new RegExp(`/${config.baseDBName}(?=[/?]|$)`), 
+    new RegExp(`/${config.baseDBName}(?=[/?]|$)`),
     `/${dbName}`
   );
 
@@ -77,7 +109,7 @@ async function getOrganizationDB(orgId) {
   try {
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Connection timeout')), 10000);
-    
+
       connection.once('connected', () => {
         clearTimeout(timeout);
         if (connection.readyState === 1) {
@@ -86,7 +118,7 @@ async function getOrganizationDB(orgId) {
           reject(new Error('Connection is not fully ready'));
         }
       });
-    
+
       connection.once('error', (err) => {
         clearTimeout(timeout);
         reject(err);
@@ -95,7 +127,6 @@ async function getOrganizationDB(orgId) {
 
     await tenantConn.initializeModels();
     tenantConnections.set(orgIdStr, tenantConn);
-
     // ✅ Return full TenantConnection instance
     return tenantConn;
 

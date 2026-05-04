@@ -12,6 +12,7 @@ const notificationRoutes = require('./notificationRoutes');
 // const clientAssetRoutes = require('./clientAssetRoutes');
 const reportRoutes = require('./reportRoutes');
 const sensorRoutes = require('./sensorRoutes');
+const customSensorRoutes = require('./customSensorRoutes');
 const { authenticateUser } = require('../Middleware/authMiddleware');
 const orgMiddleware = require('../Middleware/orgMiddleware');
 
@@ -28,4 +29,5 @@ router.use('/notifications', authenticateUser, orgMiddleware, notificationRoutes
 // router.use('/client-assets', authenticateUser, orgMiddleware, clientAssetRoutes);
 router.use('/reports', authenticateUser, orgMiddleware, reportRoutes);
 router.use('/sensors', authenticateUser, orgMiddleware, sensorRoutes);
+router.use('/custom-sensors', authenticateUser, orgMiddleware, customSensorRoutes);
 module.exports = router;

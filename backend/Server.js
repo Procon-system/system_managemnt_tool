@@ -1,7 +1,7 @@
 
 const express = require("express");
 const http = require("http");
-const { mqttClient } = require('./utils/mqttClient'); 
+const { mqttClient } = require('./utils/mqttClient');
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -10,8 +10,8 @@ const dotenv = require("dotenv");
 const config = require("./config/config");
 const routes = require("./Routes/index");
 const { connectRedis } = require("./redisClient");
-const { 
-  getOrganizationDB, 
+const {
+  getOrganizationDB,
   closeAllConnections,
   getActiveTenantCount,
 } = require("./config/dbManager");
@@ -42,7 +42,7 @@ app.use(async (req, res, next) => {
       Superadmin: mongoose.model('Superadmin'),
       TenantUser: mongoose.model('TenantUser')
     };
-    
+
     // Tenant DB injection if tenantId is present
     const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
     if (tenantId) {
@@ -59,6 +59,9 @@ app.use(async (req, res, next) => {
         ResourceBooking: tenantConn.models.get('ResourceBooking'),
         PushToken: tenantConn.models.get('PushToken'),
         ClientAsset: tenantConn.models.get('ClientAsset'),
+        Sensor: tenantConn.models.get('Sensor'),
+        SensorData: tenantConn.models.get('SensorData'),
+        CustomSensor: tenantConn.models.get('CustomSensor'),
       };
     }
 
@@ -80,11 +83,11 @@ async function initializeApplication() {
       maxPoolSize: 10,
       socketTimeoutMS: 30000
     });
-    
+
     await connectRedis();
 
     const { Organization, Superadmin, TenantUser } = initializeMainModels(mongoose.connection);
-  
+
     // Middleware setup
     app.use(bodyParser.json());
     app.use(express.json());
@@ -99,7 +102,7 @@ async function initializeApplication() {
     app.use("*", (req, res) => res.status(404).send("Not Found"));
 
     // Start HTTP + Socket.IO server
-    httpServer.listen(config.port,'0.0.0.0',() => {
+    httpServer.listen(config.port, '0.0.0.0', () => {
       console.log(`
         ✅ Server running on port ${config.port}
         🏢 Active tenants: ${getActiveTenantCount()}
